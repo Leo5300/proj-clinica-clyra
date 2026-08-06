@@ -6,7 +6,7 @@ implementada. Não deixe nenhum "[a preencher]" na versão final (Aula 16).
 
 -->
 
-# [Nome do App da Squad] — Sistema de Agendamento para Clínica Médica
+# [CLYRA] — Sistema de Agendamento para Clínica Médica
 
 > Projeto integrador da Unidade Curricular **Aplicações Mobile**, construído ao longo de 16 aulas.
 
