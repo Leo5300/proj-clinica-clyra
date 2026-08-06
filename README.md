@@ -10,7 +10,7 @@ implementada. Não deixe nenhum "[a preencher]" na versão final (Aula 16).
 
 > Projeto integrador da Unidade Curricular **Aplicações Mobile**, construído ao longo de 16 aulas.
 
-**Squad:** [nomes dos integrantes]
+**Squad:** [Felipe Augusto da Silva, Jean Vinicius Rodrigues de Oliveira, Leonardo Marchi Malheiros]
 **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas — Turma STADS
 **Professor:** Prof. Dr. Maurício Falvo
 
