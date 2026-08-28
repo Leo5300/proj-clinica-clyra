@@ -1,0 +1,18 @@
+
+.container { 
+    flex: 1;
+    justify-content: 'center';
+    align-items: 'center';
+    background-color: #F00;
+  }
+
+.title { 
+    text-align: center;
+    font-size: 24; 
+    font-weight: 'bold';
+ }
+ .logo{
+
+    width: 50%; 
+    height: 50%;
+  }
