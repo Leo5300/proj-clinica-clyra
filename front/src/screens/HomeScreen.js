@@ -94,6 +94,7 @@ export default function HomeScreen({ navigation }) {
     { key: 'consultas', label: 'Sessões', icon: 'list', onPress: () => navigation.navigate('Consultas') },
     { key: 'diario', label: 'Diário', icon: 'edit-3', onPress: () => navigation.navigate('Diario') },
     { key: 'perfil', label: 'Perfil', icon: 'user', onPress: () => navigation.navigate('Perfil') },
+    { key: 'medicos', label: 'Médicos', icon: 'briefcase', onPress: () => navigation.navigate('Medicos') },
   ];
 
   return (
