@@ -53,7 +53,9 @@ export default function MedicosScreen({ navigation }) {
           <Feather name="arrow-left" size={22} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>Médicos</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity onPress={() => navigation.navigate('CadastroMedico')}>
+          <Feather name="plus" size={22} color={colors.ink} />
+        </TouchableOpacity>
       </View>
 
       {carregando ? (
@@ -73,11 +75,14 @@ export default function MedicosScreen({ navigation }) {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() => navigation.navigate('CadastroMedico', { medico: item })}
+            >
               <Text style={styles.nome}>{item.nome}</Text>
               <Text style={styles.especialidade}>{item.especialidade}</Text>
               <Text style={styles.detalhe}>CRM {item.crm}</Text>
-            </View>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Nenhum médico cadastrado.</Text>
@@ -98,7 +103,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   errorText: { color: colors.muted, fontSize: 14, textAlign: 'center', marginBottom: 14 },

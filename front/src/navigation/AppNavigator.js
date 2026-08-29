@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MedicosScreen from '../screens/MedicosScreen';
+import CadastroMedicoScreen from '../screens/CadastroMedicoScreen';
 
 // npx expo install @react-navigation/native @react-navigation/native-stack
 //                  react-native-screens react-native-safe-area-context
@@ -24,6 +25,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Medicos" component={MedicosScreen} />
+        <Stack.Screen name="CadastroMedico" component={CadastroMedicoScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
