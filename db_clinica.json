@@ -1,0 +1,30 @@
+{
+  "medicos": [
+    { "id": 1, "nome": "João de Oliveira", "especialidade": "Cardiologista", "crm": "12345/MG", "email": "joao@clinica.com", "telefone": "(31) 98765-4321", "endereco": "Rua A, 100" },
+    { "id": 2, "nome": "Antônio de Oliveira", "especialidade": "Pediatra", "crm": "23456/MG", "email": "antonio@clinica.com", "telefone": "(31) 99876-5432", "endereco": "Av. B, 200" },
+    { "id": 3, "nome": "Maria da Silva", "especialidade": "Dermatologista", "crm": "34567/SP", "email": "maria@clinica.com", "telefone": "(11) 97654-3210", "endereco": "Rua C, 300" },
+    { "id": 4, "nome": "Beatriz Souza", "especialidade": "Ginecologista", "crm": "45678/RJ", "email": "beatriz@clinica.com", "telefone": "(21) 96543-2109", "endereco": "Av. D, 400" },
+    { "id": 5, "nome": "Carlos Santos", "especialidade": "Neurologista", "crm": "56789/BA", "email": "carlos@clinica.com", "telefone": "(71) 95432-1098", "endereco": "Praça E, 500" }
+  ],
+  "pacientes": [
+    { "id": 1, "nome": "Lucas Pereira", "cpf": "111.111.111-11", "dataNascimento": "1990-04-12", "telefone": "(31) 91111-1111", "email": "lucas@exemplo.com" },
+    { "id": 2, "nome": "Fernanda Lima", "cpf": "222.222.222-22", "dataNascimento": "1985-09-03", "telefone": "(31) 92222-2222", "email": "fernanda@exemplo.com" },
+    { "id": 3, "nome": "Rafael Costa", "cpf": "333.333.333-33", "dataNascimento": "2001-01-27", "telefone": "(31) 93333-3333", "email": "rafael@exemplo.com" },
+    { "id": 4, "nome": "Juliana Alves", "cpf": "444.444.444-44", "dataNascimento": "1978-11-30", "telefone": "(31) 94444-4444", "email": "juliana@exemplo.com" }
+  ],
+  "especialidades": [
+    { "id": 1, "nome": "Cardiologia" },
+    { "id": 2, "nome": "Pediatria" },
+    { "id": 3, "nome": "Dermatologia" },
+    { "id": 4, "nome": "Ginecologia" },
+    { "id": 5, "nome": "Neurologia" },
+    { "id": 6, "nome": "Oftalmologia" },
+    { "id": 7, "nome": "Clínica Geral" }
+  ],
+  "horarios": [
+    { "id": 1, "medicoId": 1, "diaSemana": "Segunda-feira", "horaInicio": "08:00", "horaFim": "12:00" },
+    { "id": 2, "medicoId": 1, "diaSemana": "Quarta-feira", "horaInicio": "14:00", "horaFim": "18:00" },
+    { "id": 3, "medicoId": 2, "diaSemana": "Terça-feira", "horaInicio": "09:00", "horaFim": "13:00" },
+    { "id": 4, "medicoId": 3, "diaSemana": "Quinta-feira", "horaInicio": "13:00", "horaFim": "17:00" }
+  ]
+}
