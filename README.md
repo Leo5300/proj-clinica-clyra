@@ -2,7 +2,7 @@
 
 > Projeto integrador da Unidade Curricular **Aplicações Mobile**, construído ao longo de 16 aulas.
 
-**Squad:** Felipe Augusto da Silva, Jean Vinicius Rodrigues de Oliveira, Leonardo Marchi Malheiros
+**Squad:** Felipe Augusto da Silva, Jean Vinicius Rodrigues de Oliveira, Leonardo Marchi Malheiros, Gabriel Vinicius Martins
 **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas — Turma CSTADS601
 **Professor:** Prof. Dr. Maurício Falvo
 
@@ -97,6 +97,8 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Médicos | Listagem de médicos vinda de `GET /medicos`, com cadastro, edição e exclusão. | Cadastro/Edição de Médico |
 | Cadastro/Edição de Médico | Formulário único: cria via `POST` ou atualiza via `PUT`. | Médicos |
 | Pacientes | Listagem de pacientes vinda de `GET /pacientes`. | Home |
+| Horários | Listagem de horários vinda de `GET /horarios`, com cadastro, edição e exclusão. | Home |
+| Especialidades | Listagem de especialidades vinda de `GET /especialidades`, com cadastro, edição e exclusão. | Home |
 
 ## Tecnologias
 
@@ -185,9 +187,10 @@ entra por Pull Request. Cada integrante trabalha na branch do seu módulo.
 | Branch | Responsável | Escopo |
 |---|---|---|
 | `main` | — | linha estável, protegida |
-| `feature/design-system` | Jean Vinicius | tema, tokens visuais, componentes compartilhados |
 | `feature/medicos` | Leonardo | módulo de médicos — listagem e CRUD |
 | `feature/pacientes` | Felipe | módulo de pacientes — listagem e CRUD |
+| `feature/horarios` | Jean | módulo de horários — listagem e CRUD |
+| `feature/especialidades` | Gabriel | módulo de especialidades — listagem e CRUD |
 
 Nomes em minúsculas, sem acento e sem espaço, palavras separadas por hífen, com
 prefixo indicando o tipo: `feature/`, `fix/`, `docs/`, `refactor/`, `chore/`.
