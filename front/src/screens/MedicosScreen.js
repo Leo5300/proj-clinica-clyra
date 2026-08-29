@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -6,10 +6,12 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { buscarMedicos } from '../services/api';
+import { buscarMedicos, excluirMedico } from '../services/api';
 
 // TODO: mover para front/src/theme quando o ThemeContext existir
 // (feature/design-system). Mesma paleta usada na HomeScreen.
@@ -42,9 +44,35 @@ export default function MedicosScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => {
-    carregarMedicos();
-  }, [carregarMedicos]);
+  // useFocusEffect (nao useEffect) para a lista recarregar toda vez que a
+  // tela volta ao foco -- inclusive ao voltar do formulario de cadastro/edicao.
+  useFocusEffect(
+    useCallback(() => {
+      carregarMedicos();
+    }, [carregarMedicos]),
+  );
+
+  const confirmarExclusao = (medico) => {
+    Alert.alert(
+      'Excluir médico',
+      `Deseja excluir ${medico.nome}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: () => excluir(medico.id) },
+      ],
+    );
+  };
+
+  const excluir = async (id) => {
+    try {
+      await excluirMedico(id);
+      // O servidor e a fonte da verdade: recarrega a lista dele em vez de
+      // so remover o item do array local.
+      carregarMedicos();
+    } catch (e) {
+      Alert.alert('Erro', 'Não foi possível excluir o médico agora.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -75,14 +103,19 @@ export default function MedicosScreen({ navigation }) {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => navigation.navigate('CadastroMedico', { medico: item })}
-            >
-              <Text style={styles.nome}>{item.nome}</Text>
-              <Text style={styles.especialidade}>{item.especialidade}</Text>
-              <Text style={styles.detalhe}>CRM {item.crm}</Text>
-            </TouchableOpacity>
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.cardInfo}
+                onPress={() => navigation.navigate('CadastroMedico', { medico: item })}
+              >
+                <Text style={styles.nome}>{item.nome}</Text>
+                <Text style={styles.especialidade}>{item.especialidade}</Text>
+                <Text style={styles.detalhe}>CRM {item.crm}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => confirmarExclusao(item)}>
+                <Feather name="trash-2" size={18} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Nenhum médico cadastrado.</Text>
@@ -116,6 +149,9 @@ const styles = StyleSheet.create({
 
   list: { padding: 20, paddingBottom: 40 },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -123,6 +159,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  cardInfo: { flex: 1, marginRight: 12 },
   nome: { fontSize: 15, fontWeight: '700', color: colors.ink },
   especialidade: { fontSize: 13, color: colors.sage, marginTop: 2 },
   detalhe: { fontSize: 12, color: colors.muted, marginTop: 6 },
