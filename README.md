@@ -57,7 +57,7 @@ front/
 Checklist dos entregáveis previstos na Situação de Aprendizagem Desafiadora do Plano de
 Ensino. Marcado conforme cada item é implementado pela squad.
 
-- [ ] Protótipo wireframe das interfaces da aplicação (Figma)
+- [x] Protótipo wireframe das interfaces da aplicação (Figma)
 - [x] Projeto do aplicativo configurado e versionado no Git
 - [ ] Cadastro de foto de perfil (paciente e médico) via câmera do dispositivo
 - [ ] Login com biometria implementado para médico/recepção
