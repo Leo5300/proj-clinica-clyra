@@ -59,9 +59,9 @@ async function buscarEspecialidades() {
 }
 
 async function criarEspecialidade(especialidade) {
-  const resposta = await fetch(`${BASE_URL}/medicos`, {
+  const resposta = await fetch(`${BASE_URL}/especialidades`, {
     method: "POST",
-    headers: { "Content-Type": "aplication/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(especialidade),
   });
   if (!resposta.ok)
@@ -69,7 +69,7 @@ async function criarEspecialidade(especialidade) {
   return resposta.json();
 }
 async function atualizarEspecialidade(id, especialidade) {
-  const resposta = await fetch(`${BASE_URL}/especialidade/${id}`, {
+  const resposta = await fetch(`${BASE_URL}/especialidades/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(especialidade),
@@ -80,7 +80,7 @@ async function atualizarEspecialidade(id, especialidade) {
 }
 
 async function excluirEspecialidade(id) {
-  const resposta = await fetch(`${BASE_URL}/especialidade/${id}`, {
+  const resposta = await fetch(`${BASE_URL}/especialidades/${id}`, {
     method: "DELETE",
   });
   if (!resposta.ok)
