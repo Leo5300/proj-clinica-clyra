@@ -44,10 +44,45 @@ async function excluirMedico(id) {
   if (!resposta.ok) throw new Error(`Erro ${resposta.status} ao excluir medico`);
 }
 
+async function buscarHorarios() {
+  const resposta = await fetch(`${BASE_URL}/horarios`);
+  if (!resposta.ok) throw new Error(`Erro ${resposta.status} ao buscar horarios`);
+  return resposta.json();
+}
+
+async function criarHorario(horario) {
+  const resposta = await fetch(`${BASE_URL}/horarios`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(horario),
+  });
+  if (!resposta.ok) throw new Error(`Erro ${resposta.status} ao cadastrar horario`);
+  return resposta.json();
+}
+
+async function atualizarHorario(id, horario) {
+  const resposta = await fetch(`${BASE_URL}/horarios/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(horario),
+  });
+  if (!resposta.ok) throw new Error(`Erro ${resposta.status} ao atualizar horario`);
+  return resposta.json();
+}
+
+async function excluirHorario(id) {
+  const resposta = await fetch(`${BASE_URL}/horarios/${id}`, { method: 'DELETE' });
+  if (!resposta.ok) throw new Error(`Erro ${resposta.status} ao excluir horario`);
+}
+
 export {
   buscarMedicos,
   buscarPacientes,
   criarMedico,
   atualizarMedico,
   excluirMedico,
+  buscarHorarios,
+  criarHorario,
+  atualizarHorario,
+  excluirHorario,
 };
