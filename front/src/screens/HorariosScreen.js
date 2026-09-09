@@ -8,10 +8,16 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { buscarHorarios, excluirHorario } from '../services/api';
+import {
+  buscarHorarios, buscarMedicos, excluirHorario,
+} from '../services/api';
+
+
+
 
 // TODO: mover para front/src/theme quando o ThemeContext existir.
 // Mantemos a mesma paleta das telas ja existentes para evitar estilos
@@ -29,6 +35,7 @@ export default function HorariosScreen({ navigation }) {
   // Cada estado representa uma informacao diferente da tela, permitindo
   // tratar carregamento e erro sem esconder uma lista que ja foi carregada.
   const [horarios, setHorarios] = useState([]);
+  const [medicos, setMedicos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
 
@@ -37,9 +44,15 @@ export default function HorariosScreen({ navigation }) {
       setErro(null);
       setCarregando(true);
 
-      const dados = await buscarHorarios();
-      setHorarios(dados);
+      const [dadosHorarios, dadosMedicos] = await Promise.all([
+        buscarHorarios(),
+        buscarMedicos(),
+      ]);
+
+      setHorarios(dadosHorarios);
+      setMedicos(dadosMedicos);
     } catch (e) {
+      console.error(e);
       setErro('Nao foi possivel carregar os horarios agora.');
     } finally {
       setCarregando(false);
@@ -55,11 +68,28 @@ export default function HorariosScreen({ navigation }) {
   );
 
   const confirmarExclusao = (horario) => {
+    console.log('Botão excluir clicado:', horario);
+
+    if (Platform.OS === 'web') {
+      const confirmou = window.confirm(
+        `Deseja excluir o horário de ${horario.diaSemana}?`,
+      );
+
+      if (confirmou) {
+        excluir(horario.id);
+      }
+
+      return;
+    }
+
     Alert.alert(
-      'Excluir horario',
-      `Deseja excluir o horario de ${horario.diaSemana}?`,
+      'Excluir horário',
+      `Deseja excluir o horário de ${horario.diaSemana}?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
         {
           text: 'Excluir',
           style: 'destructive',
@@ -71,15 +101,46 @@ export default function HorariosScreen({ navigation }) {
 
   const excluir = async (id) => {
     try {
+      console.log('Tentando excluir horário ID:', id);
+
       await excluirHorario(id);
 
-      // O servidor continua sendo a fonte da verdade, entao a lista e
-      // atualizada novamente depois da exclusao.
-      carregarHorarios();
+      console.log('Horário excluído com sucesso');
+
+      setHorarios((horariosAtuais) =>
+        horariosAtuais.filter(
+          (horario) => String(horario.id) !== String(id),
+        ),
+      );
+
+      if (Platform.OS === 'web') {
+        window.alert('Horário excluído com sucesso.');
+      } else {
+        Alert.alert(
+          'Sucesso',
+          'Horário excluído com sucesso.',
+        );
+      }
     } catch (e) {
-      Alert.alert('Erro', 'Nao foi possivel excluir o horario agora.');
+      console.error('Erro ao excluir horário:', e);
+
+      if (Platform.OS === 'web') {
+        window.alert('Não foi possível excluir o horário.');
+      } else {
+        Alert.alert(
+          'Erro',
+          'Não foi possível excluir o horário agora.',
+        );
+      }
     }
   };
+
+  const encontrarMedico = (medicoId) => {
+    return medicos.find(
+      (medico) => Number(medico.id) === Number(medicoId),
+    );
+  };
+
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -142,15 +203,27 @@ export default function HorariosScreen({ navigation }) {
                 </View>
 
                 <Text style={styles.detalhe}>
-                  Medico ID: {item.medicoId}
+                  {(() => {
+                    const medico = encontrarMedico(item.medicoId);
+
+                    return medico
+                      ? `Médico: ${medico.nome} (ID: ${medico.id})`
+                      : `Médico ID: ${item.medicoId}`;
+                  })()}
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => confirmarExclusao(item)}>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => {
+                  console.log('CLICOU NA LIXEIRA');
+                  confirmarExclusao(item);
+                }}
+              >
                 <Feather
                   name="trash-2"
-                  size={18}
-                  color={colors.muted}
+                  size={20}
+                  color="#C0392B"
                 />
               </TouchableOpacity>
             </View>
@@ -265,4 +338,16 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 40,
   },
+
+  emptyText: {
+  textAlign: 'center',
+  color: colors.muted,
+  marginTop: 40,
+},
+
+deleteButton: {
+  padding: 12,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
 });
