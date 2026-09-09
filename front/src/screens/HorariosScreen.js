@@ -339,12 +339,6 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
 
-  emptyText: {
-  textAlign: 'center',
-  color: colors.muted,
-  marginTop: 40,
-},
-
 deleteButton: {
   padding: 12,
   justifyContent: 'center',
