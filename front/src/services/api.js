@@ -60,6 +60,45 @@ async function excluirMedico(id) {
   }
 }
 
+// ==================== PACIENTES ====================
+
+async function criarPaciente(paciente) {
+  const resposta = await fetch(`${BASE_URL}/pacientes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(paciente),
+  });
+
+  if (!resposta.ok) {
+    throw new Error(`Erro ${resposta.status} ao cadastrar paciente`);
+  }
+
+  return resposta.json();
+}
+
+async function atualizarPaciente(id, paciente) {
+  const resposta = await fetch(`${BASE_URL}/pacientes/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(paciente),
+  });
+
+  if (!resposta.ok) {
+    throw new Error(`Erro ${resposta.status} ao atualizar paciente`);
+  }
+
+  return resposta.json();
+}
+
+async function excluirPaciente(id) {
+  const resposta = await fetch(`${BASE_URL}/pacientes/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!resposta.ok) {
+    throw new Error(`Erro ${resposta.status} ao excluir paciente`);
+  }
+}
 
 // ==================== HORÁRIOS ====================
 
@@ -111,7 +150,6 @@ async function excluirHorario(id) {
   }
 }
 
-
 // ==================== EXPORTS ====================
 
 export {
@@ -120,7 +158,9 @@ export {
   criarMedico,
   atualizarMedico,
   excluirMedico,
-
+  criarPaciente,
+  atualizarPaciente,
+  excluirPaciente,
   buscarHorarios,
   criarHorario,
   atualizarHorario,
