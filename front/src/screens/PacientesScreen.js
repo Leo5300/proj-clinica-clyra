@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 import {
   SafeAreaView,
   View,
@@ -6,19 +6,21 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons';
-import { buscarPacientes } from '../services/api';
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { Feather } from "@expo/vector-icons";
+import { buscarPacientes, excluirPaciente } from "../services/api";
 
 const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
+  bg: "#F5F5F2",
+  surface: "#FFFFFF",
+  border: "#E2E1DB",
+  ink: "#4A5560",
+  muted: "#8B909A",
+  sage: "#4B7776",
+  danger: "#B0555F",
 };
 
 export default function PacientesScreen({ navigation }) {
@@ -32,7 +34,7 @@ export default function PacientesScreen({ navigation }) {
       const dados = await buscarPacientes();
       setPacientes(dados);
     } catch (e) {
-      setErro('Não foi possível carregar os pacientes agora.');
+      setErro("Não foi possível carregar os pacientes agora.");
     } finally {
       setCarregando(false);
     }
@@ -45,6 +47,28 @@ export default function PacientesScreen({ navigation }) {
     }, [carregarPacientes]),
   );
 
+  const confirmarExclusao = (paciente) => {
+    Alert.alert("Excluir paciente", `Deseja excluir ${paciente.nome}?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => excluir(paciente.id),
+      },
+    ]);
+  };
+
+  const excluir = async (id) => {
+    try {
+      await excluirPaciente(id);
+
+      // O servidor permanece como fonte da verdade após a exclusão.
+      await carregarPacientes();
+    } catch (e) {
+      Alert.alert("Erro", "Não foi possível excluir o paciente agora.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -54,7 +78,7 @@ export default function PacientesScreen({ navigation }) {
 
         <Text style={styles.title}>Pacientes</Text>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Cadastro')}>
+        <TouchableOpacity onPress={() => navigation.navigate("Cadastro")}>
           <Feather name="plus" size={22} color={colors.ink} />
         </TouchableOpacity>
       </View>
@@ -66,10 +90,7 @@ export default function PacientesScreen({ navigation }) {
       ) : erro ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{erro}</Text>
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={carregarPacientes}
-          >
+          <TouchableOpacity style={styles.retryBtn} onPress={carregarPacientes}>
             <Text style={styles.retryText}>Tentar novamente</Text>
           </TouchableOpacity>
         </View>
@@ -78,30 +99,30 @@ export default function PacientesScreen({ navigation }) {
           data={pacientes}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() =>
-                navigation.navigate('Cadastro', { paciente: item })
-              }
-            >
-              <View style={styles.cardInfo}>
+          Apague
+          esse
+          trecho
+          e
+          coloque:renderItem={({ item }) => (
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.cardInfo}
+                onPress={() =>
+                  navigation.navigate("Cadastro", { paciente: item })
+                }
+              >
                 <Text style={styles.nome}>{item.nome}</Text>
                 <Text style={styles.cpf}>CPF {item.cpf}</Text>
                 <Text style={styles.detalhe}>{item.email}</Text>
-              </View>
+              </TouchableOpacity>
 
-              <Feather
-                name="chevron-right"
-                size={18}
-                color={colors.muted}
-              />
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => confirmarExclusao(item)}>
+                <Feather name="trash-2" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
           )}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              Nenhum paciente cadastrado.
-            </Text>
+            <Text style={styles.emptyText}>Nenhum paciente cadastrado.</Text>
           }
         />
       )}
@@ -115,27 +136,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
   title: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.ink,
   },
   center: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 24,
   },
   errorText: {
     color: colors.muted,
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 14,
   },
   retryBtn: {
@@ -145,8 +166,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   retryText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
     fontSize: 13,
   },
   list: {
@@ -154,9 +175,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -170,7 +191,7 @@ const styles = StyleSheet.create({
   },
   nome: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.ink,
   },
   cpf: {
@@ -184,7 +205,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   emptyText: {
-    textAlign: 'center',
+    textAlign: "center",
     color: colors.muted,
     marginTop: 40,
   },
