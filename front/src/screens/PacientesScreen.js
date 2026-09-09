@@ -78,7 +78,7 @@ export default function PacientesScreen({ navigation }) {
 
         <Text style={styles.title}>Pacientes</Text>
 
-        <TouchableOpacity onPress={() => navigation.navigate("Cadastro")}>
+        <TouchableOpacity onPress={() => navigation.navigate("CadastroPaciente")}>
           <Feather name="plus" size={22} color={colors.ink} />
         </TouchableOpacity>
       </View>
@@ -99,16 +99,12 @@ export default function PacientesScreen({ navigation }) {
           data={pacientes}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
-          Apague
-          esse
-          trecho
-          e
-          coloque:renderItem={({ item }) => (
+          renderItem={({ item }) => (
             <View style={styles.card}>
               <TouchableOpacity
                 style={styles.cardInfo}
                 onPress={() =>
-                  navigation.navigate("Cadastro", { paciente: item })
+                  navigation.navigate("CadastroPaciente", { paciente: item })
                 }
               >
                 <Text style={styles.nome}>{item.nome}</Text>
