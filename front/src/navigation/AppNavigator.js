@@ -8,6 +8,8 @@ import MedicosScreen from '../screens/MedicosScreen';
 import CadastroMedicoScreen from '../screens/CadastroMedicoScreen';
 import PacientesScreen from '../screens/PacientesScreen';
 import CadastroPacienteScreen from '../screens/CadastroPacienteScreen';
+import HorariosScreen from '../screens/HorariosScreen';
+import CadastroHorarioScreen from '../screens/CadastroHorarioScreen';
 
 // npx expo install @react-navigation/native @react-navigation/native-stack
 //                  react-native-screens react-native-safe-area-context
@@ -29,7 +31,9 @@ export default function AppNavigator() {
         <Stack.Screen name="Medicos" component={MedicosScreen} />
         <Stack.Screen name="CadastroMedico" component={CadastroMedicoScreen} />
         <Stack.Screen name="Pacientes" component={PacientesScreen} />
-        <Stack.Screen name="Cadastro" component={CadastroPacienteScreen} />
+        <Stack.Screen name="CadastroPaciente" component={CadastroPacienteScreen} />
+        <Stack.Screen name="Horarios" component={HorariosScreen} />
+        <Stack.Screen name="CadastroHorario" component={CadastroHorarioScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
