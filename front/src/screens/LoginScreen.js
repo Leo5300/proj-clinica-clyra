@@ -51,63 +51,75 @@ export default function LoginScreen({ navigation }) {
       setError('Preencha e-mail e senha.');
       return;
     }
+
     setError(null);
     setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha }),
-      });
-      if (!res.ok) throw new Error('Credenciais inválidas.');
-      const data = await res.json();
 
-      // TODO: salvar data.token e data.deviceToken com expo-secure-store
-      // (o deviceToken é o que permite o login por biometria depois)
+    // O Spring Boot (back/) nao esta no ar e nao ha previsao de subir no
+    // curto prazo -- toda a squad testa sobre o mock (json-server). Login
+    // provisorio: aceita qualquer email/senha e vai direto pra Home.
+    // Decisao registrada no README, em "Decisoes tecnicas".
+    //
+    // Quando a autenticacao de verdade entrar (Aula 4), reativar o bloco
+    // abaixo e remover o navigation.replace direto:
+    //
+    // try {
+    //   const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ email, senha }),
+    //   });
+    //   if (!res.ok) throw new Error('Credenciais inválidas.');
+    //   const data = await res.json();
+    //   // TODO: salvar data.token e data.deviceToken com expo-secure-store
+    //   navigation.replace('Home');
+    // } catch (e) {
+    //   setError('E-mail ou senha incorretos.');
+    // } finally {
+    //   setLoading(false);
+    // }
 
-      navigation.replace('Home');
-    } catch (e) {
-      setError('E-mail ou senha incorretos.');
-    } finally {
+    setTimeout(() => {
       setLoading(false);
-    }
+      navigation.replace('Home');
+    }, 300);
   };
 
   const handleBiometricLogin = async () => {
     setError(null);
     setBioLoading(true);
-    try {
-      // Exemplo de uso real do expo-local-authentication:
-      //
-      // const LocalAuthentication = require('expo-local-authentication');
-      // const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      // const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      // if (!hasHardware || !isEnrolled) {
-      //   setError('Biometria não configurada neste aparelho.');
-      //   return;
-      // }
-      // const result = await LocalAuthentication.authenticateAsync({
-      //   promptMessage: 'Entrar na Clyra',
-      // });
-      // if (!result.success) return;
 
-      // TODO: ler o deviceToken salvo no SecureStore e trocar por uma
-      // sessão nova em /api/auth/login/biometria
-      const deviceToken = null; // placeholder até o SecureStore estar plugado
+    // Mesmo motivo do handleLogin: sem Spring Boot no ar, biometria tambem
+    // vai direto pra Home. Exemplo de uso real do expo-local-authentication
+    // fica comentado pra quando a autenticacao entrar de verdade:
+    //
+    // const LocalAuthentication = require('expo-local-authentication');
+    // const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    // const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    // if (!hasHardware || !isEnrolled) {
+    //   setError('Biometria não configurada neste aparelho.');
+    //   setBioLoading(false);
+    //   return;
+    // }
+    // const result = await LocalAuthentication.authenticateAsync({
+    //   promptMessage: 'Entrar na Clyra',
+    // });
+    // if (!result.success) {
+    //   setBioLoading(false);
+    //   return;
+    // }
+    // const deviceToken = null; // TODO: ler do SecureStore
+    // const res = await fetch(`${API_BASE_URL}/auth/login/biometria`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ pacienteId: 1, deviceToken }),
+    // });
+    // if (!res.ok) throw new Error('Biometria não reconhecida.');
 
-      const res = await fetch(`${API_BASE_URL}/auth/login/biometria`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pacienteId: 1, deviceToken }),
-      });
-      if (!res.ok) throw new Error('Biometria não reconhecida.');
-
-      navigation.replace('Home');
-    } catch (e) {
-      setError('Não foi possível entrar com biometria.');
-    } finally {
+    setTimeout(() => {
       setBioLoading(false);
-    }
+      navigation.replace('Home');
+    }, 300);
   };
 
   return (
@@ -175,7 +187,7 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.footRow}>
             <Text style={styles.footText}>Ainda não é paciente? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Cadastro')}>
+            <TouchableOpacity onPress={() => navigation.navigate('CadastroPaciente')}>
               <Text style={styles.footLink}>Criar conta</Text>
             </TouchableOpacity>
           </View>
