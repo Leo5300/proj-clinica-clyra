@@ -38,7 +38,6 @@ const icone = require('../../assets/imgs/icone-clyra.png');
 export default function HomeScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // TODO: substituir pelo id do paciente autenticado (context / token salvo no login)
@@ -46,13 +45,20 @@ export default function HomeScreen({ navigation }) {
 
   const fetchHome = useCallback(async () => {
     try {
-      setError(null);
       const res = await fetch(`${API_BASE_URL}/home/${pacienteId}`);
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const json = await res.json();
       setData(json);
     } catch (e) {
-      setError('Não foi possível carregar seus dados agora.');
+      // O Spring Boot (back/) nao esta no ar e nao ha previsao de subir no
+      // curto prazo -- em vez de travar a Home numa tela de erro, usamos um
+      // fallback local. Decisao registrada no README, em "Decisoes tecnicas".
+      setData({
+        saudacao: 'Olá',
+        nomePaciente: 'Paciente',
+        proximaConsulta: null,
+        lembretes: [],
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -76,25 +82,16 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
-  if (error) {
-    return (
-      <SafeAreaView style={[styles.safe, styles.center]}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchHome}>
-          <Text style={styles.retryText}>Tentar novamente</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  // Cada ação sabe pra onde navegar — evita repetir 4 blocos de JSX quase iguais.
-  // Os nomes de rota precisam bater com o Stack/Tab Navigator quando ele existir.
+  // Cada ação sabe pra onde navegar — evita repetir blocos de JSX quase
+  // iguais. Os nomes de rota precisam bater com o AppNavigator.
   const quickActions = [
     { key: 'agendar', label: 'Agendar', icon: 'calendar', onPress: () => navigation.navigate('Agendar') },
     { key: 'consultas', label: 'Sessões', icon: 'list', onPress: () => navigation.navigate('Consultas') },
     { key: 'diario', label: 'Diário', icon: 'edit-3', onPress: () => navigation.navigate('Diario') },
     { key: 'perfil', label: 'Perfil', icon: 'user', onPress: () => navigation.navigate('Perfil') },
     { key: 'medicos', label: 'Médicos', icon: 'briefcase', onPress: () => navigation.navigate('Medicos') },
+    { key: 'pacientes', label: 'Pacientes', icon: 'users', onPress: () => navigation.navigate('Pacientes') },
+    { key: 'horarios', label: 'Horários', icon: 'clock', onPress: () => navigation.navigate('Horarios') },
   ];
 
   return (
@@ -173,15 +170,6 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   content: { padding: 20, paddingBottom: 40 },
 
-  errorText: { color: colors.muted, fontSize: 14, textAlign: 'center', marginBottom: 14 },
-  retryBtn: {
-    backgroundColor: colors.sage,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  retryText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-
   brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brandIcon: { width: 32, height: 32 },
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
@@ -215,8 +203,8 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 13, color: colors.ink, marginBottom: 6 },
 
-  quickGrid: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22 },
-  quickItem: { alignItems: 'center', gap: 8, flex: 1 },
+  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', marginTop: 22, gap: 14 },
+  quickItem: { alignItems: 'center', gap: 8, width: '22%' },
   quickIcon: {
     width: 46,
     height: 46,

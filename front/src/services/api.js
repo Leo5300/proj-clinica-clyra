@@ -19,8 +19,8 @@
 
 import { obterToken, limparToken } from './sessao';
 
-const AUTH_URL = 'http://localhost:3001';
-const API_URL = 'http://localhost:3000';
+const AUTH_URL = 'http://10.110.12.54:3001';
+const API_URL = 'http://10.110.12.54:3000';
 
 // Em dispositivo fisico (Expo Go), 'localhost' e o proprio aparelho: troque
 // pelo IPv4 da maquina que roda os servidores, na mesma rede Wi-Fi.
