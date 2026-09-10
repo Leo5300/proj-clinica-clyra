@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { buscarMedicos, excluirMedico } from '../services/api';
+import { get, remover } from '../services/api';
 
 // TODO: mover para front/src/theme quando o ThemeContext existir
 // (feature/design-system). Mesma paleta usada na HomeScreen.
@@ -35,7 +35,7 @@ export default function MedicosScreen({ navigation }) {
   const carregarMedicos = useCallback(async () => {
     try {
       setErro(null);
-      const dados = await buscarMedicos();
+      const dados = await get('/medicos', { base: 'auth' });
       setMedicos(dados);
     } catch (e) {
       setErro('Não foi possível carregar os médicos agora.');
@@ -65,7 +65,7 @@ export default function MedicosScreen({ navigation }) {
 
   const excluir = async (id) => {
     try {
-      await excluirMedico(id);
+      await remover(`/medicos/${id}`);
       // O servidor e a fonte da verdade: recarrega a lista dele em vez de
       // so remover o item do array local.
       carregarMedicos();
