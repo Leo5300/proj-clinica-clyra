@@ -1,0 +1,22 @@
+API mock de autenticacao da clinica - Aula 4
+===========================================
+
+Copie esta pasta 'servidor' para a raiz do projeto da squad e rode:
+
+    node servidor/auth-api.js
+
+Nao precisa de npm install: o arquivo usa apenas modulos nativos do Node.
+A API sobe na porta 3001 (o json-server da Aula 3 usa a 3000, entao os dois
+podem ficar no ar ao mesmo tempo).
+
+Endpoints:
+  POST /login    { email, senha }              -> 200 { token, usuario } | 401
+  GET  /medicos  Authorization: Bearer <token> -> 200 [...] | 401
+  GET  /perfil   Authorization: Bearer <token> -> 200 {...} | 401
+
+Usuarios de teste:
+  recepcao@clinica.com / clinica123
+  joao@clinica.com     / medico123
+
+Os tokens ficam em memoria: reiniciar o servidor encerra todas as sessoes.
+Isso e proposital - serve para testar o tratamento de 401 no app.
