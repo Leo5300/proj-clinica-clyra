@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { get, remover } from '../services/api';
+import { get, remover, SessaoExpirada } from '../services/api';
 
 // TODO: mover para front/src/theme quando o ThemeContext existir
 // (feature/design-system). Mesma paleta usada na HomeScreen.
@@ -35,17 +35,26 @@ export default function MedicosScreen({ navigation }) {
   const carregarMedicos = useCallback(async () => {
     try {
       setErro(null);
+
       const dados = await get('/medicos', { base: 'auth' });
+
       setMedicos(dados);
     } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+        return;
+      }
+
       setErro('Não foi possível carregar os médicos agora.');
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [navigation]);
 
-  // useFocusEffect (nao useEffect) para a lista recarregar toda vez que a
-  // tela volta ao foco -- inclusive ao voltar do formulario de cadastro/edicao.
+  // useFocusEffect para recarregar a lista toda vez que a tela recebe foco.
   useFocusEffect(
     useCallback(() => {
       carregarMedicos();
@@ -58,7 +67,11 @@ export default function MedicosScreen({ navigation }) {
       `Deseja excluir ${medico.nome}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => excluir(medico.id) },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => excluir(medico.id),
+        },
       ],
     );
   };
@@ -66,11 +79,23 @@ export default function MedicosScreen({ navigation }) {
   const excluir = async (id) => {
     try {
       await remover(`/medicos/${id}`);
+
       // O servidor e a fonte da verdade: recarrega a lista dele em vez de
       // so remover o item do array local.
       carregarMedicos();
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível excluir o médico agora.');
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+        return;
+      }
+
+      Alert.alert(
+        'Erro',
+        'Não foi possível excluir o médico agora.',
+      );
     }
   };
 
@@ -78,23 +103,46 @@ export default function MedicosScreen({ navigation }) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={22} color={colors.ink} />
+          <Feather
+            name="arrow-left"
+            size={22}
+            color={colors.ink}
+          />
         </TouchableOpacity>
+
         <Text style={styles.title}>Médicos</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('CadastroMedico')}>
-          <Feather name="plus" size={22} color={colors.ink} />
+
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate('CadastroMedico')
+          }
+        >
+          <Feather
+            name="plus"
+            size={22}
+            color={colors.ink}
+          />
         </TouchableOpacity>
       </View>
 
       {carregando ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.sage} size="large" />
+          <ActivityIndicator
+            color={colors.sage}
+            size="large"
+          />
         </View>
       ) : erro ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{erro}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={carregarMedicos}>
-            <Text style={styles.retryText}>Tentar novamente</Text>
+
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={carregarMedicos}
+          >
+            <Text style={styles.retryText}>
+              Tentar novamente
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -106,19 +154,41 @@ export default function MedicosScreen({ navigation }) {
             <View style={styles.card}>
               <TouchableOpacity
                 style={styles.cardInfo}
-                onPress={() => navigation.navigate('CadastroMedico', { medico: item })}
+                onPress={() =>
+                  navigation.navigate(
+                    'CadastroMedico',
+                    { medico: item },
+                  )
+                }
               >
                 <Text style={styles.nome}>{item.nome}</Text>
-                <Text style={styles.especialidade}>{item.especialidade}</Text>
-                <Text style={styles.detalhe}>CRM {item.crm}</Text>
+
+                <Text style={styles.especialidade}>
+                  {item.especialidade}
+                </Text>
+
+                <Text style={styles.detalhe}>
+                  CRM {item.crm}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => confirmarExclusao(item)}>
-                <Feather name="trash-2" size={18} color={colors.muted} />
+
+              <TouchableOpacity
+                onPress={() =>
+                  confirmarExclusao(item)
+                }
+              >
+                <Feather
+                  name="trash-2"
+                  size={18}
+                  color={colors.muted}
+                />
               </TouchableOpacity>
             </View>
           )}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Nenhum médico cadastrado.</Text>
+            <Text style={styles.emptyText}>
+              Nenhum médico cadastrado.
+            </Text>
           }
         />
       )}
@@ -127,7 +197,10 @@ export default function MedicosScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -135,19 +208,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  errorText: { color: colors.muted, fontSize: 14, textAlign: 'center', marginBottom: 14 },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    color: colors.muted,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
   retryBtn: {
     backgroundColor: colors.sage,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
   },
-  retryText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-
-  list: { padding: 20, paddingBottom: 40 },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  list: {
+    padding: 20,
+    paddingBottom: 40,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -159,9 +251,28 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  cardInfo: { flex: 1, marginRight: 12 },
-  nome: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  especialidade: { fontSize: 13, color: colors.sage, marginTop: 2 },
-  detalhe: { fontSize: 12, color: colors.muted, marginTop: 6 },
-  emptyText: { textAlign: 'center', color: colors.muted, marginTop: 40 },
+  cardInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  nome: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  especialidade: {
+    fontSize: 13,
+    color: colors.sage,
+    marginTop: 2,
+  },
+  detalhe: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 6,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.muted,
+    marginTop: 40,
+  },
 });
