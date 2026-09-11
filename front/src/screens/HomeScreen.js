@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+
 import {
   SafeAreaView,
   ScrollView,
@@ -10,11 +11,12 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
+
 import { Feather } from '@expo/vector-icons';
+import { get } from '../services/api';
 import { limparToken } from '../services/sessao';
 
 // TODO: quando tivermos mais telas, mover para front/src/config/api.js
-const API_BASE_URL = 'http://localhost:8080/api';
 
 // TODO: quando tivermos mais telas, mover para front/src/theme.js
 // Mesma paleta extraída do logo, usada também na tela de Login.
@@ -44,15 +46,8 @@ export default function HomeScreen({ navigation }) {
 
   const fetchHome = useCallback(async () => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/home/${pacienteId}`,
-      );
+      const json = await get(`/home/${pacienteId}`);
 
-      if (!res.ok) {
-        throw new Error(`Erro ${res.status}`);
-      }
-
-      const json = await res.json();
       setData(json);
     } catch (e) {
       // O Spring Boot (back/) nao esta no ar e nao ha previsao de subir no
@@ -90,10 +85,7 @@ export default function HomeScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, styles.center]}>
-        <ActivityIndicator
-          color={colors.sage}
-          size="large"
-        />
+        <ActivityIndicator color={colors.sage} size="large" />
       </SafeAreaView>
     );
   }
@@ -174,13 +166,9 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.eyebrow}>
-          {data.saudacao}
-        </Text>
+        <Text style={styles.eyebrow}>{data.saudacao}</Text>
 
-        <Text style={styles.name}>
-          {data.nomePaciente}
-        </Text>
+        <Text style={styles.name}>{data.nomePaciente}</Text>
 
         {data.proximaConsulta ? (
           <View style={styles.apptCard}>
@@ -210,9 +198,7 @@ export default function HomeScreen({ navigation }) {
                 </Text>
 
                 <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate('Mapa')
-                  }
+                  onPress={() => navigation.navigate('Mapa')}
                 >
                   <Text style={styles.apptLink}>
                     Ver no mapa
@@ -232,9 +218,7 @@ export default function HomeScreen({ navigation }) {
             </Text>
 
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('Agendar')
-              }
+              onPress={() => navigation.navigate('Agendar')}
             >
               <Text style={styles.apptLink}>
                 Agendar agora
@@ -300,24 +284,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+
   center: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
+
   content: {
     padding: 20,
     paddingBottom: 40,
   },
+
   brandRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+
   brandIcon: {
     width: 32,
     height: 32,
   },
+
   logoutButton: {
     width: 34,
     height: 34,
@@ -328,6 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   eyebrow: {
     fontSize: 11,
     letterSpacing: 1,
@@ -335,12 +325,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 20,
   },
+
   name: {
     fontSize: 22,
     fontWeight: '700',
     color: colors.ink,
     marginTop: 2,
   },
+
   apptCard: {
     marginTop: 20,
     backgroundColor: colors.surface,
@@ -349,6 +341,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
   },
+
   apptEyebrow: {
     fontSize: 10,
     letterSpacing: 1,
@@ -357,58 +350,69 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '600',
   },
+
   apptDoc: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.ink,
   },
+
   apptSpec: {
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
     marginBottom: 14,
   },
+
   apptHr: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
     marginBottom: 14,
   },
+
   apptBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
+
   apptWhen: {
     fontSize: 18,
     color: colors.ink,
     fontWeight: '600',
   },
+
   apptRel: {
     fontSize: 11,
     color: colors.muted,
     marginTop: 2,
   },
+
   apptLink: {
     fontSize: 12,
     color: colors.sage,
     fontWeight: '600',
     marginTop: 8,
   },
+
   apptCode: {
     fontSize: 11,
     color: colors.muted,
   },
+
   emptyCard: {
     marginTop: 20,
     backgroundColor: colors.sageSoft,
     borderRadius: 14,
     padding: 16,
   },
+
   emptyText: {
     fontSize: 13,
     color: colors.ink,
     marginBottom: 6,
   },
+
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -416,11 +420,13 @@ const styles = StyleSheet.create({
     marginTop: 22,
     gap: 14,
   },
+
   quickItem: {
     alignItems: 'center',
     gap: 8,
     width: '22%',
   },
+
   quickIcon: {
     width: 46,
     height: 46,
@@ -431,12 +437,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   quickLabel: {
     fontSize: 10,
     fontWeight: '600',
     color: colors.ink,
     textAlign: 'center',
   },
+
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -446,6 +454,7 @@ const styles = StyleSheet.create({
     marginTop: 26,
     marginBottom: 10,
   },
+
   notice: {
     flexDirection: 'row',
     gap: 10,
@@ -454,6 +463,7 @@ const styles = StyleSheet.create({
     padding: 13,
     marginBottom: 8,
   },
+
   noticeText: {
     fontSize: 12,
     color: colors.ink,
