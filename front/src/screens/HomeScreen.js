@@ -11,7 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-// npm install @expo/vector-icons  (já vem com o Expo na maioria dos projetos)
+import { limparToken } from '../services/sessao';
 
 // TODO: quando tivermos mais telas, mover para front/src/config/api.js
 const API_BASE_URL = 'http://localhost:8080/api';
@@ -31,8 +31,6 @@ const colors = {
   lavenderSoft: '#EFE9F3',
 };
 
-// TODO: salvar um recorte só do símbolo (sem o texto) em
-// front/assets/icone-clyra.png, pra caber no cabeçalho pequeno
 const icone = require('../../assets/imgs/icone-clyra.png');
 
 export default function HomeScreen({ navigation }) {
@@ -40,19 +38,25 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // TODO: substituir pelo id do paciente autenticado (context / token salvo no login)
+  // TODO: substituir pelo id do paciente autenticado
+  // (context / token salvo no login)
   const pacienteId = 1;
 
   const fetchHome = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/home/${pacienteId}`);
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const res = await fetch(
+        `${API_BASE_URL}/home/${pacienteId}`,
+      );
+
+      if (!res.ok) {
+        throw new Error(`Erro ${res.status}`);
+      }
+
       const json = await res.json();
       setData(json);
     } catch (e) {
       // O Spring Boot (back/) nao esta no ar e nao ha previsao de subir no
-      // curto prazo -- em vez de travar a Home numa tela de erro, usamos um
-      // fallback local. Decisao registrada no README, em "Decisoes tecnicas".
+      // curto prazo -- usamos fallback local.
       setData({
         saudacao: 'Olá',
         nomePaciente: 'Paciente',
@@ -74,24 +78,69 @@ export default function HomeScreen({ navigation }) {
     fetchHome();
   };
 
+  const sair = async () => {
+    await limparToken();
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, styles.center]}>
-        <ActivityIndicator color={colors.sage} size="large" />
+        <ActivityIndicator
+          color={colors.sage}
+          size="large"
+        />
       </SafeAreaView>
     );
   }
 
-  // Cada ação sabe pra onde navegar — evita repetir blocos de JSX quase
-  // iguais. Os nomes de rota precisam bater com o AppNavigator.
   const quickActions = [
-    { key: 'agendar', label: 'Agendar', icon: 'calendar', onPress: () => navigation.navigate('Agendar') },
-    { key: 'consultas', label: 'Sessões', icon: 'list', onPress: () => navigation.navigate('Consultas') },
-    { key: 'diario', label: 'Diário', icon: 'edit-3', onPress: () => navigation.navigate('Diario') },
-    { key: 'perfil', label: 'Perfil', icon: 'user', onPress: () => navigation.navigate('Perfil') },
-    { key: 'medicos', label: 'Médicos', icon: 'briefcase', onPress: () => navigation.navigate('Medicos') },
-    { key: 'pacientes', label: 'Pacientes', icon: 'users', onPress: () => navigation.navigate('Pacientes') },
-    { key: 'horarios', label: 'Horários', icon: 'clock', onPress: () => navigation.navigate('Horarios') },
+    {
+      key: 'agendar',
+      label: 'Agendar',
+      icon: 'calendar',
+      onPress: () => navigation.navigate('Agendar'),
+    },
+    {
+      key: 'consultas',
+      label: 'Sessões',
+      icon: 'list',
+      onPress: () => navigation.navigate('Consultas'),
+    },
+    {
+      key: 'diario',
+      label: 'Diário',
+      icon: 'edit-3',
+      onPress: () => navigation.navigate('Diario'),
+    },
+    {
+      key: 'perfil',
+      label: 'Perfil',
+      icon: 'user',
+      onPress: () => navigation.navigate('Perfil'),
+    },
+    {
+      key: 'medicos',
+      label: 'Médicos',
+      icon: 'briefcase',
+      onPress: () => navigation.navigate('Medicos'),
+    },
+    {
+      key: 'pacientes',
+      label: 'Pacientes',
+      icon: 'users',
+      onPress: () => navigation.navigate('Pacientes'),
+    },
+    {
+      key: 'horarios',
+      label: 'Horários',
+      icon: 'clock',
+      onPress: () => navigation.navigate('Horarios'),
+    },
   ];
 
   return (
@@ -99,63 +148,144 @@ export default function HomeScreen({ navigation }) {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.sage} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.sage}
+          />
         }
       >
         <View style={styles.brandRow}>
-          <Image source={icone} style={styles.brandIcon} resizeMode="contain" />
-          <View style={styles.avatar} />
+          <Image
+            source={icone}
+            style={styles.brandIcon}
+            resizeMode="contain"
+          />
+
+          <TouchableOpacity
+            onPress={sair}
+            style={styles.logoutButton}
+          >
+            <Feather
+              name="log-out"
+              size={18}
+              color={colors.ink}
+            />
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.eyebrow}>{data.saudacao}</Text>
-        <Text style={styles.name}>{data.nomePaciente}</Text>
+        <Text style={styles.eyebrow}>
+          {data.saudacao}
+        </Text>
+
+        <Text style={styles.name}>
+          {data.nomePaciente}
+        </Text>
 
         {data.proximaConsulta ? (
           <View style={styles.apptCard}>
-            <Text style={styles.apptEyebrow}>Próxima sessão</Text>
-            <Text style={styles.apptDoc}>{data.proximaConsulta.medico}</Text>
-            <Text style={styles.apptSpec}>
-              {data.proximaConsulta.especialidade} · {data.proximaConsulta.local}
+            <Text style={styles.apptEyebrow}>
+              Próxima sessão
             </Text>
+
+            <Text style={styles.apptDoc}>
+              {data.proximaConsulta.medico}
+            </Text>
+
+            <Text style={styles.apptSpec}>
+              {data.proximaConsulta.especialidade} ·{' '}
+              {data.proximaConsulta.local}
+            </Text>
+
             <View style={styles.apptHr} />
+
             <View style={styles.apptBottom}>
               <View>
-                <Text style={styles.apptWhen}>{data.proximaConsulta.dataHoraFormatada}</Text>
-                <Text style={styles.apptRel}>{data.proximaConsulta.relativo}</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Mapa')}>
-                  <Text style={styles.apptLink}>Ver no mapa</Text>
+                <Text style={styles.apptWhen}>
+                  {data.proximaConsulta.dataHoraFormatada}
+                </Text>
+
+                <Text style={styles.apptRel}>
+                  {data.proximaConsulta.relativo}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate('Mapa')
+                  }
+                >
+                  <Text style={styles.apptLink}>
+                    Ver no mapa
+                  </Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.apptCode}>Nº {data.proximaConsulta.protocolo}</Text>
+
+              <Text style={styles.apptCode}>
+                Nº {data.proximaConsulta.protocolo}
+              </Text>
             </View>
           </View>
         ) : (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Você não tem sessões agendadas.</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Agendar')}>
-              <Text style={styles.apptLink}>Agendar agora</Text>
+            <Text style={styles.emptyText}>
+              Você não tem sessões agendadas.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('Agendar')
+              }
+            >
+              <Text style={styles.apptLink}>
+                Agendar agora
+              </Text>
             </TouchableOpacity>
           </View>
         )}
 
         <View style={styles.quickGrid}>
           {quickActions.map((a) => (
-            <TouchableOpacity key={a.key} style={styles.quickItem} onPress={a.onPress}>
+            <TouchableOpacity
+              key={a.key}
+              style={styles.quickItem}
+              onPress={a.onPress}
+            >
               <View style={styles.quickIcon}>
-                <Feather name={a.icon} size={18} color={colors.sage} />
+                <Feather
+                  name={a.icon}
+                  size={18}
+                  color={colors.sage}
+                />
               </View>
-              <Text style={styles.quickLabel}>{a.label}</Text>
+
+              <Text style={styles.quickLabel}>
+                {a.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {data.lembretes?.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Lembretes</Text>
+            <Text style={styles.sectionLabel}>
+              Lembretes
+            </Text>
+
             {data.lembretes.map((l) => (
-              <View key={l.id} style={styles.notice}>
-                <Feather name="bell" size={15} color={colors.lavender} style={{ marginTop: 1 }} />
-                <Text style={styles.noticeText}>{l.mensagem}</Text>
+              <View
+                key={l.id}
+                style={styles.notice}
+              >
+                <Feather
+                  name="bell"
+                  size={15}
+                  color={colors.lavender}
+                  style={{ marginTop: 1 }}
+                />
+
+                <Text style={styles.noticeText}>
+                  {l.mensagem}
+                </Text>
               </View>
             ))}
           </>
@@ -166,17 +296,51 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  center: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  content: { padding: 20, paddingBottom: 40 },
-
-  brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brandIcon: { width: 32, height: 32 },
-  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-
-  eyebrow: { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted, marginTop: 20 },
-  name: { fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: 2 },
-
+  safe: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  brandIcon: {
+    width: 32,
+    height: 32,
+  },
+  logoutButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrow: {
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.muted,
+    marginTop: 20,
+  },
+  name: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.ink,
+    marginTop: 2,
+  },
   apptCard: {
     marginTop: 20,
     backgroundColor: colors.surface,
@@ -185,26 +349,78 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
   },
-  apptEyebrow: { fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: colors.lavender, marginBottom: 8, fontWeight: '600' },
-  apptDoc: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  apptSpec: { fontSize: 12, color: colors.muted, marginTop: 2, marginBottom: 14 },
-  apptHr: { borderTopWidth: 1, borderTopColor: colors.border, marginBottom: 14 },
-  apptBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  apptWhen: { fontSize: 18, color: colors.ink, fontWeight: '600' },
-  apptRel: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  apptLink: { fontSize: 12, color: colors.sage, fontWeight: '600', marginTop: 8 },
-  apptCode: { fontSize: 11, color: colors.muted },
-
+  apptEyebrow: {
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.lavender,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  apptDoc: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  apptSpec: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+    marginBottom: 14,
+  },
+  apptHr: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginBottom: 14,
+  },
+  apptBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  apptWhen: {
+    fontSize: 18,
+    color: colors.ink,
+    fontWeight: '600',
+  },
+  apptRel: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  apptLink: {
+    fontSize: 12,
+    color: colors.sage,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  apptCode: {
+    fontSize: 11,
+    color: colors.muted,
+  },
   emptyCard: {
     marginTop: 20,
     backgroundColor: colors.sageSoft,
     borderRadius: 14,
     padding: 16,
   },
-  emptyText: { fontSize: 13, color: colors.ink, marginBottom: 6 },
-
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', marginTop: 22, gap: 14 },
-  quickItem: { alignItems: 'center', gap: 8, width: '22%' },
+  emptyText: {
+    fontSize: 13,
+    color: colors.ink,
+    marginBottom: 6,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    marginTop: 22,
+    gap: 14,
+  },
+  quickItem: {
+    alignItems: 'center',
+    gap: 8,
+    width: '22%',
+  },
   quickIcon: {
     width: 46,
     height: 46,
@@ -215,9 +431,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickLabel: { fontSize: 10, fontWeight: '600', color: colors.ink, textAlign: 'center' },
-
-  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: colors.muted, marginTop: 26, marginBottom: 10 },
-  notice: { flexDirection: 'row', gap: 10, backgroundColor: colors.lavenderSoft, borderRadius: 12, padding: 13, marginBottom: 8 },
-  noticeText: { fontSize: 12, color: colors.ink, lineHeight: 18, flex: 1 },
+  quickLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: colors.muted,
+    marginTop: 26,
+    marginBottom: 10,
+  },
+  notice: {
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: colors.lavenderSoft,
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 8,
+  },
+  noticeText: {
+    fontSize: 12,
+    color: colors.ink,
+    lineHeight: 18,
+    flex: 1,
+  },
 });
