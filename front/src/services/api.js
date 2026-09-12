@@ -136,6 +136,14 @@ const criarHorario = (horario) => post('/horarios', horario);
 const atualizarHorario = (id, horario) => put(`/horarios/${id}`, horario);
 const excluirHorario = (id) => remover(`/horarios/${id}`);
 
+// =====================================================================
+// ESPECIALIDADES -- json-server (3000), sem autenticacao por enquanto
+// =====================================================================
+const buscarEspecialidades = () => get('/especialidades');
+const criarEspecialidade = (especialidade) => post('/especialidades', especialidade);
+const atualizarEspecialidade = (id, especialidade) => put(`/especialidades/${id}`, especialidade);
+const excluirEspecialidade = (id) => remover(`/especialidades/${id}`);
+
 export {
   // atalhos do cliente HTTP -- e o que as telas novas devem usar
   get,
@@ -161,4 +169,8 @@ export {
   criarHorario,
   atualizarHorario,
   excluirHorario,
+  buscarEspecialidades,
+  criarEspecialidade,
+  atualizarEspecialidade,
+  excluirEspecialidade,
 };
