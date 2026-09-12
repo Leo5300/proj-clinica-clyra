@@ -63,12 +63,12 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 - [ ] Login com biometria implementado para médico/recepção
 - [ ] Geolocalização (GPS) com cálculo de distância/tempo até a clínica
 - [ ] Importação de sinais vitais de um periférico via Bluetooth antes da consulta
-- [ ] Implementação das interfaces de listagem (leitura) para pacientes, médicos,
+- [x] Implementação das interfaces de listagem (leitura) para pacientes, médicos,
       especialidades e horários, consumindo a API RESTful
 - [ ] Operações de escrita (cadastro/edição/exclusão) para pacientes, médicos,
       especialidades e horários
 - [ ] Integração inicial com os endpoints de usuários e login, via HTTPS
-- [ ] Identificação dos recursos que dependem de Web Services de terceiros
+- [x] Identificação dos recursos que dependem de Web Services de terceiros
 - [ ] Notificação local/push como lembrete de consulta agendada
 - [ ] Processamento multithread para tarefas pesadas não travarem a interface
 - [ ] Sincronização da agenda em segundo plano (tarefa/serviço background)
