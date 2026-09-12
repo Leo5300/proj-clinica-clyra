@@ -266,6 +266,25 @@ mentir sobre o que está gravado.
 foi refeita sobre um design system próprio, mantendo a paleta da Clyra. A remoção do
 trabalho anterior foi acordada entre os três integrantes.
 
+### Autenticação e HTTP/HTTPS (Aula 4)
+
+Durante o desenvolvimento, a aplicação utiliza dois servidores locais em HTTP:
+
+* `auth-api.js` na porta `3001`, responsável pelo login e pelas rotas protegidas.
+* `json-server` na porta `3000`, utilizado como mock para as operações de CRUD.
+
+Essa escolha é adequada ao ambiente de desenvolvimento porque os dois servidores são executados localmente e o tráfego não sai da máquina/rede de desenvolvimento.
+
+Na aplicação real da clínica, a comunicação deverá ocorrer por **HTTPS**, pois o sistema pode lidar com dados sensíveis de pacientes. Nesse cenário, as URLs das APIs deverão utilizar `https://`, além da configuração de certificado, domínio e renovação do certificado no ambiente de produção.
+
+O token de autenticação é enviado no cabeçalho:
+
+```text
+Authorization: Bearer <token>
+```
+
+O armazenamento do token no aplicativo utiliza `expo-secure-store`, evitando que as telas tenham acesso direto ao armazenamento seguro do dispositivo.
+
 ## Testes
 
 <!-- Preencher na Aula 14 -->
