@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
   StyleSheet,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { criarMedico, atualizarMedico } from '../services/api';
 
 // TODO: mover para front/src/theme quando o ThemeContext existir
@@ -42,6 +44,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   const [email, setEmail] = useState(medico?.email ?? '');
   const [telefone, setTelefone] = useState(medico?.telefone ?? '');
   const [endereco, setEndereco] = useState(medico?.endereco ?? '');
+  const [fotoUri, setFotoUri] = useState(medico?.fotoUri ?? null);
   const [salvando, setSalvando] = useState(false);
 
   // O mock aceita corpo vazio e cria um registro fantasma so com id. Validar
@@ -54,6 +57,31 @@ export default function CadastroMedicoScreen({ navigation, route }) {
     return true;
   };
 
+  const escolherFoto = async () => {
+  const permissao =
+    await ImagePicker.requestCameraPermissionsAsync();
+
+  if (!permissao.granted) {
+    Alert.alert(
+      'Câmera não liberada',
+      'Sem permissão de câmera não é possível tirar a foto. Você pode cadastrar o médico normalmente sem ela.',
+    );
+    return;
+  }
+
+  const resultado = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.6,
+  });
+
+  if (resultado.canceled) {
+    return;
+  }
+
+  setFotoUri(resultado.assets[0].uri);
+};
+
   const salvar = async () => {
     if (!validar()) return;
 
@@ -64,6 +92,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
       email: email.trim(),
       telefone: telefone.trim(),
       endereco: endereco.trim(),
+      fotoUri,
     };
 
     setSalvando(true);
@@ -98,6 +127,43 @@ export default function CadastroMedicoScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.form}>
+        <View style={styles.fotoBloco}>
+  <TouchableOpacity
+    style={styles.avatarWrap}
+    onPress={escolherFoto}
+  >
+    {fotoUri ? (
+      <Image
+        source={{ uri: fotoUri }}
+        style={styles.avatar}
+      />
+    ) : (
+      <View style={[styles.avatar, styles.avatarVazio]}>
+        <Feather
+          name="camera"
+          size={26}
+          color={colors.muted}
+        />
+      </View>
+    )}
+  </TouchableOpacity>
+
+  <TouchableOpacity onPress={escolherFoto}>
+    <Text style={styles.fotoLink}>
+      {fotoUri ? 'Trocar foto' : 'Adicionar foto'}
+    </Text>
+  </TouchableOpacity>
+
+  {fotoUri && (
+    <TouchableOpacity onPress={() => setFotoUri(null)}>
+      <Text style={styles.fotoRemover}>Remover foto</Text>
+    </TouchableOpacity>
+  )}
+
+  <Text style={styles.fotoOpcional}>
+    A foto é opcional.
+  </Text>
+</View>
         <Campo label="Nome" value={nome} onChangeText={setNome} />
         <Campo label="Especialidade" value={especialidade} onChangeText={setEspecialidade} />
         <Campo label="CRM" value={crm} onChangeText={setCrm} />
@@ -130,6 +196,41 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 22 },
 
   form: { padding: 20, paddingBottom: 40 },
+  fotoBloco: { alignItems: 'center', marginBottom: 24 },
+
+avatarWrap: { marginBottom: 8 },
+
+avatar: {
+  width: 110,
+  height: 110,
+  borderRadius: 55,
+},
+
+avatarVazio: {
+  backgroundColor: colors.surface,
+  borderWidth: 1,
+  borderColor: colors.border,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+fotoLink: {
+  fontSize: 13,
+  fontWeight: '600',
+  color: colors.sage,
+  marginBottom: 4,
+},
+
+fotoRemover: {
+  fontSize: 12,
+  color: colors.muted,
+  marginBottom: 4,
+},
+
+fotoOpcional: {
+  fontSize: 11,
+  color: colors.muted,
+},
   campo: { marginBottom: 16 },
   label: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 6 },
   input: {
