@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
+import LoginBiometricoScreen from '../screens/LoginBiometricoScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MedicosScreen from '../screens/MedicosScreen';
 import CadastroMedicoScreen from '../screens/CadastroMedicoScreen';
@@ -39,10 +40,14 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={logado ? 'Home' : 'Login'}
+        initialRouteName={logado ? 'LoginBiometrico' : 'Login'}
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen
+  name="LoginBiometrico"
+  component={LoginBiometricoScreen}
+/>
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Medicos" component={MedicosScreen} />
         <Stack.Screen name="CadastroMedico" component={CadastroMedicoScreen} />
