@@ -133,6 +133,18 @@ export default function HomeScreen({ navigation }) {
       icon: 'clock',
       onPress: () => navigation.navigate('Horarios'),
     },
+        {
+      key: 'especialidades',
+      label: 'Especialidades',
+      icon: 'award',
+      onPress: () => navigation.navigate('Especialidades'),
+    },
+    {
+      key: 'comochegar',
+      label: 'Como chegar',
+      icon: 'map-pin',
+      onPress: () => navigation.navigate('ComoChegar'),
+    },
   ];
 
   return (
