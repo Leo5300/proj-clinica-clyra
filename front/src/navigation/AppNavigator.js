@@ -12,6 +12,8 @@ import PacientesScreen from '../screens/PacientesScreen';
 import CadastroPacienteScreen from '../screens/CadastroPacienteScreen';
 import HorariosScreen from '../screens/HorariosScreen';
 import CadastroHorarioScreen from '../screens/CadastroHorarioScreen';
+import EspecialidadesScreen from '../screens/EspecialidadesScreen';
+import ComoChegarScreen from '../screens/ComoChegarScreen';
 
 import { estaLogado } from '../services/sessao';
 
@@ -55,6 +57,8 @@ export default function AppNavigator() {
         <Stack.Screen name="CadastroPaciente" component={CadastroPacienteScreen} />
         <Stack.Screen name="Horarios" component={HorariosScreen} />
         <Stack.Screen name="CadastroHorario" component={CadastroHorarioScreen} />
+        <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
+        <Stack.Screen name="ComoChegar" component={ComoChegarScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
