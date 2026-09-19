@@ -130,27 +130,41 @@ npm install
 
 ### Variáveis de configuração
 
-O endereço da API fica centralizado em `front/src/services/api.js`:
+O app usa dois servidores locais durante o desenvolvimento:
+auth-api.js (porta 3001, login e médicos) e json-server (porta 3000,
+pacientes/horários/especialidades). O endereço dos dois é montado em
+`front/src/services/api.js` a partir de uma variável de ambiente.
 
-```js
-const BASE_URL = "http://localhost:3000";
+1. Copie `front/.env.example` para `front/.env.local`.
+2. Descubra o IPv4 da sua máquina na rede Wi-Fi atual (`ipconfig` no
+   Windows, `ifconfig`/`ip a` no Mac/Linux) e preencha em
+   `EXPO_PUBLIC_API_HOST` dentro de `front/.env.local`.
+
+> Em dispositivo físico (Expo Go), `localhost` não funciona -- no
+> aparelho, `localhost` é o próprio aparelho. Por isso o IP precisa
+> ser o da máquina que roda os servidores, na mesma rede Wi-Fi. O IP
+> muda quando o roteador renova o DHCP; confira antes de cada sessão
+> de trabalho, e reinicie o `npx expo start` se trocar.
+>
+> `front/.env.local` nunca deve ser commitado -- cada pessoa da squad
+> tem o próprio IP. O `.gitignore` já protege esse arquivo.
+
+### Subindo os servidores (durante o desenvolvimento)
+
+São dois servidores, em dois terminais separados, na raiz do
+repositório:
+
+```bash
+node servidor/auth-api.js
 ```
-
-> Em dispositivo físico (Expo Go), `localhost` não funciona — no aparelho, `localhost`
-> é o próprio aparelho. Use o IPv4 da máquina que está rodando a API, na mesma rede
-> Wi-Fi (`ipconfig` no Windows, adaptador Wi-Fi). O IP muda quando o roteador renova o
-> DHCP; confira antes de cada sessão de trabalho.
-
-### Subindo a API mock (durante o desenvolvimento)
-
-Em um terminal separado, na raiz do repositório:
 
 ```bash
 npx json-server --watch db_clinica.json --port 3000
 ```
 
-Coleções disponíveis: `/medicos`, `/pacientes`, `/especialidades` e `/horarios`.
-Teste em `http://localhost:3000/medicos` antes de subir o app.
+Sem o `auth-api.js` rodando, o login não funciona -- nem recepção,
+nem médico. Teste `http://localhost:3000/medicos` no navegador antes
+de subir o app, pra confirmar que o json-server está respondendo.
 
 ## Como executar
 
