@@ -8,9 +8,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
   StyleSheet,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { criarPaciente, atualizarPaciente } from '../services/api';
 import { consultarCep } from '../services/viacep';
 
@@ -49,6 +51,10 @@ export default function CadastroPacienteScreen({ navigation, route }) {
   );
   const [telefone, setTelefone] = useState(paciente?.telefone ?? '');
   const [email, setEmail] = useState(paciente?.email ?? '');
+
+  // Mesmo padrao do medico: em modo edicao comeca com a foto que o
+  // paciente ja tem, senao a primeira gravacao apagaria a foto dele.
+  const [fotoUri, setFotoUri] = useState(paciente?.fotoUri ?? null);
 
   // O serviço preenche estes campos, mas eles continuam editáveis à mão.
   const [cep, setCep] = useState(paciente?.cep ?? '');
@@ -102,6 +108,36 @@ export default function CadastroPacienteScreen({ navigation, route }) {
     }
   };
 
+  // Mesma logica do cadastro de medico: pedir a permissao antes de
+  // qualquer coisa. O usuario pode negar, e isso e resposta valida,
+  // nao bug.
+  const escolherFoto = async () => {
+    const permissao =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permissao.granted) {
+      Alert.alert(
+        'Câmera não liberada',
+        'Sem permissão de câmera não é possível tirar a foto. Você pode cadastrar o paciente normalmente sem ela.',
+      );
+      return;
+    }
+
+    const resultado = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.6,
+    });
+
+    // Fechar a camera sem fotografar e normal, nao pode quebrar o
+    // formulario.
+    if (resultado.canceled) {
+      return;
+    }
+
+    setFotoUri(resultado.assets[0].uri);
+  };
+
   // O json-server aceita dados incompletos, então o aplicativo protege o mock.
   const validar = () => {
     if (!nome.trim() || !cpf.trim() || !dataNascimento.trim()) {
@@ -129,6 +165,11 @@ export default function CadastroPacienteScreen({ navigation, route }) {
       bairro: bairro.trim(),
       cidade: cidade.trim(),
       uf: uf.trim(),
+      // Mesma divida tecnica consciente do medico: e a URI local do
+      // cache do aparelho, nao a imagem em si. Subir a imagem de
+      // verdade exige POST com upload de arquivo, fora do escopo desta
+      // aula.
+      fotoUri,
     };
 
     setSalvando(true);
@@ -171,6 +212,44 @@ export default function CadastroPacienteScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.form}>
+        <View style={styles.fotoBloco}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={escolherFoto}
+          >
+            {fotoUri ? (
+              <Image
+                source={{ uri: fotoUri }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarVazio]}>
+                <Feather
+                  name="camera"
+                  size={26}
+                  color={colors.muted}
+                />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={escolherFoto}>
+            <Text style={styles.fotoLink}>
+              {fotoUri ? 'Trocar foto' : 'Adicionar foto'}
+            </Text>
+          </TouchableOpacity>
+
+          {fotoUri && (
+            <TouchableOpacity onPress={() => setFotoUri(null)}>
+              <Text style={styles.fotoRemover}>Remover foto</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.fotoOpcional}>
+            A foto é opcional.
+          </Text>
+        </View>
+
         <Campo
           label="Nome"
           value={nome}
@@ -315,6 +394,24 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  fotoBloco: { alignItems: 'center', marginBottom: 24 },
+  avatarWrap: { marginBottom: 8 },
+  avatar: { width: 110, height: 110, borderRadius: 55 },
+  avatarVazio: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fotoLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.sage,
+    marginBottom: 4,
+  },
+  fotoRemover: { fontSize: 12, color: colors.muted, marginBottom: 4 },
+  fotoOpcional: { fontSize: 11, color: colors.muted },
   campo: {
     marginBottom: 16,
   },
