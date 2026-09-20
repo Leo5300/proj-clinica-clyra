@@ -22,8 +22,12 @@
 
 import { obterToken, limparToken } from './sessao';
 
-const AUTH_URL = 'http://10.110.12.54:3001';
-const API_URL = 'http://10.110.12.54:3000';
+// EXPO_PUBLIC_API_HOST vem de front/.env.local (não commitado) -- cada dev
+// configura o próprio IP ali. Sem esse arquivo, cai no fallback 'localhost',
+// que só funciona em web/emulador, não em aparelho físico.
+const HOST = process.env.EXPO_PUBLIC_API_HOST ?? 'localhost';
+const AUTH_URL = `http://${HOST}:3001`;
+const API_URL = `http://${HOST}:3000`;
 
 // Em dispositivo fisico (Expo Go), localhost e o proprio aparelho.
 // Use o IPv4 da maquina que roda os servidores, na mesma rede Wi-Fi.
