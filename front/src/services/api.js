@@ -233,6 +233,11 @@ const atualizarEspecialidade = (
 const excluirEspecialidade = (id) =>
   remover(`/especialidades/${id}`);
 
+// Sinais vitais. Passam pelo mesmo post() que monta o Authorization:
+// dado de saude so entra no prontuario pela porta autenticada.
+const registrarSinaisVitais = (registro) =>
+  post('/sinaisVitais', registro);
+
 // =====================================================================
 // EXPORTS
 // =====================================================================
@@ -273,4 +278,7 @@ export {
   criarEspecialidade,
   atualizarEspecialidade,
   excluirEspecialidade,
+
+  // sinais vitais
+  registrarSinaisVitais,
 };
