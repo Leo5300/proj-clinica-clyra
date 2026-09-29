@@ -14,6 +14,7 @@ import HorariosScreen from '../screens/HorariosScreen';
 import CadastroHorarioScreen from '../screens/CadastroHorarioScreen';
 import EspecialidadesScreen from '../screens/EspecialidadesScreen';
 import ComoChegarScreen from '../screens/ComoChegarScreen';
+import SinaisVitaisScreen from '../screens/SinaisVitaisScreen';
 
 import { estaLogado } from '../services/sessao';
 
@@ -59,6 +60,7 @@ export default function AppNavigator() {
         <Stack.Screen name="CadastroHorario" component={CadastroHorarioScreen} />
         <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
         <Stack.Screen name="ComoChegar" component={ComoChegarScreen} />
+        <Stack.Screen name="SinaisVitais" component={SinaisVitaisScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -112,9 +112,20 @@ export default function PacientesScreen({ navigation }) {
                 <Text style={styles.detalhe}>{item.email}</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => confirmarExclusao(item)}>
-                <Feather name="trash-2" size={18} color={colors.danger} />
-              </TouchableOpacity>
+              <View style={styles.acoes}>
+                <TouchableOpacity
+                  style={styles.acaoIcone}
+                  onPress={() =>
+                    navigation.navigate("SinaisVitais", { paciente: item })
+                  }
+                >
+                  <Feather name="activity" size={18} color={colors.sage} />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => confirmarExclusao(item)}>
+                  <Feather name="trash-2" size={18} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
           ListEmptyComponent={
@@ -199,6 +210,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginTop: 6,
+  },
+  acoes: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  acaoIcone: {
+    marginRight: 18,
   },
   emptyText: {
     textAlign: "center",
