@@ -233,8 +233,9 @@ const atualizarEspecialidade = (
 const excluirEspecialidade = (id) =>
   remover(`/especialidades/${id}`);
 
-// Sinais vitais. Passam pelo mesmo post() que monta o Authorization:
-// dado de saude so entra no prontuario pela porta autenticada.
+// Sinais vitais. Passam pelo mesmo post() que envia o Authorization.
+// O json-server do mock nao valida o token; numa API real, quem valida
+// e o servidor da clinica.
 const registrarSinaisVitais = (registro) =>
   post('/sinaisVitais', registro);
 
