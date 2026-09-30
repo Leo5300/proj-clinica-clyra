@@ -214,6 +214,22 @@ const atualizarHorario = (id, horario) =>
 const excluirHorario = (id) =>
   remover(`/horarios/${id}`);
 
+// Consultas. Mesmo json-server de pacientes e horarios.
+const buscarConsultas = () =>
+  get('/consultas');
+
+const buscarConsulta = (id) =>
+  get(`/consultas/${id}`);
+
+const criarConsulta = (consulta) =>
+  post('/consultas', consulta);
+
+const atualizarConsulta = (id, consulta) =>
+  put(`/consultas/${id}`, consulta);
+
+const excluirConsulta = (id) =>
+  remover(`/consultas/${id}`);
+
 // =====================================================================
 // ESPECIALIDADES -- json-server (3000)
 // =====================================================================
@@ -273,6 +289,13 @@ export {
   criarHorario,
   atualizarHorario,
   excluirHorario,
+
+  // consultas
+  buscarConsultas,
+  buscarConsulta,
+  criarConsulta,
+  atualizarConsulta,
+  excluirConsulta,
 
   // especialidades
   buscarEspecialidades,
