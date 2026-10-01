@@ -140,6 +140,15 @@ const apagar = (colecao, id) =>
 // (medicoId dos horarios): toda comparacao passa por String.
 const mesmoId = (a, b) => String(a) === String(b);
 
+// Id vazio vira null; qualquer outro vira texto, como os do json-server.
+function idOuNulo(valor) {
+  if (valor === undefined || valor === null || valor === '') {
+    return null;
+  }
+
+  return String(valor);
+}
+
 // O id vem da URL ou do armazenamento, nunca do corpo.
 function semId(corpo) {
   const { id, ...campos } = corpo;
@@ -277,32 +286,95 @@ async function atualizarMinhaFoto({ usuario, corpo }) {
 // PACIENTES
 // =====================================================================
 
-async function pacienteExistente(id) {
+// Principio da necessidade (LGPD): o medico ve so o que usa no
+// atendimento. CPF, e-mail e endereco ficam com a recepcao.
+function pacienteParaPerfil(paciente, perfil) {
+  if (perfil !== 'medico') {
+    return paciente;
+  }
+
+  const { id, nome, dataNascimento, telefone, fotoUri } = paciente;
+  return { id, nome, dataNascimento, telefone, fotoUri };
+}
+
+// Pacientes "do medico": quem tem ao menos uma consulta com ele.
+async function idsDosPacientesDoMedico(medicoId) {
+  const consultas = await listar('consultas');
+
+  return new Set(
+    consultas
+      .filter((c) => mesmoId(c.medicoId, medicoId))
+      .map((c) => String(c.pacienteId)),
+  );
+}
+
+// Registro de outra pessoa responde 404, igual a inexistente: a API nao
+// confirma que ele existe.
+async function pacienteVisivel(usuario, id) {
+  const naoEncontrado = new ErroHttp(404, 'Paciente não encontrado.');
+
+  if (usuario.perfil === 'paciente' && !mesmoId(usuario.vinculoId, id)) {
+    throw naoEncontrado;
+  }
+
+  if (usuario.perfil === 'medico') {
+    const meus = await idsDosPacientesDoMedico(usuario.vinculoId);
+
+    if (!meus.has(String(id))) {
+      throw naoEncontrado;
+    }
+  }
+
   const paciente = await obter('pacientes', id);
 
   if (!paciente) {
-    throw new ErroHttp(404, 'Paciente não encontrado.');
+    throw naoEncontrado;
   }
 
   return paciente;
 }
 
-async function listarPacientes() {
-  return ok(await listar('pacientes'));
+async function listarPacientes({ usuario }) {
+  const pacientes = await listar('pacientes');
+
+  if (usuario.perfil === 'medico') {
+    const meus = await idsDosPacientesDoMedico(usuario.vinculoId);
+
+    return ok(
+      pacientes
+        .filter((p) => meus.has(String(p.id)))
+        .map((p) => pacienteParaPerfil(p, 'medico')),
+    );
+  }
+
+  return ok(pacientes);
 }
 
-async function obterPaciente({ params }) {
-  return ok(await pacienteExistente(params.id));
+async function obterPaciente({ usuario, params }) {
+  const paciente = await pacienteVisivel(usuario, params.id);
+  return ok(pacienteParaPerfil(paciente, usuario.perfil));
 }
 
 async function criarPaciente({ corpo }) {
   return criado(await inserir('pacientes', semId(corpo)));
 }
 
-async function atualizarPaciente({ params, corpo }) {
-  const atual = await pacienteExistente(params.id);
+async function atualizarPaciente({ usuario, params, corpo }) {
+  const atual = await pacienteVisivel(usuario, params.id);
+  let registro = semId(corpo);
 
-  return ok(await substituir('pacientes', atual.id, semId(corpo)));
+  // Identificacao so muda pela recepcao, que confere documento. O que o
+  // paciente mandar nesses campos e ignorado.
+  if (usuario.perfil === 'paciente') {
+    registro = {
+      ...registro,
+      nome: atual.nome,
+      cpf: atual.cpf,
+      dataNascimento: atual.dataNascimento,
+    };
+  }
+
+  return ok(await substituir('pacientes', atual.id, registro));
 }
 
 async function excluirPaciente({ params }) {
@@ -321,18 +393,31 @@ async function excluirPaciente({ params }) {
 // MEDICOS
 // =====================================================================
 
-async function listarMedicos() {
-  return ok(await listar('medicos'));
+// Paciente e medico veem so o necessario para escolher e reconhecer o
+// profissional. Contato e endereco ficam com a recepcao.
+function medicoParaPerfil(medico, perfil) {
+  if (perfil === 'recepcao') {
+    return medico;
+  }
+
+  const { id, nome, especialidade, crm, fotoUri } = medico;
+  return { id, nome, especialidade, crm, fotoUri };
 }
 
-async function obterMedico({ params }) {
+async function listarMedicos({ usuario }) {
+  const medicos = await listar('medicos');
+
+  return ok(medicos.map((m) => medicoParaPerfil(m, usuario.perfil)));
+}
+
+async function obterMedico({ usuario, params }) {
   const medico = await obter('medicos', params.id);
 
   if (!medico) {
     throw new ErroHttp(404, 'Médico não encontrado.');
   }
 
-  return ok(medico);
+  return ok(medicoParaPerfil(medico, usuario.perfil));
 }
 
 async function criarMedico({ corpo }) {
@@ -431,32 +516,58 @@ async function excluirEspecialidade({ params }) {
 // HORARIOS DE ATENDIMENTO
 // =====================================================================
 
-async function horarioExistente(id) {
+async function horarioVisivel(usuario, id) {
   const horario = await obter('horarios', id);
 
-  if (!horario) {
+  if (
+    !horario ||
+    (usuario.perfil === 'medico' &&
+      !mesmoId(horario.medicoId, usuario.vinculoId))
+  ) {
     throw new ErroHttp(404, 'Horário não encontrado.');
   }
 
   return horario;
 }
 
-async function listarHorarios() {
-  return ok(await listar('horarios'));
+// O medico so mexe na propria agenda: o medicoId que ele mandar e
+// trocado pelo dele.
+function dadosDoHorario(usuario, corpo) {
+  const registro = semId(corpo);
+
+  if (usuario.perfil === 'medico') {
+    registro.medicoId = usuario.vinculoId;
+  }
+
+  return registro;
 }
 
-async function criarHorario({ corpo }) {
-  return criado(await inserir('horarios', semId(corpo)));
+async function listarHorarios({ usuario }) {
+  const horarios = await listar('horarios');
+
+  if (usuario.perfil === 'medico') {
+    return ok(
+      horarios.filter((h) => mesmoId(h.medicoId, usuario.vinculoId)),
+    );
+  }
+
+  return ok(horarios);
 }
 
-async function atualizarHorario({ params, corpo }) {
-  const atual = await horarioExistente(params.id);
-
-  return ok(await substituir('horarios', atual.id, semId(corpo)));
+async function criarHorario({ usuario, corpo }) {
+  return criado(await inserir('horarios', dadosDoHorario(usuario, corpo)));
 }
 
-async function excluirHorario({ params }) {
-  const atual = await horarioExistente(params.id);
+async function atualizarHorario({ usuario, params, corpo }) {
+  const atual = await horarioVisivel(usuario, params.id);
+
+  return ok(
+    await substituir('horarios', atual.id, dadosDoHorario(usuario, corpo)),
+  );
+}
+
+async function excluirHorario({ usuario, params }) {
+  const atual = await horarioVisivel(usuario, params.id);
 
   await apagar('horarios', atual.id);
 
@@ -467,36 +578,61 @@ async function excluirHorario({ params }) {
 // CONSULTAS
 // =====================================================================
 
-async function consultaExistente(id) {
+function consultaEhDoUsuario(consulta, usuario) {
+  if (usuario.perfil === 'medico') {
+    return mesmoId(consulta.medicoId, usuario.vinculoId);
+  }
+
+  if (usuario.perfil === 'paciente') {
+    return mesmoId(consulta.pacienteId, usuario.vinculoId);
+  }
+
+  return true;
+}
+
+async function consultaVisivel(usuario, id) {
   const consulta = await obter('consultas', id);
 
-  if (!consulta) {
+  if (!consulta || !consultaEhDoUsuario(consulta, usuario)) {
     throw new ErroHttp(404, 'Consulta não encontrada.');
   }
 
   return consulta;
 }
 
-async function listarConsultas() {
-  return ok(await listar('consultas'));
+async function listarConsultas({ usuario }) {
+  const consultas = await listar('consultas');
+  return ok(consultas.filter((c) => consultaEhDoUsuario(c, usuario)));
 }
 
-async function obterConsulta({ params }) {
-  return ok(await consultaExistente(params.id));
+async function obterConsulta({ usuario, params }) {
+  return ok(await consultaVisivel(usuario, params.id));
 }
 
-async function criarConsulta({ corpo }) {
-  return criado(await inserir('consultas', semId(corpo)));
+async function criarConsulta({ usuario, corpo }) {
+  const consulta = semId(corpo);
+
+  // O paciente so agenda para si: o pacienteId que ele mandar e ignorado.
+  if (usuario.perfil === 'paciente') {
+    consulta.pacienteId = usuario.vinculoId;
+  }
+
+  return criado(await inserir('consultas', consulta));
 }
 
-async function remarcarConsulta({ params, corpo }) {
-  const atual = await consultaExistente(params.id);
+async function remarcarConsulta({ usuario, params, corpo }) {
+  const atual = await consultaVisivel(usuario, params.id);
+  const consulta = semId(corpo);
 
-  return ok(await substituir('consultas', atual.id, semId(corpo)));
+  if (usuario.perfil === 'paciente') {
+    consulta.pacienteId = usuario.vinculoId;
+  }
+
+  return ok(await substituir('consultas', atual.id, consulta));
 }
 
-async function cancelarConsulta({ params }) {
-  const atual = await consultaExistente(params.id);
+async function cancelarConsulta({ usuario, params }) {
+  const atual = await consultaVisivel(usuario, params.id);
 
   await apagar('consultas', atual.id);
 
@@ -507,22 +643,112 @@ async function cancelarConsulta({ params }) {
 // SINAIS VITAIS
 // =====================================================================
 
-async function listarSinaisVitais({ query }) {
-  const pacienteId = query.get('pacienteId');
+// Mais recente primeiro. registradoEm e ISO 8601 em UTC, entao a ordem
+// do texto e a ordem do tempo.
+function maisRecentePrimeiro(a, b) {
+  const ra = String(a.registradoEm ?? '');
+  const rb = String(b.registradoEm ?? '');
+
+  if (ra === rb) {
+    return 0;
+  }
+
+  return ra < rb ? 1 : -1;
+}
+
+async function listarSinaisVitais({ usuario, query }) {
+  let pacienteId = query.get('pacienteId');
   const consultaId = query.get('consultaId');
+
+  if (usuario.perfil === 'paciente') {
+    pacienteId = usuario.vinculoId;
+  } else {
+    // O medico nunca lista tudo: so o que pede, e so de paciente dele.
+    if (!pacienteId && !consultaId) {
+      throw new ErroHttp(400, 'Informe o paciente ou a consulta.');
+    }
+
+    if (pacienteId) {
+      await pacienteVisivel(usuario, pacienteId);
+    }
+
+    if (consultaId) {
+      await consultaVisivel(usuario, consultaId);
+    }
+  }
+
   const sinais = await listar('sinaisVitais');
 
   return ok(
-    sinais.filter(
-      (s) =>
-        (!pacienteId || mesmoId(s.pacienteId, pacienteId)) &&
-        (!consultaId || mesmoId(s.consultaId, consultaId)),
-    ),
+    sinais
+      .filter(
+        (s) =>
+          (!pacienteId || mesmoId(s.pacienteId, pacienteId)) &&
+          (!consultaId || mesmoId(s.consultaId, consultaId)),
+      )
+      .sort(maisRecentePrimeiro),
   );
 }
 
-async function registrarSinaisVitais({ corpo }) {
-  return criado(await inserir('sinaisVitais', semId(corpo)));
+async function registrarSinaisVitais({ usuario, corpo }) {
+  // O paciente so registra para si mesmo.
+  const pacienteId =
+    usuario.perfil === 'paciente'
+      ? idOuNulo(usuario.vinculoId)
+      : idOuNulo(corpo.pacienteId);
+
+  if (usuario.perfil === 'medico') {
+    await pacienteVisivel(usuario, pacienteId);
+  }
+
+  // A consulta, se vier, tem que ser de quem registra e deste paciente.
+  const consultaId = idOuNulo(corpo.consultaId);
+
+  if (consultaId) {
+    const consulta = await consultaVisivel(usuario, consultaId);
+
+    if (!mesmoId(consulta.pacienteId, pacienteId)) {
+      throw new ErroHttp(404, 'Consulta não encontrada.');
+    }
+  }
+
+  const { frequenciaCardiaca, quantidadeLeituras, origem } = corpo;
+
+  if (
+    !Number.isInteger(frequenciaCardiaca) ||
+    frequenciaCardiaca < 20 ||
+    frequenciaCardiaca > 250
+  ) {
+    throw new ErroHttp(
+      400,
+      'Informe a frequência cardíaca em bpm, um número inteiro entre 20 e 250.',
+    );
+  }
+
+  if (!Number.isInteger(quantidadeLeituras) || quantidadeLeituras < 1) {
+    throw new ErroHttp(400, 'Informe quantas leituras formaram o valor.');
+  }
+
+  if (origem !== 'bluetooth' && origem !== 'manual') {
+    throw new ErroHttp(400, 'Informe a origem: bluetooth ou manual.');
+  }
+
+  // So os campos conhecidos vao para o prontuario.
+  const registro = {
+    pacienteId,
+    consultaId,
+    frequenciaCardiaca,
+    quantidadeLeituras,
+    origem,
+    aparelho: texto(corpo.aparelho) ? corpo.aparelho : null,
+    registradoEm:
+      texto(corpo.registradoEm) && !Number.isNaN(Date.parse(corpo.registradoEm))
+        ? corpo.registradoEm
+        : new Date().toISOString(),
+    registradoPor: usuario.id,
+  };
+
+  return criado(await inserir('sinaisVitais', registro));
 }
 
 // =====================================================================
@@ -650,6 +876,8 @@ async function atender(req, contexto) {
     contexto.corpo = corpo;
   }
 
+  // O registro e seu? (404) fica em cada acao, porque depende do
+  // registro.
   return rota.acao(contexto);
 }
 
