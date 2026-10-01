@@ -21,6 +21,7 @@
 
 const http = require('http');
 const crypto = require('crypto');
+const regras = require('./regras');
 
 const PORTA = 3001;
 
@@ -189,6 +190,26 @@ async function usuarioPorEmail(email) {
   return (
     usuarios.find((u) => normalizarEmail(u.email) === procurado) || null
   );
+}
+
+async function usuarioVinculado(perfil, vinculoId) {
+  const usuarios = await listar('usuarios');
+
+  return (
+    usuarios.find(
+      (u) => u.perfil === perfil && mesmoId(u.vinculoId, vinculoId),
+    ) || null
+  );
+}
+
+// Excluir o cadastro nao apaga o usuario: desativa. A sessao aberta cai
+// na proxima requisicao, porque o usuario e relido a cada uma.
+async function desativarUsuarioVinculado(perfil, vinculoId) {
+  const usuario = await usuarioVinculado(perfil, vinculoId);
+
+  if (usuario) {
+    await alterar('usuarios', usuario.id, { ativo: false });
+  }
 }
 
 // O que o app recebe sobre quem esta logado. Nunca salt nem senhaHash.
@@ -384,7 +405,21 @@ async function excluirPaciente({ params }) {
     throw new ErroHttp(404, 'Paciente não encontrado.');
   }
 
+  const consultas = await listar('consultas');
+
+  if (
+    consultas.some(
+      (c) => mesmoId(c.pacienteId, paciente.id) && regras.consultaFutura(c),
+    )
+  ) {
+    throw new ErroHttp(
+      409,
+      'Este paciente tem consulta marcada. Cancele as consultas dele antes de excluir.',
+    );
+  }
+
   await apagar('pacientes', paciente.id);
+  await desativarUsuarioVinculado('paciente', paciente.id);
 
   return ok(paciente);
 }
@@ -461,7 +496,30 @@ async function excluirMedico({ params }) {
     throw new ErroHttp(404, 'Médico não encontrado.');
   }
 
+  const consultas = await listar('consultas');
+
+  if (
+    consultas.some(
+      (c) => mesmoId(c.medicoId, medico.id) && regras.consultaFutura(c),
+    )
+  ) {
+    throw new ErroHttp(
+      409,
+      'Este médico tem consulta marcada. Remarque ou cancele as consultas dele antes de excluir.',
+    );
+  }
+
+  // Horario de quem nao atende mais geraria vaga que ninguem cumpre.
+  const horarios = await listar('horarios');
+
+  for (const horario of horarios.filter((h) =>
+    mesmoId(h.medicoId, medico.id),
+  )) {
+    await apagar('horarios', horario.id);
+  }
+
   await apagar('medicos', medico.id);
+  await desativarUsuarioVinculado('medico', medico.id);
 
   return ok(medico);
 }
@@ -532,11 +590,21 @@ async function horarioVisivel(usuario, id) {
 
 // O medico so mexe na propria agenda: o medicoId que ele mandar e
 // trocado pelo dele.
-function dadosDoHorario(usuario, corpo) {
+async function dadosDoHorario(usuario, corpo) {
   const registro = semId(corpo);
 
   if (usuario.perfil === 'medico') {
     registro.medicoId = usuario.vinculoId;
+  }
+
+  const erro = regras.validarHorarioDeAtendimento(registro);
+
+  if (erro) {
+    throw new ErroHttp(400, erro);
+  }
+
+  if (!(await obter('medicos', registro.medicoId))) {
+    throw new ErroHttp(400, 'Escolha o médico deste horário.');
   }
 
   return registro;
@@ -555,14 +623,14 @@ async function listarHorarios({ usuario }) {
 }
 
 async function criarHorario({ usuario, corpo }) {
-  return criado(await inserir('horarios', dadosDoHorario(usuario, corpo)));
+  return criado(await inserir('horarios', await dadosDoHorario(usuario, corpo)));
 }
 
 async function atualizarHorario({ usuario, params, corpo }) {
   const atual = await horarioVisivel(usuario, params.id);
 
   return ok(
-    await substituir('horarios', atual.id, dadosDoHorario(usuario, corpo)),
+    await substituir('horarios', atual.id, await dadosDoHorario(usuario, corpo)),
   );
 }
 
@@ -600,6 +668,56 @@ async function consultaVisivel(usuario, id) {
   return consulta;
 }
 
+// Regra das 24 h, so para o paciente. A recepcao nao tem essa trava.
+function exigirAntecedencia(usuario, consulta) {
+  if (usuario.perfil === 'paciente' && !regras.podeAlterarSozinho(consulta)) {
+    throw new ErroHttp(
+      403,
+      'Faltam menos de 24 h. Para remarcar ou cancelar, fale com a recepção.',
+    );
+  }
+}
+
+// Monta a consulta a gravar (agendamento e remarcacao) e confere as
+// regras. "atual" e a consulta original, na remarcacao.
+async function prepararConsulta(usuario, corpo, atual) {
+  // O paciente so agenda para si: o pacienteId que ele mandar e ignorado.
+  const pacienteId =
+    usuario.perfil === 'paciente'
+      ? idOuNulo(usuario.vinculoId)
+      : idOuNulo(corpo.pacienteId ?? atual?.pacienteId);
+  const medicoId = idOuNulo(corpo.medicoId ?? atual?.medicoId);
+
+  if (!(await obter('pacientes', pacienteId))) {
+    throw new ErroHttp(400, 'Escolha o paciente da consulta.');
+  }
+
+  if (!(await obter('medicos', medicoId))) {
+    throw new ErroHttp(400, 'Escolha o médico da consulta.');
+  }
+
+  const consulta = { pacienteId, medicoId, data: corpo.data, hora: corpo.hora };
+
+  const [horarios, consultas] = await Promise.all([
+    listar('horarios'),
+    listar('consultas'),
+  ]);
+  const outras = consultas.filter((c) => !atual || !mesmoId(c.id, atual.id));
+
+  const problema = regras.verificarAgendamento({
+    consulta,
+    horariosDoMedico: horarios.filter((h) => mesmoId(h.medicoId, medicoId)),
+    outrasDoMedico: outras.filter((c) => mesmoId(c.medicoId, medicoId)),
+    outrasDoPaciente: outras.filter((c) => mesmoId(c.pacienteId, pacienteId)),
+  });
+
+  if (problema) {
+    throw new ErroHttp(problema.status, problema.erro);
+  }
+
+  return consulta;
+}
+
 async function listarConsultas({ usuario }) {
   const consultas = await listar('consultas');
   return ok(consultas.filter((c) => consultaEhDoUsuario(c, usuario)));
@@ -610,29 +728,33 @@ async function obterConsulta({ usuario, params }) {
 }
 
 async function criarConsulta({ usuario, corpo }) {
-  const consulta = semId(corpo);
+  const consulta = await prepararConsulta(usuario, corpo, null);
 
-  // O paciente so agenda para si: o pacienteId que ele mandar e ignorado.
-  if (usuario.perfil === 'paciente') {
-    consulta.pacienteId = usuario.vinculoId;
-  }
-
-  return criado(await inserir('consultas', consulta));
+  return criado(
+    await inserir('consultas', { ...consulta, criadoPor: usuario.id }),
+  );
 }
 
 async function remarcarConsulta({ usuario, params, corpo }) {
   const atual = await consultaVisivel(usuario, params.id);
-  const consulta = semId(corpo);
 
-  if (usuario.perfil === 'paciente') {
-    consulta.pacienteId = usuario.vinculoId;
-  }
+  exigirAntecedencia(usuario, atual);
 
-  return ok(await substituir('consultas', atual.id, consulta));
+  const consulta = await prepararConsulta(usuario, corpo, atual);
+
+  return ok(
+    await substituir('consultas', atual.id, {
+      ...semId(atual),
+      ...consulta,
+      atualizadoPor: usuario.id,
+    }),
+  );
 }
 
 async function cancelarConsulta({ usuario, params }) {
   const atual = await consultaVisivel(usuario, params.id);
+
+  exigirAntecedencia(usuario, atual);
 
   await apagar('consultas', atual.id);
 
@@ -876,8 +998,8 @@ async function atender(req, contexto) {
     contexto.corpo = corpo;
   }
 
-  // O registro e seu? (404) fica em cada acao, porque depende do
-  // registro.
+  // O registro e seu? (404) e as regras de negocio (400/409) ficam em
+  // cada acao, porque dependem do registro.
   return rota.acao(contexto);
 }
 
