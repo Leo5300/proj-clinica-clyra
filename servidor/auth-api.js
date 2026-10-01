@@ -167,6 +167,15 @@ const normalizarEmail = (email) =>
 // USUARIOS E SESSOES
 // =====================================================================
 
+// Salt diferente por usuario: duas pessoas com a mesma senha ficam com
+// hashes diferentes.
+function hashDaSenha(senha) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const senhaHash = crypto.scryptSync(senha, salt, 64).toString('hex');
+
+  return { salt, senhaHash };
+}
+
 // timingSafeEqual leva o mesmo tempo acertando ou errando: o tempo da
 // resposta nao entrega quantos caracteres batem.
 function senhaConfere(usuario, senha) {
@@ -181,6 +190,18 @@ function senhaConfere(usuario, senha) {
     calculado.length === guardado.length &&
     crypto.timingSafeEqual(calculado, guardado)
   );
+}
+
+function novoUsuario({ email, senha, perfil, vinculoId, trocarSenha }) {
+  return {
+    email,
+    ...hashDaSenha(senha),
+    perfil,
+    vinculoId,
+    ativo: true,
+    trocarSenha,
+    criadoEm: new Date().toISOString(),
+  };
 }
 
 async function usuarioPorEmail(email) {
@@ -282,6 +303,96 @@ async function login({ corpo }) {
   }
 
   return ok(await abrirSessao(usuario));
+}
+
+const MENSAGEM_CONTA_EXISTENTE =
+  'Não foi possível criar a conta com esses dados. Se você já tem conta, entre com seu e-mail.';
+
+// Autocadastro: so cria PACIENTE. Medico e recepcao recebem acesso da
+// clinica. Qualquer "perfil" vindo no corpo e ignorado.
+async function registrarPaciente({ corpo }) {
+  const { nome, cpf, dataNascimento, email, senha, aceiteTermos } = corpo;
+
+  if (![nome, cpf, dataNascimento, email, senha].every(texto)) {
+    throw new ErroHttp(
+      400,
+      'Preencha nome, CPF, data de nascimento, e-mail e senha.',
+    );
+  }
+
+  if (aceiteTermos !== true) {
+    throw new ErroHttp(
+      400,
+      'Para criar a conta, aceite o uso dos seus dados para o atendimento.',
+    );
+  }
+
+  if (!regras.validarCpf(cpf)) {
+    throw new ErroHttp(400, 'CPF inválido. Confira os números digitados.');
+  }
+
+  if (!email.includes('@')) {
+    throw new ErroHttp(400, 'E-mail inválido.');
+  }
+
+  if (senha.length < 8) {
+    throw new ErroHttp(400, 'A senha precisa ter pelo menos 8 caracteres.');
+  }
+
+  if (!regras.dataDeNascimentoValida(dataNascimento)) {
+    throw new ErroHttp(400, 'Data de nascimento inválida.');
+  }
+
+  // Resposta igual para "e-mail ja usado" e "CPF ja tem conta": quem
+  // tenta nao descobre qual dos dois ja existe.
+  if (await usuarioPorEmail(email)) {
+    throw new ErroHttp(409, MENSAGEM_CONTA_EXISTENTE);
+  }
+
+  const pacientes = await listar('pacientes');
+  const existente = pacientes.find((p) => regras.mesmoCpf(p.cpf, cpf));
+  let pacienteId;
+
+  if (existente) {
+    if (await usuarioVinculado('paciente', existente.id)) {
+      throw new ErroHttp(409, MENSAGEM_CONTA_EXISTENTE);
+    }
+
+    // CPF certo e nascimento errado pode ser alguem tentando assumir o
+    // cadastro de outra pessoa: so a recepcao, com documento, resolve.
+    if (existente.dataNascimento !== dataNascimento) {
+      throw new ErroHttp(
+        409,
+        'Não foi possível criar a conta com esses dados. Procure a recepção.',
+      );
+    }
+
+    // Paciente ja cadastrado pela recepcao: so ganha a conta. O cadastro
+    // nao e duplicado nem alterado.
+    pacienteId = existente.id;
+  } else {
+    const paciente = await inserir('pacientes', {
+      nome: nome.trim(),
+      cpf: regras.formatarCpf(cpf),
+      dataNascimento,
+      email: email.trim(),
+    });
+
+    pacienteId = paciente.id;
+  }
+
+  const usuario = await inserir(
+    'usuarios',
+    novoUsuario({
+      email: normalizarEmail(email),
+      senha,
+      perfil: 'paciente',
+      vinculoId: pacienteId,
+      trocarSenha: false,
+    }),
+  );
+
+  return criado(await abrirSessao(usuario));
 }
 
 async function obterMe({ usuario }) {
@@ -920,6 +1031,7 @@ const P = 'paciente';
 
 const ROTAS = [
   { metodo: 'POST', caminho: '/login', publica: true, acao: login },
+  { metodo: 'POST', caminho: '/auth/registrar', publica: true, acao: registrarPaciente },
 
   { metodo: 'GET', caminho: '/me', perfis: TODOS, acao: obterMe },
   { metodo: 'PATCH', caminho: '/me', perfis: [M, P], acao: atualizarMinhaFoto },

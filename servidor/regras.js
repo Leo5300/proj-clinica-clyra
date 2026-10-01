@@ -283,6 +283,53 @@ function calcularHorariosLivres({
   return resultado;
 }
 
+function apenasDigitos(texto) {
+  return String(texto ?? '').replace(/\D/g, '');
+}
+
+// Algoritmo dos digitos verificadores. Digitos todos iguais passam na
+// conta, mas nao sao CPF de ninguem: sao recusados antes.
+function validarCpf(cpf) {
+  if (typeof cpf !== 'string' || !/^[\d.\-\s]+$/.test(cpf)) {
+    return false;
+  }
+
+  const digitos = apenasDigitos(cpf);
+
+  if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) {
+    return false;
+  }
+
+  const numeros = digitos.split('').map(Number);
+
+  const verificador = (quantidade) => {
+    let soma = 0;
+
+    for (let i = 0; i < quantidade; i += 1) {
+      soma += numeros[i] * (quantidade + 1 - i);
+    }
+
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+
+  return verificador(9) === numeros[9] && verificador(10) === numeros[10];
+}
+
+function formatarCpf(cpf) {
+  const d = apenasDigitos(cpf);
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9, 11)}`;
+}
+
+// Compara so os numeros: "529.982.247-25" e "52998224725" sao o mesmo CPF.
+function mesmoCpf(a, b) {
+  return apenasDigitos(a) === apenasDigitos(b);
+}
+
+function dataDeNascimentoValida(texto, agora = new Date()) {
+  return dataValida(texto) && dataDe(texto) <= agora;
+}
+
 module.exports = {
   DURACAO_CONSULTA_MIN,
   DIAS_SEMANA,
@@ -297,4 +344,8 @@ module.exports = {
   podeAlterarSozinho,
   diasDaBusca,
   calcularHorariosLivres,
+  validarCpf,
+  formatarCpf,
+  mesmoCpf,
+  dataDeNascimentoValida,
 };
