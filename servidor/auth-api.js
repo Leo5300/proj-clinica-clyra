@@ -1198,6 +1198,35 @@ async function registrarSinaisVitais({ usuario, corpo }) {
 }
 
 // =====================================================================
+// DISPOSITIVOS (token de push do aparelho)
+// =====================================================================
+
+// So grava o vinculo aparelho -> usuario. O envio de push e outro
+// trabalho. O mesmo aparelho pode trocar de usuario: atualiza em vez de
+// duplicar.
+async function registrarDispositivo({ usuario, corpo }) {
+  if (!texto(corpo.token)) {
+    throw new ErroHttp(400, 'Informe o token do aparelho.');
+  }
+
+  const registro = {
+    usuarioId: usuario.id,
+    token: corpo.token,
+    plataforma: texto(corpo.plataforma) ? corpo.plataforma : null,
+    atualizadoEm: new Date().toISOString(),
+  };
+
+  const dispositivos = await listar('dispositivos');
+  const existente = dispositivos.find((d) => d.token === corpo.token);
+
+  const salvo = existente
+    ? await substituir('dispositivos', existente.id, registro)
+    : await inserir('dispositivos', registro);
+
+  return ok(salvo);
+}
+
+// =====================================================================
 // ROTAS
 // =====================================================================
 //
@@ -1252,6 +1281,8 @@ const ROTAS = [
 
   { metodo: 'GET', caminho: '/sinaisVitais', perfis: [M, P], acao: listarSinaisVitais },
   { metodo: 'POST', caminho: '/sinaisVitais', perfis: [M, P], acao: registrarSinaisVitais },
+
+  { metodo: 'POST', caminho: '/dispositivos', perfis: TODOS, acao: registrarDispositivo },
 ];
 
 function decodificar(parte) {
