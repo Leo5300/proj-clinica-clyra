@@ -51,7 +51,7 @@
     {
       "id": "1",
       "nome": "Lucas Pereira",
-      "cpf": "111.111.111-11",
+      "cpf": "529.982.247-25",
       "dataNascimento": "1990-04-12",
       "telefone": "(31) 91111-1111",
       "email": "lucas@exemplo.com"
@@ -59,7 +59,7 @@
     {
       "id": "2",
       "nome": "Fernanda Lima",
-      "cpf": "222.222.222-22",
+      "cpf": "153.509.460-56",
       "dataNascimento": "1985-09-03",
       "telefone": "(31) 92222-2222",
       "email": "fernanda@exemplo.com"
@@ -67,7 +67,7 @@
     {
       "id": "3",
       "nome": "Rafael Costa",
-      "cpf": "333.333.333-33",
+      "cpf": "386.421.507-26",
       "dataNascimento": "2001-01-27",
       "telefone": "(31) 93333-3333",
       "email": "rafael@exemplo.com"
@@ -75,7 +75,7 @@
     {
       "id": "4",
       "nome": "Juliana Alves",
-      "cpf": "444.444.444-44",
+      "cpf": "714.602.938-78",
       "dataNascimento": "1978-11-30",
       "telefone": "(31) 94444-4444",
       "email": "juliana@exemplo.com"
