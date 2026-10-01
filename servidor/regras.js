@@ -27,6 +27,10 @@ const DIAS_SEMANA = [
   'Sábado',
 ];
 
+// Busca de horarios livres: padrao de 3 semanas, no maximo ~2 meses.
+const DIAS_DISPONIBILIDADE_PADRAO = 21;
+const DIAS_DISPONIBILIDADE_MAXIMO = 60;
+
 function horaValida(texto) {
   if (typeof texto !== 'string' || !/^\d{2}:\d{2}$/.test(texto)) {
     return false;
@@ -39,6 +43,12 @@ function horaValida(texto) {
 function minutosDe(hora) {
   const [h, m] = hora.split(':').map(Number);
   return h * 60 + m;
+}
+
+function horaDeMinutos(minutos) {
+  const h = String(Math.floor(minutos / 60)).padStart(2, '0');
+  const m = String(minutos % 60).padStart(2, '0');
+  return `${h}:${m}`;
 }
 
 // new Date aceita 2026-02-31 e "corrige" para marco. Conferir os campos
@@ -61,6 +71,13 @@ function dataValida(texto) {
 function dataDe(texto) {
   const [ano, mes, dia] = texto.split('-').map(Number);
   return new Date(ano, mes - 1, dia);
+}
+
+function textoDaData(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
 
 function consultaValida(consulta) {
@@ -188,6 +205,84 @@ function podeAlterarSozinho(consulta, agora = new Date()) {
   );
 }
 
+// Quantidade de dias pedida, dentro dos limites. Valor ausente ou
+// invalido cai no padrao.
+function diasDaBusca(valor) {
+  const dias = Number.parseInt(valor, 10);
+
+  if (!Number.isInteger(dias) || dias < 1) {
+    return DIAS_DISPONIBILIDADE_PADRAO;
+  }
+
+  return Math.min(dias, DIAS_DISPONIBILIDADE_MAXIMO);
+}
+
+// Horarios livres de UM medico, a partir de hoje: de 30 em 30 min dentro
+// de cada faixa, so os que cabem inteiros, sem os ocupados e sem os que ja
+// passaram. So entram os dias com pelo menos um horario livre. Recebe so
+// horarios e consultas do medico e nunca devolve nada de paciente.
+function calcularHorariosLivres({
+  horarios,
+  consultas,
+  dias = DIAS_DISPONIBILIDADE_PADRAO,
+  agora = new Date(),
+}) {
+  const resultado = [];
+
+  for (let i = 0; i < dias; i += 1) {
+    // Somar no campo "dia" atravessa fim de mes e horario de verao sem
+    // conta de milissegundos.
+    const dia = new Date(
+      agora.getFullYear(),
+      agora.getMonth(),
+      agora.getDate() + i,
+    );
+    const nomeDoDia = DIAS_SEMANA[dia.getDay()];
+
+    if (!nomeDoDia) {
+      continue;
+    }
+
+    const data = textoDaData(dia);
+    const livres = new Set();
+
+    horarios
+      .filter(
+        (h) =>
+          h.diaSemana === nomeDoDia &&
+          horaValida(h.horaInicio) &&
+          horaValida(h.horaFim),
+      )
+      .forEach((h) => {
+        const fimDaFaixa = minutosDe(h.horaFim);
+
+        for (
+          let inicio = minutosDe(h.horaInicio);
+          inicio + DURACAO_CONSULTA_MIN <= fimDaFaixa;
+          inicio += DURACAO_CONSULTA_MIN
+        ) {
+          const candidata = { data, hora: horaDeMinutos(inicio) };
+          const passou = inicioDaConsulta(candidata) <= agora;
+          const ocupada = consultas.some((c) => conflitam(c, candidata));
+
+          if (!passou && !ocupada) {
+            livres.add(candidata.hora);
+          }
+        }
+      });
+
+    if (livres.size > 0) {
+      resultado.push({
+        data,
+        diaSemana: nomeDoDia,
+        horarios: [...livres].sort(),
+      });
+    }
+  }
+
+  return resultado;
+}
+
 module.exports = {
   DURACAO_CONSULTA_MIN,
   DIAS_SEMANA,
@@ -200,4 +295,6 @@ module.exports = {
   verificarAgendamento,
   consultaFutura,
   podeAlterarSozinho,
+  diasDaBusca,
+  calcularHorariosLivres,
 };

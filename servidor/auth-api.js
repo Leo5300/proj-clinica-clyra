@@ -761,6 +761,38 @@ async function cancelarConsulta({ usuario, params }) {
   return ok(atual);
 }
 
+// Horarios livres de um medico. Nao devolve nada de paciente: so datas e
+// horas, entao qualquer perfil pode consultar.
+async function consultarDisponibilidade({ query }) {
+  if (!query.get('medicoId')) {
+    throw new ErroHttp(400, 'Informe o médico.');
+  }
+
+  const medico = await obter('medicos', query.get('medicoId'));
+
+  if (!medico) {
+    throw new ErroHttp(404, 'Médico não encontrado.');
+  }
+
+  const ignorar = query.get('ignorarConsultaId');
+  const [horarios, consultas] = await Promise.all([
+    listar('horarios'),
+    listar('consultas'),
+  ]);
+
+  return ok(
+    regras.calcularHorariosLivres({
+      horarios: horarios.filter((h) => mesmoId(h.medicoId, medico.id)),
+      consultas: consultas.filter(
+        (c) =>
+          mesmoId(c.medicoId, medico.id) &&
+          !(ignorar && mesmoId(c.id, ignorar)),
+      ),
+      dias: regras.diasDaBusca(query.get('dias')),
+    }),
+  );
+}
+
 // =====================================================================
 // SINAIS VITAIS
 // =====================================================================
@@ -919,6 +951,8 @@ const ROTAS = [
   { metodo: 'POST', caminho: '/consultas', perfis: [R, P], acao: criarConsulta },
   { metodo: 'PUT', caminho: '/consultas/:id', perfis: [R, P], acao: remarcarConsulta },
   { metodo: 'DELETE', caminho: '/consultas/:id', perfis: [R, P], acao: cancelarConsulta },
+
+  { metodo: 'GET', caminho: '/disponibilidade', perfis: TODOS, acao: consultarDisponibilidade },
 
   { metodo: 'GET', caminho: '/sinaisVitais', perfis: [M, P], acao: listarSinaisVitais },
   { metodo: 'POST', caminho: '/sinaisVitais', perfis: [M, P], acao: registrarSinaisVitais },
