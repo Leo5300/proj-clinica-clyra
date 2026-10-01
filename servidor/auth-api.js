@@ -27,6 +27,8 @@ const PORTA = 3001;
 // Armazenamento interno. 127.0.0.1: so o proprio computador alcanca.
 const URL_DADOS = 'http://127.0.0.1:3000';
 
+const TODOS = ['recepcao', 'medico', 'paciente'];
+
 // Colecao onde fica o cadastro de cada perfil. Recepcao nao tem cadastro.
 const COLECAO_DO_VINCULO = {
   medico: 'medicos',
@@ -127,6 +129,9 @@ const inserir = (colecao, registro) =>
 
 const substituir = (colecao, id, registro) =>
   dados('PUT', caminhoDoRegistro(colecao, id), registro);
+
+const alterar = (colecao, id, campos) =>
+  dados('PATCH', caminhoDoRegistro(colecao, id), campos);
 
 const apagar = (colecao, id) =>
   dados('DELETE', caminhoDoRegistro(colecao, id));
@@ -253,6 +258,21 @@ async function obterMe({ usuario }) {
   return ok(await montarMe(usuario));
 }
 
+// A foto e do cadastro vinculado (medico ou paciente).
+async function atualizarMinhaFoto({ usuario, corpo }) {
+  const fotoUri = corpo.fotoUri ?? null;
+
+  if (fotoUri !== null && typeof fotoUri !== 'string') {
+    throw new ErroHttp(400, 'Foto inválida.');
+  }
+
+  await alterar(COLECAO_DO_VINCULO[usuario.perfil], usuario.vinculoId, {
+    fotoUri,
+  });
+
+  return ok(await montarMe(usuario));
+}
+
 // =====================================================================
 // PACIENTES
 // =====================================================================
@@ -365,6 +385,14 @@ async function excluirMedico({ params }) {
 // ESPECIALIDADES
 // =====================================================================
 
+function dadosDaEspecialidade(corpo) {
+  if (!texto(corpo.nome)) {
+    throw new ErroHttp(400, 'Informe o nome da especialidade.');
+  }
+
+  return { ...semId(corpo), nome: corpo.nome.trim() };
+}
+
 async function especialidadeExistente(id) {
   const especialidade = await obter('especialidades', id);
 
@@ -380,13 +408,15 @@ async function listarEspecialidades() {
 }
 
 async function criarEspecialidade({ corpo }) {
-  return criado(await inserir('especialidades', semId(corpo)));
+  return criado(await inserir('especialidades', dadosDaEspecialidade(corpo)));
 }
 
 async function atualizarEspecialidade({ params, corpo }) {
   const atual = await especialidadeExistente(params.id);
 
-  return ok(await substituir('especialidades', atual.id, semId(corpo)));
+  return ok(
+    await substituir('especialidades', atual.id, dadosDaEspecialidade(corpo)),
+  );
 }
 
 async function excluirEspecialidade({ params }) {
@@ -499,44 +529,51 @@ async function registrarSinaisVitais({ corpo }) {
 // ROTAS
 // =====================================================================
 //
-// Unica lista do que existe.
+// Unica lista do que existe. A tela do app so esconde botoes; quem
+// garante o acesso e esta tabela.
 //   publica: true                    -> nao exige login
+//   perfis: [...]                    -> perfis que podem usar a funcao
+
+const R = 'recepcao';
+const M = 'medico';
+const P = 'paciente';
 
 const ROTAS = [
   { metodo: 'POST', caminho: '/login', publica: true, acao: login },
 
-  { metodo: 'GET', caminho: '/me', acao: obterMe },
+  { metodo: 'GET', caminho: '/me', perfis: TODOS, acao: obterMe },
+  { metodo: 'PATCH', caminho: '/me', perfis: [M, P], acao: atualizarMinhaFoto },
 
-  { metodo: 'GET', caminho: '/pacientes', acao: listarPacientes },
-  { metodo: 'GET', caminho: '/pacientes/:id', acao: obterPaciente },
-  { metodo: 'POST', caminho: '/pacientes', acao: criarPaciente },
-  { metodo: 'PUT', caminho: '/pacientes/:id', acao: atualizarPaciente },
-  { metodo: 'DELETE', caminho: '/pacientes/:id', acao: excluirPaciente },
+  { metodo: 'GET', caminho: '/pacientes', perfis: [R, M], acao: listarPacientes },
+  { metodo: 'GET', caminho: '/pacientes/:id', perfis: TODOS, acao: obterPaciente },
+  { metodo: 'POST', caminho: '/pacientes', perfis: [R], acao: criarPaciente },
+  { metodo: 'PUT', caminho: '/pacientes/:id', perfis: [R, P], acao: atualizarPaciente },
+  { metodo: 'DELETE', caminho: '/pacientes/:id', perfis: [R], acao: excluirPaciente },
 
-  { metodo: 'GET', caminho: '/medicos', acao: listarMedicos },
-  { metodo: 'GET', caminho: '/medicos/:id', acao: obterMedico },
-  { metodo: 'POST', caminho: '/medicos', acao: criarMedico },
-  { metodo: 'PUT', caminho: '/medicos/:id', acao: atualizarMedico },
-  { metodo: 'DELETE', caminho: '/medicos/:id', acao: excluirMedico },
+  { metodo: 'GET', caminho: '/medicos', perfis: TODOS, acao: listarMedicos },
+  { metodo: 'GET', caminho: '/medicos/:id', perfis: TODOS, acao: obterMedico },
+  { metodo: 'POST', caminho: '/medicos', perfis: [R], acao: criarMedico },
+  { metodo: 'PUT', caminho: '/medicos/:id', perfis: [R], acao: atualizarMedico },
+  { metodo: 'DELETE', caminho: '/medicos/:id', perfis: [R], acao: excluirMedico },
 
-  { metodo: 'GET', caminho: '/especialidades', acao: listarEspecialidades },
-  { metodo: 'POST', caminho: '/especialidades', acao: criarEspecialidade },
-  { metodo: 'PUT', caminho: '/especialidades/:id', acao: atualizarEspecialidade },
-  { metodo: 'DELETE', caminho: '/especialidades/:id', acao: excluirEspecialidade },
+  { metodo: 'GET', caminho: '/especialidades', perfis: TODOS, acao: listarEspecialidades },
+  { metodo: 'POST', caminho: '/especialidades', perfis: [R], acao: criarEspecialidade },
+  { metodo: 'PUT', caminho: '/especialidades/:id', perfis: [R], acao: atualizarEspecialidade },
+  { metodo: 'DELETE', caminho: '/especialidades/:id', perfis: [R], acao: excluirEspecialidade },
 
-  { metodo: 'GET', caminho: '/horarios', acao: listarHorarios },
-  { metodo: 'POST', caminho: '/horarios', acao: criarHorario },
-  { metodo: 'PUT', caminho: '/horarios/:id', acao: atualizarHorario },
-  { metodo: 'DELETE', caminho: '/horarios/:id', acao: excluirHorario },
+  { metodo: 'GET', caminho: '/horarios', perfis: [R, M], acao: listarHorarios },
+  { metodo: 'POST', caminho: '/horarios', perfis: [R, M], acao: criarHorario },
+  { metodo: 'PUT', caminho: '/horarios/:id', perfis: [R, M], acao: atualizarHorario },
+  { metodo: 'DELETE', caminho: '/horarios/:id', perfis: [R, M], acao: excluirHorario },
 
-  { metodo: 'GET', caminho: '/consultas', acao: listarConsultas },
-  { metodo: 'GET', caminho: '/consultas/:id', acao: obterConsulta },
-  { metodo: 'POST', caminho: '/consultas', acao: criarConsulta },
-  { metodo: 'PUT', caminho: '/consultas/:id', acao: remarcarConsulta },
-  { metodo: 'DELETE', caminho: '/consultas/:id', acao: cancelarConsulta },
+  { metodo: 'GET', caminho: '/consultas', perfis: TODOS, acao: listarConsultas },
+  { metodo: 'GET', caminho: '/consultas/:id', perfis: TODOS, acao: obterConsulta },
+  { metodo: 'POST', caminho: '/consultas', perfis: [R, P], acao: criarConsulta },
+  { metodo: 'PUT', caminho: '/consultas/:id', perfis: [R, P], acao: remarcarConsulta },
+  { metodo: 'DELETE', caminho: '/consultas/:id', perfis: [R, P], acao: cancelarConsulta },
 
-  { metodo: 'GET', caminho: '/sinaisVitais', acao: listarSinaisVitais },
-  { metodo: 'POST', caminho: '/sinaisVitais', acao: registrarSinaisVitais },
+  { metodo: 'GET', caminho: '/sinaisVitais', perfis: [M, P], acao: listarSinaisVitais },
+  { metodo: 'POST', caminho: '/sinaisVitais', perfis: [M, P], acao: registrarSinaisVitais },
 ];
 
 function decodificar(parte) {
@@ -595,6 +632,11 @@ async function atender(req, contexto) {
 
     if (!contexto.usuario) {
       throw new ErroHttp(401, 'Sessão expirada. Entre novamente.');
+    }
+
+    // Seu perfil pode usar esta funcao? (403)
+    if (!rota.perfis.includes(contexto.usuario.perfil)) {
+      throw new ErroHttp(403, 'Seu perfil não tem permissão para isso.');
     }
   }
 
