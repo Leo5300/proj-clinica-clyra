@@ -36,14 +36,27 @@ const COLECAO_DO_VINCULO = {
   paciente: 'pacientes',
 };
 
+// Validade da sessao. Equipe: um turno de trabalho. Paciente: usa o
+// proprio celular, e entrar de novo a cada 8 h o faria desistir do app.
+const HORA_MS = 60 * 60 * 1000;
+const VALIDADE_DA_SESSAO_MS = {
+  recepcao: 8 * HORA_MS,
+  medico: 8 * HORA_MS,
+  paciente: 30 * 24 * HORA_MS,
+};
+
 // Sem 0/O e 1/l/I: a senha temporaria e lida na tela e digitada por outra
 // pessoa, e esses caracteres se confundem.
 const ALFABETO_SENHA_TEMPORARIA =
   'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
 
-// Sessoes validas, em memoria: token -> { usuarioId }.
+// Sessoes validas, em memoria: token -> { usuarioId, expiraEm }.
 // Reiniciar o servidor encerra todas as sessoes.
 const SESSOES = new Map();
+
+// Rotas com dado pessoal ou de saude: toda requisicao a elas vai para o
+// registro de acessos (LGPD).
+const ROTAS_SENSIVEIS = ['/pacientes', '/consultas', '/sinaisVitais'];
 
 // Erro com status HTTP: as acoes lancam e o servidor responde
 // { erro, codigo } com o status certo.
@@ -270,8 +283,13 @@ async function montarMe(usuario) {
 
 async function abrirSessao(usuario) {
   const token = crypto.randomBytes(24).toString('hex');
+  const validade =
+    VALIDADE_DA_SESSAO_MS[usuario.perfil] ?? VALIDADE_DA_SESSAO_MS.recepcao;
 
-  SESSOES.set(token, { usuarioId: usuario.id });
+  SESSOES.set(token, {
+    usuarioId: usuario.id,
+    expiraEm: Date.now() + validade,
+  });
 
   return { token, usuario: await montarMe(usuario) };
 }
@@ -286,6 +304,11 @@ async function usuarioDaRequisicao(req) {
   const sessao = token ? SESSOES.get(token) : null;
 
   if (!sessao) {
+    return null;
+  }
+
+  if (sessao.expiraEm <= Date.now()) {
+    SESSOES.delete(token);
     return null;
   }
 
@@ -1322,15 +1345,40 @@ async function atender(req, contexto) {
   return rota.acao(contexto);
 }
 
-const servidor = http.createServer(async (req, res) => {
-  console.log(`${req.method} ${req.url}`);
+function rotaSensivel(caminho) {
+  return ROTAS_SENSIVEIS.some(
+    (raiz) => caminho === raiz || caminho.startsWith(`${raiz}/`),
+  );
+}
 
+// Registro de acessos: quem, quando, o que e com que resultado. So
+// metadados -- nunca corpo, CPF, nome ou valores.
+function registrarAcessoAoTerminar(req, res, contexto) {
+  const quando = new Date().toISOString();
+
+  res.on('finish', () => {
+    const { usuario, url } = contexto;
+    const quem = usuario
+      ? `usuario=${usuario.id} perfil=${usuario.perfil}`
+      : 'usuario=- perfil=-';
+
+    console.log(
+      `[acesso] ${quando} ${quem} ${req.method} ${url.pathname}${url.search} -> ${res.statusCode}`,
+    );
+  });
+}
+
+const servidor = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     return json(res, 204, {});
   }
 
   const url = new URL(req.url, 'http://localhost');
   const contexto = { url, query: url.searchParams, usuario: null };
+
+  if (rotaSensivel(url.pathname)) {
+    registrarAcessoAoTerminar(req, res, contexto);
+  }
 
   try {
     const { status, corpo } = await atender(req, contexto);
