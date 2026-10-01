@@ -36,6 +36,11 @@ const COLECAO_DO_VINCULO = {
   paciente: 'pacientes',
 };
 
+// Sem 0/O e 1/l/I: a senha temporaria e lida na tela e digitada por outra
+// pessoa, e esses caracteres se confundem.
+const ALFABETO_SENHA_TEMPORARIA =
+  'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
 // Sessoes validas, em memoria: token -> { usuarioId }.
 // Reiniciar o servidor encerra todas as sessoes.
 const SESSOES = new Map();
@@ -202,6 +207,18 @@ function novoUsuario({ email, senha, perfil, vinculoId, trocarSenha }) {
     trocarSenha,
     criadoEm: new Date().toISOString(),
   };
+}
+
+function gerarSenhaTemporaria() {
+  let senha = '';
+
+  for (let i = 0; i < 10; i += 1) {
+    senha += ALFABETO_SENHA_TEMPORARIA[
+      crypto.randomInt(ALFABETO_SENHA_TEMPORARIA.length)
+    ];
+  }
+
+  return senha;
 }
 
 async function usuarioPorEmail(email) {
@@ -399,6 +416,32 @@ async function obterMe({ usuario }) {
   return ok(await montarMe(usuario));
 }
 
+async function trocarSenha({ usuario, corpo }) {
+  const { senhaAtual, novaSenha } = corpo;
+
+  if (!senhaConfere(usuario, senhaAtual)) {
+    throw new ErroHttp(400, 'Senha atual incorreta.');
+  }
+
+  if (typeof novaSenha !== 'string' || novaSenha.length < 8) {
+    throw new ErroHttp(
+      400,
+      'A nova senha precisa ter pelo menos 8 caracteres.',
+    );
+  }
+
+  if (novaSenha === senhaAtual) {
+    throw new ErroHttp(400, 'A nova senha precisa ser diferente da atual.');
+  }
+
+  const atualizado = await alterar('usuarios', usuario.id, {
+    ...hashDaSenha(novaSenha),
+    trocarSenha: false,
+  });
+
+  return ok(await montarMe(atualizado));
+}
+
 // A foto e do cadastro vinculado (medico ou paciente).
 async function atualizarMinhaFoto({ usuario, corpo }) {
   const fotoUri = corpo.fotoUri ?? null;
@@ -541,19 +584,33 @@ async function excluirPaciente({ params }) {
 
 // Paciente e medico veem so o necessario para escolher e reconhecer o
 // profissional. Contato e endereco ficam com a recepcao.
-function medicoParaPerfil(medico, perfil) {
+function medicoParaPerfil(medico, perfil, usuarios) {
   if (perfil === 'recepcao') {
-    return medico;
+    return {
+      ...medico,
+      temAcesso: usuarios.some(
+        (u) => u.perfil === 'medico' && mesmoId(u.vinculoId, medico.id),
+      ),
+    };
   }
 
   const { id, nome, especialidade, crm, fotoUri } = medico;
   return { id, nome, especialidade, crm, fotoUri };
 }
 
-async function listarMedicos({ usuario }) {
-  const medicos = await listar('medicos');
+// temAcesso e calculado; nao e gravado no cadastro.
+function camposDoMedico(corpo) {
+  const { temAcesso, ...campos } = semId(corpo);
+  return campos;
+}
 
-  return ok(medicos.map((m) => medicoParaPerfil(m, usuario.perfil)));
+async function listarMedicos({ usuario }) {
+  const [medicos, usuarios] = await Promise.all([
+    listar('medicos'),
+    usuario.perfil === 'recepcao' ? listar('usuarios') : [],
+  ]);
+
+  return ok(medicos.map((m) => medicoParaPerfil(m, usuario.perfil, usuarios)));
 }
 
 async function obterMedico({ usuario, params }) {
@@ -563,21 +620,51 @@ async function obterMedico({ usuario, params }) {
     throw new ErroHttp(404, 'Médico não encontrado.');
   }
 
-  return ok(medicoParaPerfil(medico, usuario.perfil));
+  const usuarios =
+    usuario.perfil === 'recepcao' ? await listar('usuarios') : [];
+
+  return ok(medicoParaPerfil(medico, usuario.perfil, usuarios));
 }
 
+// Cadastro de medico ja nasce com acesso ao app: o medico entra com a
+// senha temporaria e cria a dele no primeiro acesso.
 async function criarMedico({ corpo }) {
-  const campos = semId(corpo);
+  const campos = camposDoMedico(corpo);
 
   if (
     !texto(campos.nome) ||
     !texto(campos.especialidade) ||
-    !texto(campos.crm)
+    !texto(campos.crm) ||
+    !texto(campos.email)
   ) {
-    throw new ErroHttp(400, 'Informe nome, especialidade e CRM.');
+    throw new ErroHttp(400, 'Informe nome, especialidade, CRM e e-mail.');
   }
 
-  return criado(await inserir('medicos', campos));
+  const email = normalizarEmail(campos.email);
+
+  if (await usuarioPorEmail(email)) {
+    throw new ErroHttp(409, 'Já existe um acesso com este e-mail.');
+  }
+
+  const medico = await inserir('medicos', campos);
+  const senhaTemporaria = gerarSenhaTemporaria();
+
+  await inserir(
+    'usuarios',
+    novoUsuario({
+      email,
+      senha: senhaTemporaria,
+      perfil: 'medico',
+      vinculoId: medico.id,
+      trocarSenha: true,
+    }),
+  );
+
+  // Unica vez em que a senha temporaria aparece: so o hash e gravado.
+  return criado({
+    medico: { ...medico, temAcesso: true },
+    acesso: { email, senhaTemporaria },
+  });
 }
 
 async function atualizarMedico({ params, corpo }) {
@@ -587,7 +674,7 @@ async function atualizarMedico({ params, corpo }) {
     throw new ErroHttp(404, 'Médico não encontrado.');
   }
 
-  const campos = semId(corpo);
+  const campos = camposDoMedico(corpo);
 
   if (
     !texto(campos.nome) ||
@@ -597,7 +684,33 @@ async function atualizarMedico({ params, corpo }) {
     throw new ErroHttp(400, 'Informe nome, especialidade e CRM.');
   }
 
-  return ok(await substituir('medicos', atual.id, campos));
+  // O e-mail do cadastro e o login do medico: os dois andam juntos.
+  const usuarioDoMedico = await usuarioVinculado('medico', atual.id);
+
+  if (usuarioDoMedico) {
+    const novoEmail = normalizarEmail(campos.email);
+
+    if (!novoEmail) {
+      throw new ErroHttp(
+        400,
+        'Este médico tem acesso ao app: informe o e-mail dele.',
+      );
+    }
+
+    if (novoEmail !== normalizarEmail(usuarioDoMedico.email)) {
+      const dono = await usuarioPorEmail(novoEmail);
+
+      if (dono && !mesmoId(dono.id, usuarioDoMedico.id)) {
+        throw new ErroHttp(409, 'Já existe um acesso com este e-mail.');
+      }
+
+      await alterar('usuarios', usuarioDoMedico.id, { email: novoEmail });
+    }
+  }
+
+  const medico = await substituir('medicos', atual.id, campos);
+
+  return ok({ ...medico, temAcesso: Boolean(usuarioDoMedico) });
 }
 
 async function excluirMedico({ params }) {
@@ -633,6 +746,51 @@ async function excluirMedico({ params }) {
   await desativarUsuarioVinculado('medico', medico.id);
 
   return ok(medico);
+}
+
+// Cria o acesso de um medico que ainda nao tem, ou gera nova senha
+// temporaria para quem esqueceu a dele.
+async function gerarAcessoMedico({ params }) {
+  const medico = await obter('medicos', params.id);
+
+  if (!medico) {
+    throw new ErroHttp(404, 'Médico não encontrado.');
+  }
+
+  const senhaTemporaria = gerarSenhaTemporaria();
+  const existente = await usuarioVinculado('medico', medico.id);
+
+  if (existente) {
+    await alterar('usuarios', existente.id, {
+      ...hashDaSenha(senhaTemporaria),
+      trocarSenha: true,
+    });
+
+    return ok({ acesso: { email: existente.email, senhaTemporaria } });
+  }
+
+  if (!texto(medico.email)) {
+    throw new ErroHttp(400, 'Cadastre o e-mail do médico antes.');
+  }
+
+  const email = normalizarEmail(medico.email);
+
+  if (await usuarioPorEmail(email)) {
+    throw new ErroHttp(409, 'Já existe um acesso com este e-mail.');
+  }
+
+  await inserir(
+    'usuarios',
+    novoUsuario({
+      email,
+      senha: senhaTemporaria,
+      perfil: 'medico',
+      vinculoId: medico.id,
+      trocarSenha: true,
+    }),
+  );
+
+  return ok({ acesso: { email, senhaTemporaria } });
 }
 
 // =====================================================================
@@ -1024,6 +1182,7 @@ async function registrarSinaisVitais({ usuario, corpo }) {
 // garante o acesso e esta tabela.
 //   publica: true                    -> nao exige login
 //   perfis: [...]                    -> perfis que podem usar a funcao
+//   liberadaComSenhaTemporaria: true -> funciona antes da troca de senha
 
 const R = 'recepcao';
 const M = 'medico';
@@ -1033,7 +1192,8 @@ const ROTAS = [
   { metodo: 'POST', caminho: '/login', publica: true, acao: login },
   { metodo: 'POST', caminho: '/auth/registrar', publica: true, acao: registrarPaciente },
 
-  { metodo: 'GET', caminho: '/me', perfis: TODOS, acao: obterMe },
+  { metodo: 'GET', caminho: '/me', perfis: TODOS, liberadaComSenhaTemporaria: true, acao: obterMe },
+  { metodo: 'PUT', caminho: '/me/senha', perfis: TODOS, liberadaComSenhaTemporaria: true, acao: trocarSenha },
   { metodo: 'PATCH', caminho: '/me', perfis: [M, P], acao: atualizarMinhaFoto },
 
   { metodo: 'GET', caminho: '/pacientes', perfis: [R, M], acao: listarPacientes },
@@ -1047,6 +1207,7 @@ const ROTAS = [
   { metodo: 'POST', caminho: '/medicos', perfis: [R], acao: criarMedico },
   { metodo: 'PUT', caminho: '/medicos/:id', perfis: [R], acao: atualizarMedico },
   { metodo: 'DELETE', caminho: '/medicos/:id', perfis: [R], acao: excluirMedico },
+  { metodo: 'POST', caminho: '/medicos/:id/acesso', perfis: [R], acao: gerarAcessoMedico },
 
   { metodo: 'GET', caminho: '/especialidades', perfis: TODOS, acao: listarEspecialidades },
   { metodo: 'POST', caminho: '/especialidades', perfis: [R], acao: criarEspecialidade },
@@ -1126,6 +1287,18 @@ async function atender(req, contexto) {
 
     if (!contexto.usuario) {
       throw new ErroHttp(401, 'Sessão expirada. Entre novamente.');
+    }
+
+    // Com senha temporaria, so da para ver quem e e trocar a senha.
+    if (
+      contexto.usuario.trocarSenha === true &&
+      !rota.liberadaComSenhaTemporaria
+    ) {
+      throw new ErroHttp(
+        403,
+        'Troque a senha temporária para continuar.',
+        'TROCAR_SENHA',
+      );
     }
 
     // Seu perfil pode usar esta funcao? (403)
