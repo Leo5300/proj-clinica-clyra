@@ -8,6 +8,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import LoginScreen from "../screens/LoginScreen";
 import LoginBiometricoScreen from "../screens/LoginBiometricoScreen";
+import CriarContaScreen from "../screens/CriarContaScreen";
+import TrocarSenhaScreen from "../screens/TrocarSenhaScreen";
 import HomeScreen from "../screens/HomeScreen";
 import MedicosScreen from "../screens/MedicosScreen";
 import CadastroMedicoScreen from "../screens/CadastroMedicoScreen";
@@ -68,6 +70,7 @@ function protegida(Componente, nomeDaRota) {
 }
 
 const TELAS = {
+  TrocarSenha: protegida(TrocarSenhaScreen, "TrocarSenha"),
   Home: protegida(HomeScreen, "Home"),
   Medicos: protegida(MedicosScreen, "Medicos"),
   CadastroMedico: protegida(CadastroMedicoScreen, "CadastroMedico"),
@@ -158,6 +161,8 @@ export default function AppNavigator() {
           name="LoginBiometrico"
           component={LoginBiometricoScreen}
         />
+        <Stack.Screen name="CriarConta" component={CriarContaScreen} />
+        <Stack.Screen name="TrocarSenha" component={TELAS.TrocarSenha} />
         <Stack.Screen name="Home" component={TELAS.Home} />
         <Stack.Screen name="Medicos" component={TELAS.Medicos} />
         <Stack.Screen name="CadastroMedico" component={TELAS.CadastroMedico} />

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { autenticar } from '../services/api';
-import { salvarToken } from '../services/sessao';
+import { salvarSessao } from '../services/sessao';
 // npx expo install expo-secure-store
 
 // TODO: quando tivermos mais telas, mover para front/src/theme.js
@@ -55,14 +55,24 @@ export default function LoginScreen({ navigation }) {
     try {
       const dados = await autenticar(email.trim(), senha);
 
-      await salvarToken(dados.token);
+      await salvarSessao(dados.token, dados.usuario);
 
       // A senha nao precisa continuar na memoria do app: dagora em diante o
       // que vale e o token.
       setSenha('');
 
       // reset e nao navigate: o usuario nao pode voltar para o Login com o
-      // gesto de voltar depois de autenticado.
+      // gesto de voltar depois de autenticado. Senha temporaria (acesso
+      // criado pela clinica) obriga a criar a propria antes de qualquer
+      // outra tela -- o servidor tambem bloqueia o resto ate la.
+      if (dados.usuario?.trocarSenha) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'TrocarSenha', params: { obrigatorio: true } }],
+        });
+        return;
+      }
+
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (e) {
       if (e.credencialInvalida) {
@@ -129,11 +139,16 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.footRow}>
-            <Text style={styles.footText}>Ainda não é paciente? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('CadastroPaciente')}>
-              <Text style={styles.footLink}>Criar conta</Text>
+            <Text style={styles.footText}>Primeira vez aqui? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('CriarConta')}>
+              <Text style={styles.footLink}>Criar conta de paciente</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Conta de equipe nao se cria pelo app: quem cria e a clinica. */}
+          <Text style={styles.footNota}>
+            Médicos e recepção entram com o acesso fornecido pela clínica.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -188,4 +203,10 @@ const styles = StyleSheet.create({
   footRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 26 },
   footText: { color: colors.muted, fontSize: 12.5 },
   footLink: { color: colors.sage, fontWeight: '600', fontSize: 12.5 },
+  footNota: {
+    color: colors.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 10,
+  },
 });

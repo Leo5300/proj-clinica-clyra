@@ -10,7 +10,11 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { obterToken, limparToken } from '../services/sessao';
+import {
+  obterToken,
+  obterUsuario,
+  limparSessao,
+} from '../services/sessao';
 
 const colors = {
   bg: '#F5F5F2',
@@ -28,6 +32,12 @@ export default function LoginBiometricoScreen({ navigation }) {
   const [verificando, setVerificando] = useState(true);
   const [autenticando, setAutenticando] = useState(false);
   const [aviso, setAviso] = useState('');
+  const [usuario, setUsuario] = useState(null);
+
+  // Equipe (recepcao e medico) ve dados de muitos pacientes: num aparelho
+  // sem biometria, reabrir a sessao sem senha deixaria esses dados com
+  // quem pegar o celular. Paciente so ve os proprios dados.
+  const [equipeSemBiometria, setEquipeSemBiometria] = useState(false);
 
   const irParaLoginComSenha = () => {
     navigation.reset({
@@ -36,7 +46,17 @@ export default function LoginBiometricoScreen({ navigation }) {
     });
   };
 
-  const irParaHome = () => {
+  // Destino depois de confirmar quem e: senha temporaria ainda nao trocada
+  // vai primeiro para a troca.
+  const irParaDestino = (quem) => {
+    if (quem?.trocarSenha) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'TrocarSenha', params: { obrigatorio: true } }],
+      });
+      return;
+    }
+
     navigation.reset({
       index: 0,
       routes: [{ name: 'Home' }],
@@ -46,11 +66,17 @@ export default function LoginBiometricoScreen({ navigation }) {
   useEffect(() => {
     const verificar = async () => {
       const token = await obterToken();
+      const quem = await obterUsuario();
 
-      if (!token) {
+      // Sem o perfil guardado (sessao de uma versao antiga do app), nao ha
+      // como decidir o fluxo: volta ao login com senha.
+      if (!token || !quem) {
+        await limparSessao();
         irParaLoginComSenha();
         return;
       }
+
+      setUsuario(quem);
 
       const hardware = await LocalAuthentication.hasHardwareAsync();
       const cadastrada =
@@ -61,7 +87,11 @@ export default function LoginBiometricoScreen({ navigation }) {
       setVerificando(false);
 
       if (!hardware || !cadastrada) {
-        irParaHome();
+        if (quem.perfil === 'paciente') {
+          irParaDestino(quem);
+        } else {
+          setEquipeSemBiometria(true);
+        }
       }
     };
 
@@ -81,7 +111,7 @@ export default function LoginBiometricoScreen({ navigation }) {
         });
 
       if (resultado.success) {
-        irParaHome();
+        irParaDestino(usuario);
         return;
       }
 
@@ -106,7 +136,7 @@ export default function LoginBiometricoScreen({ navigation }) {
   };
 
   const entrarComSenha = async () => {
-    await limparToken();
+    await limparSessao();
 
     navigation.reset({
       index: 0,
@@ -139,13 +169,22 @@ export default function LoginBiometricoScreen({ navigation }) {
           resizeMode="contain"
         />
 
-        <Text style={styles.title}>
-          Login biométrico
-        </Text>
+        {equipeSemBiometria ? (
+          <Text style={styles.subtitle}>
+            Este aparelho não tem biometria cadastrada. Por segurança, a
+            equipe da clínica entra com e-mail e senha.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.title}>
+              Login biométrico
+            </Text>
 
-        <Text style={styles.subtitle}>
-          Confirme sua identidade para acessar a agenda da clínica.
-        </Text>
+            <Text style={styles.subtitle}>
+              Confirme sua identidade para acessar a agenda da clínica.
+            </Text>
+          </>
+        )}
 
         {temHardware && temBiometriaCadastrada && (
           <TouchableOpacity
