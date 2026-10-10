@@ -12,7 +12,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { criarMedico, atualizarMedico } from '../services/api';
+import {
+  criarMedico,
+  atualizarMedico,
+  gerarAcessoMedico,
+  SessaoExpirada,
+  ErroDaApi,
+} from '../services/api';
 
 // TODO: mover para front/src/theme quando o ThemeContext existir
 // (feature/design-system). Mesma paleta usada na MedicosScreen.
@@ -23,15 +29,26 @@ const colors = {
   ink: '#4A5560',
   muted: '#8B909A',
   sage: '#4B7776',
+  danger: '#B0555F',
 };
 
-function Campo({ label, ...inputProps }) {
+const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
+
+function Campo({ label, erro, nota, ...inputProps }) {
   return (
     <View style={styles.campo}>
       <Text style={styles.label}>{label}</Text>
       <TextInput style={styles.input} placeholderTextColor={colors.muted} {...inputProps} />
+      {nota && <Text style={styles.nota}>{nota}</Text>}
+      {erro && <Text style={styles.erroCampo}>{erro}</Text>}
     </View>
   );
+}
+
+// A senha temporaria so existe nesta resposta do servidor: depois dela,
+// so o hash fica gravado. Por isso o aviso diz que ela nao volta.
+function textoDoAcesso(acesso) {
+  return `Acesso criado para ${acesso.email}. Senha temporária: ${acesso.senhaTemporaria}. Entregue ao médico; ele vai criar a própria senha no primeiro acesso. Esta senha não será mostrada de novo.`;
 }
 
 export default function CadastroMedicoScreen({ navigation, route }) {
@@ -46,15 +63,28 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   const [endereco, setEndereco] = useState(medico?.endereco ?? '');
   const [fotoUri, setFotoUri] = useState(medico?.fotoUri ?? null);
   const [salvando, setSalvando] = useState(false);
+  const [temAcesso, setTemAcesso] = useState(medico?.temAcesso === true);
+  const [gerandoAcesso, setGerandoAcesso] = useState(false);
+  const [erros, setErros] = useState({});
 
-  // O mock aceita corpo vazio e cria um registro fantasma so com id. Validar
-  // aqui antes de disparar a requisicao evita esse tipo de lixo no banco.
+  const irParaLogin = () => {
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
+
+  // O servidor confere de novo; validar aqui so poupa a viagem. O e-mail
+  // e obrigatorio no cadastro novo porque e o login do medico.
   const validar = () => {
-    if (!nome.trim() || !especialidade.trim() || !crm.trim()) {
-      Alert.alert('Campos obrigatórios', 'Preencha ao menos nome, especialidade e CRM.');
-      return false;
+    const novos = {};
+
+    if (!nome.trim()) novos.nome = 'Informe o nome.';
+    if (!especialidade.trim()) novos.especialidade = 'Informe a especialidade.';
+    if (!crm.trim()) novos.crm = 'Informe o CRM.';
+    if (!medico && !email.trim().includes('@')) {
+      novos.email = 'Informe o e-mail do médico.';
     }
-    return true;
+
+    setErros(novos);
+    return Object.keys(novos).length === 0;
   };
 
   const escolherFoto = async () => {
@@ -97,29 +127,77 @@ export default function CadastroMedicoScreen({ navigation, route }) {
 
     setSalvando(true);
     try {
-      if (medico) {
-        await atualizarMedico(medico.id, dados);
-      } else {
-        await criarMedico(dados);
-      }
       // Alert e goBack so depois da confirmacao do servidor -- se a
       // requisicao falhar, o usuario continua na tela com os dados digitados.
-      Alert.alert(
-        'Sucesso',
-        medico ? 'Médico atualizado.' : 'Médico cadastrado.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      if (medico) {
+        await atualizarMedico(medico.id, dados);
+
+        Alert.alert('Sucesso', 'Médico atualizado.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        const resposta = await criarMedico(dados);
+
+        Alert.alert('Médico cadastrado', textoDoAcesso(resposta.acesso), [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível salvar o médico agora.');
+      if (e instanceof SessaoExpirada) {
+        irParaLogin();
+        return;
+      }
+
+      // 409 (e-mail ja usado) e 400 trazem a mensagem do servidor.
+      Alert.alert(
+        'Erro',
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível salvar o médico agora.',
+      );
     } finally {
       setSalvando(false);
+    }
+  };
+
+  // Medico cadastrado antes dos acessos, ou que esqueceu a senha.
+  const gerarAcesso = async () => {
+    setGerandoAcesso(true);
+
+    try {
+      const resposta = await gerarAcessoMedico(medico.id);
+
+      Alert.alert(
+        temAcesso ? 'Nova senha temporária' : 'Acesso criado',
+        textoDoAcesso(resposta.acesso),
+      );
+      setTemAcesso(true);
+    } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        irParaLogin();
+        return;
+      }
+
+      Alert.alert(
+        'Erro',
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível gerar o acesso agora.',
+      );
+    } finally {
+      setGerandoAcesso(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          hitSlop={AREA_DE_TOQUE}
+        >
           <Feather name="arrow-left" size={22} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>{medico ? 'Editar médico' : 'Novo médico'}</Text>
@@ -164,10 +242,18 @@ export default function CadastroMedicoScreen({ navigation, route }) {
     A foto é opcional.
   </Text>
 </View>
-        <Campo label="Nome" value={nome} onChangeText={setNome} />
-        <Campo label="Especialidade" value={especialidade} onChangeText={setEspecialidade} />
-        <Campo label="CRM" value={crm} onChangeText={setCrm} />
-        <Campo label="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <Campo label="Nome" value={nome} onChangeText={setNome} erro={erros.nome} />
+        <Campo label="Especialidade" value={especialidade} onChangeText={setEspecialidade} erro={erros.especialidade} />
+        <Campo label="CRM" value={crm} onChangeText={setCrm} erro={erros.crm} />
+        <Campo
+          label="E-mail"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          nota="O médico usa este e-mail para entrar no app."
+          erro={erros.email}
+        />
         <Campo label="Telefone" value={telefone} onChangeText={setTelefone} keyboardType="phone-pad" />
         <Campo label="Endereço" value={endereco} onChangeText={setEndereco} />
 
@@ -178,6 +264,22 @@ export default function CadastroMedicoScreen({ navigation, route }) {
         >
           <Text style={styles.salvarText}>{salvando ? 'Salvando...' : 'Salvar'}</Text>
         </TouchableOpacity>
+
+        {medico && (
+          <TouchableOpacity
+            style={[styles.acessoBtn, gerandoAcesso && styles.salvarBtnDisabled]}
+            onPress={gerarAcesso}
+            disabled={gerandoAcesso || salvando}
+          >
+            <Text style={styles.acessoText}>
+              {gerandoAcesso
+                ? 'Gerando...'
+                : temAcesso
+                  ? 'Gerar nova senha temporária'
+                  : 'Criar acesso ao app'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -253,4 +355,16 @@ fotoOpcional: {
   },
   salvarBtnDisabled: { opacity: 0.6 },
   salvarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  acessoBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  acessoText: { color: colors.sage, fontWeight: '700', fontSize: 14 },
+  nota: { fontSize: 12, color: colors.muted, marginTop: 6 },
+  erroCampo: { fontSize: 12, color: colors.danger, marginTop: 6 },
 });

@@ -21,6 +21,7 @@ import ConsultasScreen from "../screens/ConsultasScreen";
 import AgendarConsultaScreen from "../screens/AgendarConsultaScreen";
 import DetalheConsultaScreen from "../screens/DetalheConsultaScreen";
 import EspecialidadesScreen from "../screens/EspecialidadesScreen";
+import CadastroEspecialidadeScreen from "../screens/CadastroEspecialidadeScreen";
 import ComoChegarScreen from "../screens/ComoChegarScreen";
 import SinaisVitaisScreen from "../screens/SinaisVitaisScreen";
 import SemAcessoScreen from "../screens/SemAcessoScreen";
@@ -82,6 +83,10 @@ const TELAS = {
   Agendar: protegida(AgendarConsultaScreen, "Agendar"),
   DetalheConsulta: protegida(DetalheConsultaScreen, "DetalheConsulta"),
   Especialidades: protegida(EspecialidadesScreen, "Especialidades"),
+  CadastroEspecialidade: protegida(
+    CadastroEspecialidadeScreen,
+    "CadastroEspecialidade",
+  ),
   ComoChegar: protegida(ComoChegarScreen, "ComoChegar"),
   SinaisVitais: protegida(SinaisVitaisScreen, "SinaisVitais"),
 };
@@ -183,6 +188,10 @@ export default function AppNavigator() {
           component={TELAS.DetalheConsulta}
         />
         <Stack.Screen name="Especialidades" component={TELAS.Especialidades} />
+        <Stack.Screen
+          name="CadastroEspecialidade"
+          component={TELAS.CadastroEspecialidade}
+        />
         <Stack.Screen name="ComoChegar" component={TELAS.ComoChegar} />
         <Stack.Screen name="SinaisVitais" component={TELAS.SinaisVitais} />
       </Stack.Navigator>

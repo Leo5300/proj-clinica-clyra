@@ -14,7 +14,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import {
   buscarHorarios, buscarMedicos, excluirHorario,
+  SessaoExpirada, SemPermissao,
 } from '../services/api';
+import { useUsuario } from '../services/sessao';
 
 
 
@@ -32,6 +34,11 @@ const colors = {
 };
 
 export default function HorariosScreen({ navigation }) {
+  // O medico ve e edita so a propria agenda: o servidor ja devolve so os
+  // horarios dele.
+  const { usuario } = useUsuario();
+  const ehMedico = usuario?.perfil === 'medico';
+
   // Cada estado representa uma informacao diferente da tela, permitindo
   // tratar carregamento e erro sem esconder uma lista que ja foi carregada.
   const [horarios, setHorarios] = useState([]);
@@ -52,12 +59,22 @@ export default function HorariosScreen({ navigation }) {
       setHorarios(dadosHorarios);
       setMedicos(dadosMedicos);
     } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      if (e instanceof SemPermissao) {
+        setErro(e.mensagem ?? 'Você não tem permissão para isso.');
+        return;
+      }
+
       console.error(e);
       setErro('Nao foi possivel carregar os horarios agora.');
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [navigation]);
 
   // Recarrega ao voltar para a tela para que alteracoes feitas no cadastro
   // ou edicao sejam refletidas sem depender de atualizacao manual.
@@ -122,6 +139,19 @@ export default function HorariosScreen({ navigation }) {
         );
       }
     } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      if (e instanceof SemPermissao) {
+        Alert.alert(
+          'Sem permissão',
+          e.mensagem ?? 'Você não tem permissão para isso.',
+        );
+        return;
+      }
+
       console.error('Erro ao excluir horário:', e);
 
       if (Platform.OS === 'web') {
@@ -137,7 +167,7 @@ export default function HorariosScreen({ navigation }) {
 
   const encontrarMedico = (medicoId) => {
     return medicos.find(
-      (medico) => Number(medico.id) === Number(medicoId),
+      (medico) => String(medico.id) === String(medicoId),
     );
   };
 
@@ -149,7 +179,9 @@ export default function HorariosScreen({ navigation }) {
           <Feather name="arrow-left" size={22} color={colors.ink} />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Horarios</Text>
+        <Text style={styles.title}>
+          {ehMedico ? 'Meus horários' : 'Horarios'}
+        </Text>
 
         <TouchableOpacity
           onPress={() => navigation.navigate('CadastroHorario')}
@@ -230,7 +262,9 @@ export default function HorariosScreen({ navigation }) {
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              Nenhum horario cadastrado.
+              {ehMedico
+                ? 'Você ainda não cadastrou horários de atendimento.'
+                : 'Nenhum horario cadastrado.'}
             </Text>
           }
         />
