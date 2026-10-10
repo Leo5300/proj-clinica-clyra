@@ -11,7 +11,13 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { get, remover, SessaoExpirada } from '../services/api';
+import {
+  buscarMedicos,
+  excluirMedico,
+  SessaoExpirada,
+  SemPermissao,
+  ErroDaApi,
+} from '../services/api';
 
 // TODO: mover para front/src/theme quando o ThemeContext existir
 // (feature/design-system). Mesma paleta usada na HomeScreen.
@@ -23,6 +29,9 @@ const colors = {
   muted: '#8B909A',
   sage: '#4B7776',
 };
+
+// Icones de 18-22 px: o hitSlop leva a area de toque aos 44 px minimos.
+const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
 export default function MedicosScreen({ navigation }) {
   // carregando, erro e medicos sao dimensoes independentes: e possivel ter a
@@ -36,7 +45,7 @@ export default function MedicosScreen({ navigation }) {
     try {
       setErro(null);
 
-      const dados = await get('/medicos', { base: 'auth' });
+      const dados = await buscarMedicos();
 
       setMedicos(dados);
     } catch (e) {
@@ -45,6 +54,11 @@ export default function MedicosScreen({ navigation }) {
           index: 0,
           routes: [{ name: 'Login' }],
         });
+        return;
+      }
+
+      if (e instanceof SemPermissao) {
+        setErro(e.mensagem ?? 'Você não tem permissão para isso.');
         return;
       }
 
@@ -78,7 +92,7 @@ export default function MedicosScreen({ navigation }) {
 
   const excluir = async (id) => {
     try {
-      await remover(`/medicos/${id}`);
+      await excluirMedico(id);
 
       // O servidor e a fonte da verdade: recarrega a lista dele em vez de
       // so remover o item do array local.
@@ -92,6 +106,13 @@ export default function MedicosScreen({ navigation }) {
         return;
       }
 
+      // 409: o servidor explica o que impede (consulta marcada) e o que
+      // fazer. 403: mensagem do servidor, sem deslogar.
+      if (e instanceof ErroDaApi && e.mensagem) {
+        Alert.alert('Não foi possível excluir', e.mensagem);
+        return;
+      }
+
       Alert.alert(
         'Erro',
         'Não foi possível excluir o médico agora.',
@@ -102,7 +123,12 @@ export default function MedicosScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          hitSlop={AREA_DE_TOQUE}
+        >
           <Feather
             name="arrow-left"
             size={22}
@@ -116,6 +142,9 @@ export default function MedicosScreen({ navigation }) {
           onPress={() =>
             navigation.navigate('CadastroMedico')
           }
+          accessibilityRole="button"
+          accessibilityLabel="Cadastrar médico"
+          hitSlop={AREA_DE_TOQUE}
         >
           <Feather
             name="plus"
@@ -176,6 +205,9 @@ export default function MedicosScreen({ navigation }) {
                 onPress={() =>
                   confirmarExclusao(item)
                 }
+                accessibilityRole="button"
+                accessibilityLabel={`Excluir ${item.nome}`}
+                hitSlop={AREA_DE_TOQUE}
               >
                 <Feather
                   name="trash-2"
