@@ -12,7 +12,13 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { criarServicoBle, MODO_SIMULADO } from '../services/bluetooth';
-import { registrarSinaisVitais, SessaoExpirada } from '../services/api';
+import {
+  registrarSinaisVitais,
+  SessaoExpirada,
+  SemPermissao,
+  ErroDaApi,
+} from '../services/api';
+import { useUsuario } from '../services/sessao';
 
 // Esta tela NAO conhece a biblioteca de Bluetooth, nem identificadores de
 // servico, nem o formato em que o aparelho manda o valor. Ela so conhece
@@ -48,6 +54,11 @@ const BPM_MAXIMO = 250;
 
 export default function SinaisVitaisScreen({ navigation, route }) {
   const paciente = route.params?.paciente;
+  // A consulta em que o registro foi feito, quando vem do detalhe dela.
+  const consultaId = route.params?.consultaId ?? null;
+
+  const { usuario } = useUsuario();
+  const ehPaciente = usuario?.perfil === 'paciente';
 
   const servicoRef = useRef(null);
   const timerBuscaRef = useRef(null);
@@ -204,6 +215,16 @@ export default function SinaisVitaisScreen({ navigation, route }) {
         return;
       }
 
+      // 403 (perfil) ou 404 (paciente ou consulta que nao e de quem
+      // registra): a mensagem do servidor diz o que aconteceu.
+      if (e instanceof SemPermissao || (e instanceof ErroDaApi && e.mensagem)) {
+        Alert.alert(
+          'Não foi possível registrar',
+          e.mensagem ?? 'Você não tem permissão para isso.',
+        );
+        return;
+      }
+
       Alert.alert(
         'Erro',
         'Não foi possível registrar no prontuário agora. Os valores continuam na tela — tente de novo.',
@@ -238,6 +259,7 @@ export default function SinaisVitaisScreen({ navigation, route }) {
     // prontuario depois nao sabe o quanto confiar no numero.
     salvar({
       pacienteId: paciente.id,
+      consultaId,
       frequenciaCardiaca: media,
       quantidadeLeituras: leituras.length,
       origem: 'bluetooth',
@@ -259,6 +281,7 @@ export default function SinaisVitaisScreen({ navigation, route }) {
 
     salvar({
       pacienteId: paciente.id,
+      consultaId,
       frequenciaCardiaca: valor,
       quantidadeLeituras: 1,
       origem: 'manual',
@@ -427,8 +450,18 @@ export default function SinaisVitaisScreen({ navigation, route }) {
         ) : (
           <>
             <View style={styles.pacienteBloco}>
-              <Text style={styles.cardEyebrow}>Paciente</Text>
-              <Text style={styles.pacienteNome}>{paciente.nome}</Text>
+              {/* O paciente registrando para si nao se ve como "outra
+                  pessoa" na tela. */}
+              {ehPaciente ? (
+                <Text style={styles.pacienteSubtitulo}>
+                  Envie sua frequência cardíaca antes da consulta.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.cardEyebrow}>Paciente</Text>
+                  <Text style={styles.pacienteNome}>{paciente.nome}</Text>
+                </>
+              )}
               {MODO_SIMULADO && (
                 <Text style={styles.modo}>
                   Modo simulado — aparelhos de teste
@@ -483,6 +516,7 @@ const styles = StyleSheet.create({
 
   pacienteBloco: { marginBottom: 16 },
   pacienteNome: { fontSize: 18, fontWeight: '700', color: colors.ink },
+  pacienteSubtitulo: { fontSize: 15, color: colors.ink, lineHeight: 21 },
   modo: { fontSize: 12, color: colors.muted, marginTop: 4 },
 
   card: {
