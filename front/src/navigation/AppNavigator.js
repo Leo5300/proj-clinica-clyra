@@ -11,6 +11,7 @@ import LoginBiometricoScreen from "../screens/LoginBiometricoScreen";
 import CriarContaScreen from "../screens/CriarContaScreen";
 import TrocarSenhaScreen from "../screens/TrocarSenhaScreen";
 import HomeScreen from "../screens/HomeScreen";
+import PerfilScreen from "../screens/PerfilScreen";
 import MedicosScreen from "../screens/MedicosScreen";
 import CadastroMedicoScreen from "../screens/CadastroMedicoScreen";
 import PacientesScreen from "../screens/PacientesScreen";
@@ -73,6 +74,7 @@ function protegida(Componente, nomeDaRota) {
 const TELAS = {
   TrocarSenha: protegida(TrocarSenhaScreen, "TrocarSenha"),
   Home: protegida(HomeScreen, "Home"),
+  Perfil: protegida(PerfilScreen, "Perfil"),
   Medicos: protegida(MedicosScreen, "Medicos"),
   CadastroMedico: protegida(CadastroMedicoScreen, "CadastroMedico"),
   Pacientes: protegida(PacientesScreen, "Pacientes"),
@@ -169,6 +171,7 @@ export default function AppNavigator() {
         <Stack.Screen name="CriarConta" component={CriarContaScreen} />
         <Stack.Screen name="TrocarSenha" component={TELAS.TrocarSenha} />
         <Stack.Screen name="Home" component={TELAS.Home} />
+        <Stack.Screen name="Perfil" component={TELAS.Perfil} />
         <Stack.Screen name="Medicos" component={TELAS.Medicos} />
         <Stack.Screen name="CadastroMedico" component={TELAS.CadastroMedico} />
         <Stack.Screen name="Pacientes" component={TELAS.Pacientes} />
