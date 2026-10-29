@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/imgs/icone-clyra.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/imgs/logo-CLYRA.jpeg",
       "resizeMode": "contain",
@@ -19,15 +18,15 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/imgs/icone-clyra.png",
         "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+      }
     },
     "web": {
       "favicon": "./assets/imgs/icone-clyra.png"
     },
     "plugins": [
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-status-bar"
     ]
   }
 }
