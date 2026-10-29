@@ -35,16 +35,29 @@ const colors = {
 
 const logo = require('../../assets/imgs/logo-CLYRA.jpeg');
 
+// Atalhos de teste: os logins didaticos do mock (os mesmos que a API
+// imprime ao subir). So existem em desenvolvimento -- __DEV__ e false no
+// build de producao, entao estes dados nem entram no app publicado.
+const ACESSOS_DE_TESTE = __DEV__
+  ? [
+      { rotulo: 'Recepção', email: 'recepcao@clinica.com', senha: 'clinica123' },
+      { rotulo: 'Médico', email: 'joao@clinica.com', senha: 'medico123' },
+      { rotulo: 'Paciente', email: 'lucas@exemplo.com', senha: 'paciente123' },
+    ]
+  : [];
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [entrando, setEntrando] = useState(false);
   const [error, setError] = useState(null);
 
-  const entrar = async () => {
+  // Sem argumentos usa o que foi digitado; os atalhos de teste passam o
+  // login direto.
+  const entrar = async (emailInformado = email, senhaInformada = senha) => {
     // Campo vazio nao merece uma requisicao -- e nem que a senha saia pela
     // rede a toa.
-    if (!email.trim() || !senha) {
+    if (!emailInformado.trim() || !senhaInformada) {
       setError('Preencha e-mail e senha.');
       return;
     }
@@ -53,7 +66,7 @@ export default function LoginScreen({ navigation }) {
     setEntrando(true);
 
     try {
-      const dados = await autenticar(email.trim(), senha);
+      const dados = await autenticar(emailInformado.trim(), senhaInformada);
 
       await salvarSessao(dados.token, dados.usuario);
 
@@ -128,7 +141,7 @@ export default function LoginScreen({ navigation }) {
 
           <TouchableOpacity
             style={[styles.btnPrimary, entrando && styles.btnPrimaryDisabled]}
-            onPress={entrar}
+            onPress={() => entrar()}
             disabled={entrando}
           >
             {entrando ? (
@@ -149,6 +162,28 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.footNota}>
             Médicos e recepção entram com o acesso fornecido pela clínica.
           </Text>
+
+          {ACESSOS_DE_TESTE.length > 0 && (
+            <View style={styles.testeBloco}>
+              <Text style={styles.testeTitulo}>
+                Acesso rápido (só em desenvolvimento)
+              </Text>
+              <View style={styles.testeLinha}>
+                {ACESSOS_DE_TESTE.map((acesso) => (
+                  <TouchableOpacity
+                    key={acesso.email}
+                    style={styles.testeBotao}
+                    onPress={() => entrar(acesso.email, acesso.senha)}
+                    disabled={entrando}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Entrar como ${acesso.rotulo}`}
+                  >
+                    <Text style={styles.testeBotaoTexto}>{acesso.rotulo}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -209,4 +244,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
+
+  testeBloco: {
+    marginTop: 28,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  testeTitulo: {
+    color: colors.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  testeLinha: { flexDirection: 'row', gap: 8 },
+  testeBotao: {
+    flex: 1,
+    minHeight: 44,
+    backgroundColor: colors.lavenderSoft,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testeBotaoTexto: { color: colors.ink, fontWeight: '600', fontSize: 13 },
 });
