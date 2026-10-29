@@ -4,7 +4,7 @@
     {
       "id": "1",
       "nome": "João de Oliveira",
-      "especialidade": "Cardiologista",
+      "especialidadeId": "1",
       "crm": "12345/MG",
       "email": "joao@clinica.com",
       "telefone": "(31) 98765-4321",
@@ -13,7 +13,7 @@
     {
       "id": "2",
       "nome": "Antônio de Oliveira",
-      "especialidade": "Pediatra",
+      "especialidadeId": "2",
       "crm": "23456/MG",
       "email": "antonio@clinica.com",
       "telefone": "(31) 99876-5432",
@@ -22,7 +22,7 @@
     {
       "id": "3",
       "nome": "Maria da Silva",
-      "especialidade": "Dermatologista",
+      "especialidadeId": "3",
       "crm": "34567/SP",
       "email": "maria@clinica.com",
       "telefone": "(11) 97654-3210",
@@ -31,7 +31,7 @@
     {
       "id": "4",
       "nome": "Beatriz Souza",
-      "especialidade": "Ginecologista",
+      "especialidadeId": "4",
       "crm": "45678/RJ",
       "email": "beatriz@clinica.com",
       "telefone": "(21) 96543-2109",
@@ -40,7 +40,7 @@
     {
       "id": "5",
       "nome": "Carlos Santos",
-      "especialidade": "Neurologista",
+      "especialidadeId": "5",
       "crm": "56789/BA",
       "email": "carlos@clinica.com",
       "telefone": "(71) 95432-1098",
