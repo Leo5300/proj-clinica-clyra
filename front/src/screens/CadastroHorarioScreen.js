@@ -15,7 +15,10 @@ import {
   buscarMedicos,
   criarHorario,
   atualizarHorario,
+  SessaoExpirada,
+  SemPermissao,
 } from '../services/api';
+import { useUsuario } from '../services/sessao';
 
 const colors = {
   bg: '#F5F5F2',
@@ -38,6 +41,11 @@ const diasSemana = [
 export default function CadastroHorarioScreen({ navigation, route }) {
   const horario = route?.params?.horario;
 
+  // O medico cadastra so na propria agenda: nao escolhe medico, e o
+  // servidor grava o medicoId dele de qualquer forma.
+  const { usuario } = useUsuario();
+  const ehMedico = usuario?.perfil === 'medico';
+
   const [diaSemana, setDiaSemana] = useState(horario?.diaSemana || '');
   const [horaInicio, setHoraInicio] = useState(horario?.horaInicio || '');
   const [horaFim, setHoraFim] = useState(horario?.horaFim || '');
@@ -51,8 +59,10 @@ export default function CadastroHorarioScreen({ navigation, route }) {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    carregarMedicos();
-  }, []);
+    if (usuario && !ehMedico) {
+      carregarMedicos();
+    }
+  }, [usuario, ehMedico]);
 
   const carregarMedicos = async () => {
     try {
@@ -61,6 +71,11 @@ export default function CadastroHorarioScreen({ navigation, route }) {
       const dados = await buscarMedicos();
       setMedicos(dados);
     } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
       Alert.alert(
         'Erro',
         'Não foi possível carregar os médicos agora.',
@@ -85,7 +100,7 @@ export default function CadastroHorarioScreen({ navigation, route }) {
       return false;
     }
 
-    if (!medicoId) {
+    if (!medicoId && !ehMedico) {
       Alert.alert('Atenção', 'Selecione um médico.');
       return false;
     }
@@ -105,8 +120,9 @@ export default function CadastroHorarioScreen({ navigation, route }) {
 const salvar = async () => {
   if (!validarHorario()) return;
 
+  // Id como texto: medicos cadastrados pela API tem id que nao e numero.
   const dados = {
-    medicoId: Number(medicoId),
+    medicoId: ehMedico ? usuario.vinculoId : medicoId,
     diaSemana,
     horaInicio,
     horaFim,
@@ -159,6 +175,19 @@ const salvar = async () => {
       }
     }
   } catch (e) {
+    if (e instanceof SessaoExpirada) {
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      return;
+    }
+
+    if (e instanceof SemPermissao) {
+      Alert.alert(
+        'Sem permissão',
+        e.mensagem ?? 'Você não tem permissão para isso.',
+      );
+      return;
+    }
+
     console.error('Erro ao salvar horario:', e);
 
     if (typeof window !== 'undefined') {
@@ -223,7 +252,11 @@ const salvar = async () => {
 
         <Text style={styles.label}>Médico</Text>
 
-        {carregandoMedicos ? (
+        {ehMedico ? (
+          <Text style={styles.medicoSelecionadoText}>
+            Médico: {usuario.nome}
+          </Text>
+        ) : carregandoMedicos ? (
           <View style={styles.loadingMedicos}>
             <ActivityIndicator
               size="small"
@@ -285,7 +318,7 @@ const salvar = async () => {
           </View>
         )}
 
-        {medicoSelecionado && (
+        {!ehMedico && medicoSelecionado && (
           <Text style={styles.medicoSelecionadoText}>
             Médico selecionado: {medicoSelecionado.nome} (ID:{' '}
             {medicoSelecionado.id})

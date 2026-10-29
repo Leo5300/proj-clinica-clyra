@@ -2,32 +2,26 @@
 //
 // Unico lugar do app que chama fetch. Ele monta o header Authorization
 // sozinho e trata o 401 uma vez so, para as telas voltarem a falar o idioma
-// do dominio: get('/medicos'), post('/pacientes', dados).
+// do dominio: buscarMedicos(), criarPaciente(dados).
 //
-// DECISAO DA SQUAD (Aula 4):
-// Durante o desenvolvimento, usamos dois servidores locais.
+// DECISAO DA SQUAD:
+// O app fala com UMA API so (auth-api.js, porta 3001). O json-server virou
+// armazenamento interno dela e nao e mais chamado pelo app: e a API que
+// confere quem esta logado e o que cada perfil pode ver.
 //
-// AUTH_URL (3001) -> auth-api.js:
-// autenticacao e modulo de medicos, com rotas protegidas por Bearer.
-//
-// API_URL (3000) -> json-server:
-// mock de pacientes, horarios e especialidades.
-//
-// Os dois servidores sao usados apenas no ambiente academico de desenvolvimento.
-// Na aplicacao real, a comunicacao devera ocorrer por HTTPS.
-//
-// HTTP e usado nos mocks locais porque eles rodam no ambiente de desenvolvimento.
-// A API real da clinica devera utilizar HTTPS por lidar com dados sensiveis.
+// O servidor e usado apenas no ambiente academico de desenvolvimento.
+// HTTP e usado no mock local porque ele roda no ambiente de
+// desenvolvimento. A API real da clinica devera utilizar HTTPS por lidar
+// com dados sensiveis.
 //
 
-import { obterToken, limparToken } from './sessao';
+import { obterToken, limparSessao } from './sessao';
 
 // EXPO_PUBLIC_API_HOST vem de front/.env.local (não commitado) -- cada dev
 // configura o próprio IP ali. Sem esse arquivo, cai no fallback 'localhost',
 // que só funciona em web/emulador, não em aparelho físico.
 const HOST = process.env.EXPO_PUBLIC_API_HOST ?? 'localhost';
-const AUTH_URL = `http://${HOST}:3001`;
-const API_URL = `http://${HOST}:3000`;
+const API_URL = `http://${HOST}:3001`;
 
 // Em dispositivo fisico (Expo Go), localhost e o proprio aparelho.
 // Use o IPv4 da maquina que roda os servidores, na mesma rede Wi-Fi.
@@ -39,21 +33,46 @@ class SessaoExpirada extends Error {
   }
 }
 
-// base: 'api' (json-server) ou 'auth' (auth-api)
-const BASES = {
-  api: API_URL,
-  auth: AUTH_URL,
-};
+// Qualquer resposta de erro da API. "mensagem" e o texto que o servidor
+// escreveu para a pessoa (campo "erro" do corpo); a tela mostra ele
+// quando existe, em vez de um texto generico.
+class ErroDaApi extends Error {
+  constructor(status, caminho, corpo) {
+    super(`Erro ${status} na requisicao ${caminho}`);
+    this.name = 'ErroDaApi';
+    this.status = status;
+    this.mensagem = corpo?.erro ?? null;
+  }
+}
+
+// 403: o servidor sabe quem e, mas o perfil nao pode. Nao e motivo para
+// deslogar -- a tela explica e segue.
+class SemPermissao extends ErroDaApi {
+  constructor(caminho, corpo) {
+    super(403, caminho, corpo);
+    this.name = 'SemPermissao';
+    this.codigo = corpo?.codigo ?? null;
+  }
+}
+
+// O corpo do erro pode nem ser JSON (proxy, servidor fora do ar).
+async function lerCorpoDoErro(resposta) {
+  try {
+    return await resposta.json();
+  } catch (e) {
+    return null;
+  }
+}
 
 async function requisicao(caminho, opcoes = {}) {
   const {
-    base = 'api',
     corpo,
     metodo = 'GET',
+    // Rotas publicas (criar conta) nao levam token.
+    publica = false,
   } = opcoes;
 
-  const raiz = BASES[base];
-  const token = await obterToken();
+  const token = publica ? null : await obterToken();
 
   const headers = {};
 
@@ -66,7 +85,7 @@ async function requisicao(caminho, opcoes = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const resposta = await fetch(`${raiz}${caminho}`, {
+  const resposta = await fetch(`${API_URL}${caminho}`, {
     method: metodo,
     headers,
     body:
@@ -76,14 +95,20 @@ async function requisicao(caminho, opcoes = {}) {
   });
 
   // 401 fora da tela de login significa sessao expirada.
-  if (resposta.status === 401) {
-    await limparToken();
+  if (resposta.status === 401 && !publica) {
+    await limparSessao();
     throw new SessaoExpirada();
   }
 
+  if (resposta.status === 403) {
+    throw new SemPermissao(caminho, await lerCorpoDoErro(resposta));
+  }
+
   if (!resposta.ok) {
-    throw new Error(
-      `Erro ${resposta.status} na requisicao ${caminho}`,
+    throw new ErroDaApi(
+      resposta.status,
+      caminho,
+      await lerCorpoDoErro(resposta),
     );
   }
 
@@ -115,19 +140,38 @@ const put = (caminho, corpo, opcoes) =>
     corpo,
   });
 
+const patch = (caminho, corpo, opcoes) =>
+  requisicao(caminho, {
+    ...opcoes,
+    metodo: 'PATCH',
+    corpo,
+  });
+
 const remover = (caminho, opcoes) =>
   requisicao(caminho, {
     ...opcoes,
     metodo: 'DELETE',
   });
 
+// Monta "?a=1&b=2" so com os parametros preenchidos.
+function parametros(valores) {
+  const partes = Object.entries(valores)
+    .filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+    .map(
+      ([nome, valor]) =>
+        `${encodeURIComponent(nome)}=${encodeURIComponent(valor)}`,
+    );
+
+  return partes.length ? `?${partes.join('&')}` : '';
+}
+
 // =====================================================================
-// LOGIN
+// LOGIN E CONTA
 // =====================================================================
 
 async function autenticar(email, senha) {
   // O login nao usa requisicao(), porque ainda nao existe token.
-  const resposta = await fetch(`${AUTH_URL}/login`, {
+  const resposta = await fetch(`${API_URL}/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -150,44 +194,58 @@ async function autenticar(email, senha) {
   }
 
   if (!resposta.ok) {
-    throw new Error(
-      `Erro ${resposta.status} ao autenticar`,
+    throw new ErroDaApi(
+      resposta.status,
+      '/login',
+      await lerCorpoDoErro(resposta),
     );
   }
 
   return resposta.json();
 }
 
+// Autocadastro: sempre perfil paciente (o servidor garante).
+const registrarPaciente = (dados) =>
+  post('/auth/registrar', dados, { publica: true });
+
+const obterMe = () =>
+  get('/me');
+
+const atualizarMinhaFoto = (fotoUri) =>
+  patch('/me', { fotoUri });
+
+const trocarSenha = (senhaAtual, novaSenha) =>
+  put('/me/senha', { senhaAtual, novaSenha });
+
 // =====================================================================
-// MEDICOS -- auth-api (3001)
+// MEDICOS
 // =====================================================================
 
 const buscarMedicos = () =>
-  get('/medicos', {
-    base: 'auth',
-  });
+  get('/medicos');
 
 const criarMedico = (medico) =>
-  post('/medicos', medico, {
-    base: 'auth',
-  });
+  post('/medicos', medico);
 
 const atualizarMedico = (id, medico) =>
-  put(`/medicos/${id}`, medico, {
-    base: 'auth',
-  });
+  put(`/medicos/${id}`, medico);
 
 const excluirMedico = (id) =>
-  remover(`/medicos/${id}`, {
-    base: 'auth',
-  });
+  remover(`/medicos/${id}`);
+
+// Cria o acesso ao app ou gera nova senha temporaria.
+const gerarAcessoMedico = (medicoId) =>
+  post(`/medicos/${medicoId}/acesso`, {});
 
 // =====================================================================
-// PACIENTES -- json-server (3000)
+// PACIENTES
 // =====================================================================
 
 const buscarPacientes = () =>
   get('/pacientes');
+
+const buscarPaciente = (id) =>
+  get(`/pacientes/${id}`);
 
 const criarPaciente = (paciente) =>
   post('/pacientes', paciente);
@@ -199,7 +257,7 @@ const excluirPaciente = (id) =>
   remover(`/pacientes/${id}`);
 
 // =====================================================================
-// HORARIOS -- json-server (3000)
+// HORARIOS
 // =====================================================================
 
 const buscarHorarios = () =>
@@ -214,7 +272,7 @@ const atualizarHorario = (id, horario) =>
 const excluirHorario = (id) =>
   remover(`/horarios/${id}`);
 
-// Consultas. Mesmo json-server de pacientes e horarios.
+// Consultas. O servidor ja devolve so as que o perfil pode ver.
 const buscarConsultas = () =>
   get('/consultas');
 
@@ -230,8 +288,13 @@ const atualizarConsulta = (id, consulta) =>
 const excluirConsulta = (id) =>
   remover(`/consultas/${id}`);
 
+// Horarios livres de um medico. ignorarConsultaId: na remarcacao, o
+// horario da propria consulta aparece como livre.
+const buscarDisponibilidade = (medicoId, { dias, ignorarConsultaId } = {}) =>
+  get(`/disponibilidade${parametros({ medicoId, dias, ignorarConsultaId })}`);
+
 // =====================================================================
-// ESPECIALIDADES -- json-server (3000)
+// ESPECIALIDADES
 // =====================================================================
 
 const buscarEspecialidades = () =>
@@ -249,11 +312,12 @@ const atualizarEspecialidade = (
 const excluirEspecialidade = (id) =>
   remover(`/especialidades/${id}`);
 
-// Sinais vitais. Passam pelo mesmo post() que envia o Authorization.
-// O json-server do mock nao valida o token; numa API real, quem valida
-// e o servidor da clinica.
+// Sinais vitais. Quem pode ver e registrar e decidido pelo servidor.
 const registrarSinaisVitais = (registro) =>
   post('/sinaisVitais', registro);
+
+const buscarSinaisVitais = ({ pacienteId, consultaId } = {}) =>
+  get(`/sinaisVitais${parametros({ pacienteId, consultaId })}`);
 
 // =====================================================================
 // EXPORTS
@@ -264,22 +328,31 @@ export {
   get,
   post,
   put,
+  patch,
   remover,
 
-  // erro de sessao
+  // erros
   SessaoExpirada,
+  ErroDaApi,
+  SemPermissao,
 
-  // autenticacao
+  // autenticacao e conta
   autenticar,
+  registrarPaciente,
+  obterMe,
+  atualizarMinhaFoto,
+  trocarSenha,
 
   // medicos
   buscarMedicos,
   criarMedico,
   atualizarMedico,
   excluirMedico,
+  gerarAcessoMedico,
 
   // pacientes
   buscarPacientes,
+  buscarPaciente,
   criarPaciente,
   atualizarPaciente,
   excluirPaciente,
@@ -296,6 +369,7 @@ export {
   criarConsulta,
   atualizarConsulta,
   excluirConsulta,
+  buscarDisponibilidade,
 
   // especialidades
   buscarEspecialidades,
@@ -305,4 +379,5 @@ export {
 
   // sinais vitais
   registrarSinaisVitais,
+  buscarSinaisVitais,
 };

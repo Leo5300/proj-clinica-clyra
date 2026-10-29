@@ -51,7 +51,7 @@
     {
       "id": "1",
       "nome": "Lucas Pereira",
-      "cpf": "111.111.111-11",
+      "cpf": "529.982.247-25",
       "dataNascimento": "1990-04-12",
       "telefone": "(31) 91111-1111",
       "email": "lucas@exemplo.com"
@@ -59,7 +59,7 @@
     {
       "id": "2",
       "nome": "Fernanda Lima",
-      "cpf": "222.222.222-22",
+      "cpf": "153.509.460-56",
       "dataNascimento": "1985-09-03",
       "telefone": "(31) 92222-2222",
       "email": "fernanda@exemplo.com"
@@ -67,7 +67,7 @@
     {
       "id": "3",
       "nome": "Rafael Costa",
-      "cpf": "333.333.333-33",
+      "cpf": "386.421.507-26",
       "dataNascimento": "2001-01-27",
       "telefone": "(31) 93333-3333",
       "email": "rafael@exemplo.com"
@@ -75,7 +75,7 @@
     {
       "id": "4",
       "nome": "Juliana Alves",
-      "cpf": "444.444.444-44",
+      "cpf": "714.602.938-78",
       "dataNascimento": "1978-11-30",
       "telefone": "(31) 94444-4444",
       "email": "juliana@exemplo.com"
@@ -142,5 +142,41 @@
     }
   ],
   "sinaisVitais": [],
+  "usuarios": [
+    {
+      "id": "1",
+      "email": "recepcao@clinica.com",
+      "salt": "ac466b270ff70ee04a6780f739a0432f",
+      "senhaHash": "3791b1a4add24fe1e25c9a30f561afc51ce3c239ecb26074946c53f741068436b823db497a04e74e20776a2837817eae036be5919bc2824febf0c7a356c0a7e5",
+      "perfil": "recepcao",
+      "vinculoId": null,
+      "ativo": true,
+      "trocarSenha": false,
+      "criadoEm": "2026-10-01T07:51:47.000Z"
+    },
+    {
+      "id": "2",
+      "email": "joao@clinica.com",
+      "salt": "a729a68ac316cc1d6fecb84bfebb712c",
+      "senhaHash": "33170cb2d473fc13f29127b97fc79ef4877ccb29acf88b08f080332f716f60ae2c1ab43895c6d07985e9015aa33624aa9700c9d273a0efd145e9213c38323e23",
+      "perfil": "medico",
+      "vinculoId": "1",
+      "ativo": true,
+      "trocarSenha": false,
+      "criadoEm": "2026-10-01T07:51:47.000Z"
+    },
+    {
+      "id": "3",
+      "email": "lucas@exemplo.com",
+      "salt": "446db92d5d8d0492f1718a6261924614",
+      "senhaHash": "2f0f2d51cca3d25d36ad8cf81dd84dce13069ab15852b1561d67317a65aa627fc5ce4d12b889e40a71eb1ba73a23f0cd3c30824a22dcbc041a1db246408c5e80",
+      "perfil": "paciente",
+      "vinculoId": "1",
+      "ativo": true,
+      "trocarSenha": false,
+      "criadoEm": "2026-10-01T07:51:47.000Z"
+    }
+  ],
+  "dispositivos": [],
   "$schema": "./node_modules/json-server/schema.json"
 }

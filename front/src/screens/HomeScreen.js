@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 
 import {
   SafeAreaView,
@@ -12,11 +12,27 @@ import {
   StyleSheet,
 } from 'react-native';
 
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { get } from '../services/api';
-import { limparToken } from '../services/sessao';
-
-// TODO: quando tivermos mais telas, mover para front/src/config/api.js
+import {
+  obterMe,
+  buscarConsultas,
+  buscarMedicos,
+  buscarPacientes,
+  SessaoExpirada,
+} from '../services/api';
+import { atualizarUsuario } from '../services/sessao';
+import {
+  dataDaConsulta,
+  formatarHora,
+  sincronizarLembretes,
+} from '../services/lembretes';
+import { formatarDataCurta, saudacaoPorHorario } from '../services/datas';
+import {
+  MENU_POR_PERFIL,
+  ROTULO_DO_PERFIL,
+  CORES_DO_PERFIL,
+} from '../navigation/permissoes';
 
 // TODO: quando tivermos mais telas, mover para front/src/theme.js
 // Mesma paleta extraída do logo, usada também na tela de Login.
@@ -31,55 +47,94 @@ const colors = {
   sageSoft: '#E3EEEA',
   lavender: '#9A8BB6',
   lavenderSoft: '#EFE9F3',
+  danger: '#B0555F',
 };
 
 const icone = require('../../assets/imgs/icone-clyra.png');
 
+function iniciais(nome) {
+  const partes = String(nome ?? '').trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '?';
+
+  const primeira = partes[0][0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+  return `${primeira}${ultima}`.toUpperCase();
+}
+
+function mesmoDia(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export default function HomeScreen({ navigation }) {
-  const [data, setData] = useState(null);
+  const [usuario, setUsuario] = useState(null);
+  const [consultas, setConsultas] = useState([]);
+  // id -> nome: o paciente ve o medico da consulta; o medico ve o paciente.
+  const [medicos, setMedicos] = useState({});
+  const [pacientes, setPacientes] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // TODO: substituir pelo id do paciente autenticado
-  // (context / token salvo no login)
-  const pacienteId = 1;
+  const [erro, setErro] = useState(null);
 
   const fetchHome = useCallback(async () => {
     try {
-      const json = await get(`/home/${pacienteId}`);
+      setErro(null);
 
-      setData(json);
+      // Quem esta logado vem do servidor: perfil ou foto podem ter mudado
+      // desde o ultimo acesso neste aparelho.
+      const [me, listaConsultas] = await Promise.all([
+        obterMe(),
+        buscarConsultas(),
+      ]);
+
+      await atualizarUsuario(me);
+
+      const [listaMedicos, listaPacientes] = await Promise.all([
+        me.perfil === 'paciente' ? buscarMedicos() : [],
+        me.perfil === 'medico' ? buscarPacientes() : [],
+      ]);
+
+      setUsuario(me);
+      setConsultas(listaConsultas);
+      setMedicos(
+        Object.fromEntries(listaMedicos.map((m) => [String(m.id), m])),
+      );
+      setPacientes(
+        Object.fromEntries(listaPacientes.map((p) => [String(p.id), p])),
+      );
+
+      // So no aparelho do paciente, sem segurar a tela: alinha os
+      // lembretes com o que o servidor tem agora.
+      if (me.perfil === 'paciente') {
+        sincronizarLembretes(listaConsultas);
+      }
     } catch (e) {
-      // O Spring Boot (back/) nao esta no ar e nao ha previsao de subir no
-      // curto prazo -- usamos fallback local.
-      setData({
-        saudacao: 'Olá',
-        nomePaciente: 'Paciente',
-        proximaConsulta: null,
-        lembretes: [],
-      });
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      setErro('Não foi possível carregar o início agora.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [pacienteId]);
+  }, [navigation]);
 
-  useEffect(() => {
-    fetchHome();
-  }, [fetchHome]);
+  // useFocusEffect: ao voltar de agendar, cancelar ou trocar a foto, a
+  // Home mostra o estado novo.
+  useFocusEffect(
+    useCallback(() => {
+      fetchHome();
+    }, [fetchHome]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchHome();
-  };
-
-  const sair = async () => {
-    await limparToken();
-
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
   };
 
   if (loading) {
@@ -90,62 +145,136 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  if (!usuario) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]}>
+        <Text style={styles.erroTexto}>
+          {erro ?? 'Não foi possível carregar o início agora.'}
+        </Text>
+        <TouchableOpacity style={styles.botao} onPress={fetchHome}>
+          <Text style={styles.botaoTexto}>Tentar novamente</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const perfil = usuario.perfil;
+  const cores = CORES_DO_PERFIL[perfil] ?? CORES_DO_PERFIL.paciente;
+  const primeiroNome =
+    perfil === 'recepcao' ? null : String(usuario.nome ?? '').split(' ')[0];
+
+  const agora = new Date();
+  const ordenadas = [...consultas].sort(
+    (a, b) => dataDaConsulta(a) - dataDaConsulta(b),
+  );
+  const deHoje = ordenadas.filter((c) => mesmoDia(dataDaConsulta(c), agora));
+  const futuras = ordenadas.filter((c) => dataDaConsulta(c) > agora);
+
   const quickActions = [
-    {
-      key: 'agendar',
-      label: 'Agendar',
-      icon: 'calendar',
-      onPress: () => navigation.navigate('Agendar'),
-    },
-    {
-      key: 'consultas',
-      label: 'Sessões',
-      icon: 'list',
-      onPress: () => navigation.navigate('Consultas'),
-    },
-    {
-      key: 'diario',
-      label: 'Diário',
-      icon: 'edit-3',
-      onPress: () => navigation.navigate('Diario'),
-    },
-    {
-      key: 'perfil',
-      label: 'Perfil',
-      icon: 'user',
-      onPress: () => navigation.navigate('Perfil'),
-    },
-    {
-      key: 'medicos',
-      label: 'Médicos',
-      icon: 'briefcase',
-      onPress: () => navigation.navigate('Medicos'),
-    },
-    {
-      key: 'pacientes',
-      label: 'Pacientes',
-      icon: 'users',
-      onPress: () => navigation.navigate('Pacientes'),
-    },
-    {
-      key: 'horarios',
-      label: 'Horários',
-      icon: 'clock',
-      onPress: () => navigation.navigate('Horarios'),
-    },
-        {
-      key: 'especialidades',
-      label: 'Especialidades',
-      icon: 'award',
-      onPress: () => navigation.navigate('Especialidades'),
-    },
-    {
-      key: 'comochegar',
-      label: 'Como chegar',
-      icon: 'map-pin',
-      onPress: () => navigation.navigate('ComoChegar'),
-    },
+    ...(MENU_POR_PERFIL[perfil] ?? []),
+    { rotulo: 'Meu perfil', icone: 'user', rota: 'Perfil' },
   ];
+
+  const renderCartaoPaciente = () => {
+    const proxima = futuras[0];
+
+    if (!proxima) {
+      return (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>
+            Você não tem consultas marcadas.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.botao}
+            onPress={() => navigation.navigate('Agendar')}
+          >
+            <Text style={styles.botaoTexto}>Agendar consulta</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    const quando = dataDaConsulta(proxima);
+    const medico = medicos[String(proxima.medicoId)];
+
+    return (
+      <TouchableOpacity
+        style={styles.apptCard}
+        onPress={() =>
+          navigation.navigate('DetalheConsulta', {
+            consultaId: String(proxima.id),
+          })
+        }
+      >
+        <Text style={styles.apptEyebrow}>Sua próxima consulta</Text>
+
+        <Text style={styles.apptDoc}>{medico?.nome ?? 'Médico'}</Text>
+
+        {medico?.especialidade ? (
+          <Text style={styles.apptSpec}>{medico.especialidade}</Text>
+        ) : null}
+
+        <View style={styles.apptHr} />
+
+        <Text style={styles.apptWhen}>
+          {formatarDataCurta(quando)} · {formatarHora(quando)}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderCartaoMedico = () => {
+    const proxima = deHoje.find((c) => dataDaConsulta(c) > agora);
+
+    return (
+      <TouchableOpacity
+        style={styles.apptCard}
+        onPress={() => navigation.navigate('Consultas')}
+      >
+        <Text style={styles.apptEyebrow}>Hoje</Text>
+
+        {deHoje.length === 0 ? (
+          <Text style={styles.apptDoc}>Nenhuma consulta hoje.</Text>
+        ) : (
+          <>
+            <Text style={styles.apptDoc}>
+              {deHoje.length === 1
+                ? '1 consulta'
+                : `${deHoje.length} consultas`}
+            </Text>
+
+            {proxima && (
+              <>
+                <View style={styles.apptHr} />
+                <Text style={styles.apptRel}>Próxima</Text>
+                <Text style={styles.apptWhen}>
+                  {formatarHora(dataDaConsulta(proxima))} ·{' '}
+                  {pacientes[String(proxima.pacienteId)]?.nome ?? 'Paciente'}
+                </Text>
+              </>
+            )}
+          </>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderCartaoRecepcao = () => (
+    <TouchableOpacity
+      style={styles.apptCard}
+      onPress={() => navigation.navigate('Consultas')}
+    >
+      <Text style={styles.apptEyebrow}>Hoje na clínica</Text>
+      <Text style={styles.apptDoc}>
+        {deHoje.length === 0
+          ? 'Nenhuma consulta hoje.'
+          : deHoje.length === 1
+            ? '1 consulta'
+            : `${deHoje.length} consultas`}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -167,125 +296,61 @@ export default function HomeScreen({ navigation }) {
           />
 
           <TouchableOpacity
-            onPress={sair}
-            style={styles.logoutButton}
+            onPress={() => navigation.navigate('Perfil')}
+            style={styles.avatarButton}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir meu perfil"
           >
-            <Feather
-              name="log-out"
-              size={18}
-              color={colors.ink}
-            />
+            {usuario.fotoUri ? (
+              <Image source={{ uri: usuario.fotoUri }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarIniciais]}>
+                <Text style={styles.avatarTexto}>
+                  {iniciais(usuario.nome)}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.eyebrow}>{data.saudacao}</Text>
+        <Text style={styles.name}>
+          {saudacaoPorHorario(agora)}
+          {primeiroNome ? `, ${primeiroNome}` : ''}
+        </Text>
 
-        <Text style={styles.name}>{data.nomePaciente}</Text>
+        <View style={[styles.selo, { backgroundColor: cores.fundo }]}>
+          <Text style={[styles.seloTexto, { color: cores.cor }]}>
+            {ROTULO_DO_PERFIL[perfil]}
+          </Text>
+        </View>
 
-        {data.proximaConsulta ? (
-          <View style={styles.apptCard}>
-            <Text style={styles.apptEyebrow}>
-              Próxima sessão
-            </Text>
+        {erro && <Text style={styles.erroTexto}>{erro}</Text>}
 
-            <Text style={styles.apptDoc}>
-              {data.proximaConsulta.medico}
-            </Text>
-
-            <Text style={styles.apptSpec}>
-              {data.proximaConsulta.especialidade} ·{' '}
-              {data.proximaConsulta.local}
-            </Text>
-
-            <View style={styles.apptHr} />
-
-            <View style={styles.apptBottom}>
-              <View>
-                <Text style={styles.apptWhen}>
-                  {data.proximaConsulta.dataHoraFormatada}
-                </Text>
-
-                <Text style={styles.apptRel}>
-                  {data.proximaConsulta.relativo}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Mapa')}
-                >
-                  <Text style={styles.apptLink}>
-                    Ver no mapa
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.apptCode}>
-                Nº {data.proximaConsulta.protocolo}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>
-              Você não tem sessões agendadas.
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Agendar')}
-            >
-              <Text style={styles.apptLink}>
-                Agendar agora
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {perfil === 'paciente' && renderCartaoPaciente()}
+        {perfil === 'medico' && renderCartaoMedico()}
+        {perfil === 'recepcao' && renderCartaoRecepcao()}
 
         <View style={styles.quickGrid}>
           {quickActions.map((a) => (
             <TouchableOpacity
-              key={a.key}
+              key={a.rota}
               style={styles.quickItem}
-              onPress={a.onPress}
+              onPress={() => navigation.navigate(a.rota)}
             >
               <View style={styles.quickIcon}>
                 <Feather
-                  name={a.icon}
+                  name={a.icone}
                   size={18}
                   color={colors.sage}
                 />
               </View>
 
               <Text style={styles.quickLabel}>
-                {a.label}
+                {a.rotulo}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-
-        {data.lembretes?.length > 0 && (
-          <>
-            <Text style={styles.sectionLabel}>
-              Lembretes
-            </Text>
-
-            {data.lembretes.map((l) => (
-              <View
-                key={l.id}
-                style={styles.notice}
-              >
-                <Feather
-                  name="bell"
-                  size={15}
-                  color={colors.lavender}
-                  style={{ marginTop: 1 }}
-                />
-
-                <Text style={styles.noticeText}>
-                  {l.mensagem}
-                </Text>
-              </View>
-            ))}
-          </>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -319,30 +384,49 @@ const styles = StyleSheet.create({
     height: 32,
   },
 
-  logoutButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+  avatarButton: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  eyebrow: {
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.muted,
-    marginTop: 20,
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+
+  avatarIniciais: {
+    backgroundColor: colors.sageSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  avatarTexto: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.sage,
   },
 
   name: {
     fontSize: 22,
     fontWeight: '700',
     color: colors.ink,
-    marginTop: 2,
+    marginTop: 20,
+  },
+
+  selo: {
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginTop: 8,
+  },
+
+  seloTexto: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   apptCard: {
@@ -373,19 +457,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
-    marginBottom: 14,
   },
 
   apptHr: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    marginTop: 14,
     marginBottom: 14,
-  },
-
-  apptBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
   },
 
   apptWhen: {
@@ -397,19 +475,7 @@ const styles = StyleSheet.create({
   apptRel: {
     fontSize: 11,
     color: colors.muted,
-    marginTop: 2,
-  },
-
-  apptLink: {
-    fontSize: 12,
-    color: colors.sage,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-
-  apptCode: {
-    fontSize: 11,
-    color: colors.muted,
+    marginBottom: 2,
   },
 
   emptyCard: {
@@ -423,6 +489,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.ink,
     marginBottom: 6,
+  },
+
+  erroTexto: {
+    fontSize: 13,
+    color: colors.danger,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+
+  botao: {
+    backgroundColor: colors.sage,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  botaoTexto: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   quickGrid: {
@@ -455,31 +543,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.ink,
     textAlign: 'center',
-  },
-
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.muted,
-    marginTop: 26,
-    marginBottom: 10,
-  },
-
-  notice: {
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: colors.lavenderSoft,
-    borderRadius: 12,
-    padding: 13,
-    marginBottom: 8,
-  },
-
-  noticeText: {
-    fontSize: 12,
-    color: colors.ink,
-    lineHeight: 18,
-    flex: 1,
   },
 });

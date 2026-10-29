@@ -9,7 +9,8 @@
 // sistema operacional do aparelho. Funciona sem internet e com o app
 // fechado. O limite: o aparelho so sabe o que o app sabia na hora de
 // agendar. Se a consulta for cancelada por outro aparelho, este lembrete
-// continua agendado aqui.
+// continua agendado aqui ate o paciente abrir o app de novo, quando
+// sincronizarLembretes alcanca o que mudou no servidor.
 
 // IMPORTACAO MODULAR (Expo Go, Android, SDK 57):
 // "import * as Notifications from 'expo-notifications'" registra, so por
@@ -38,7 +39,9 @@ import { SchedulableTriggerInputTypes } from 'expo-notifications/build/Notificat
 
 const CANAL = 'lembretes-consulta';
 
-// Chave do mapa consultaId -> identificador da notificacao.
+// Chave do mapa consultaId -> { identificador, data, hora } do lembrete.
+// data e hora sao as da consulta quando o lembrete foi agendado: e o que
+// permite perceber, na sincronizacao, que a consulta foi remarcada.
 // AsyncStorage aqui e escolha consciente: na Aula 4 ele foi proibido para
 // o TOKEN, que e segredo. Um identificador de notificacao nao e segredo --
 // o armazenamento certo depende do que se guarda.
@@ -130,6 +133,13 @@ async function salvarMapa(mapa) {
   await AsyncStorage.setItem(CHAVE_MAPA, JSON.stringify(mapa));
 }
 
+// Versoes anteriores guardavam so o identificador (texto). Os dois
+// formatos continuam valendo na leitura.
+function identificadorDe(entrada) {
+  if (typeof entrada === 'string') return entrada;
+  return entrada?.identificador ?? null;
+}
+
 // Data e hora da consulta, no fuso do aparelho. Montado campo a campo
 // para nao depender de como cada motor JavaScript interpreta texto de
 // data sem fuso.
@@ -151,13 +161,15 @@ export function formatarHora(data) {
 export async function cancelarLembrete(consultaId) {
   const chave = String(consultaId);
   const mapa = await lerMapa();
-  const identificador = mapa[chave];
+  const identificador = identificadorDe(mapa[chave]);
 
-  if (identificador) {
-    try {
-      await cancelScheduledNotificationAsync(identificador);
-    } catch (e) {
-      // Ja pode ter disparado ou sido removida: nada a cancelar.
+  if (mapa[chave] !== undefined) {
+    if (identificador) {
+      try {
+        await cancelScheduledNotificationAsync(identificador);
+      } catch (e) {
+        // Ja pode ter disparado ou sido removida: nada a cancelar.
+      }
     }
     delete mapa[chave];
     await salvarMapa(mapa);
@@ -220,10 +232,79 @@ export async function agendarLembrete(consulta) {
   // O sistema devolve o identificador; guarda-lo e responsabilidade do
   // app. Sem este vinculo nao ha como cancelar o lembrete certo depois.
   const mapa = await lerMapa();
-  mapa[consultaId] = identificador;
+  mapa[consultaId] = {
+    identificador,
+    data: consulta.data,
+    hora: consulta.hora,
+  };
   await salvarMapa(mapa);
 
   return { identificador, horarioLembrete, motivo: null };
+}
+
+// Deixa os lembretes do aparelho iguais as consultas do servidor. A
+// recepcao pode agendar, remarcar ou cancelar por outro aparelho; quando o
+// paciente abre o app, este aparelho alcanca o que mudou:
+//   - consulta futura sem lembrete, ou com data/hora diferente: agenda;
+//   - lembrete de consulta que nao esta mais na lista: cancela.
+// Nunca pede permissao (quem pede e a acao de agendar, com a pessoa
+// olhando) e nunca quebra a tela: falha aqui so deixa de sincronizar.
+export async function sincronizarLembretes(consultas) {
+  try {
+    if (!(await notificacoesPermitidas())) return;
+
+    const mapa = await lerMapa();
+    const ids = new Set(consultas.map((c) => String(c.id)));
+
+    for (const consultaId of Object.keys(mapa)) {
+      if (!ids.has(consultaId)) {
+        await cancelarLembrete(consultaId);
+      }
+    }
+
+    const agora = new Date();
+
+    for (const consulta of consultas) {
+      if (dataDaConsulta(consulta) <= agora) continue;
+
+      const guardado = mapa[String(consulta.id)];
+      const emDia =
+        guardado &&
+        typeof guardado === 'object' &&
+        guardado.data === consulta.data &&
+        guardado.hora === consulta.hora;
+
+      if (!emDia) {
+        await agendarLembrete(consulta);
+      }
+    }
+  } catch (e) {
+    // Sincronizar e conveniencia: a lista de consultas continua na tela.
+  }
+}
+
+// Ao sair da conta: outra pessoa pode usar o aparelho, e nao deve receber
+// os avisos de consulta de quem saiu.
+export async function cancelarTodosOsLembretes() {
+  const mapa = await lerMapa();
+
+  for (const entrada of Object.values(mapa)) {
+    const identificador = identificadorDe(entrada);
+
+    if (identificador) {
+      try {
+        await cancelScheduledNotificationAsync(identificador);
+      } catch (e) {
+        // Ja pode ter disparado ou sido removida: nada a cancelar.
+      }
+    }
+  }
+
+  try {
+    await AsyncStorage.removeItem(CHAVE_MAPA);
+  } catch (e) {
+    // Mapa que nao saiu do armazenamento so aponta para avisos ja cancelados.
+  }
 }
 
 // O que o sistema tem agendado de verdade. E a prova de que cancelar

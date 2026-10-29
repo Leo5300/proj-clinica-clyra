@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -14,19 +14,26 @@ import { Feather } from '@expo/vector-icons';
 import {
   buscarPacientes,
   buscarMedicos,
+  buscarDisponibilidade,
   criarConsulta,
   atualizarConsulta,
   SessaoExpirada,
+  ErroDaApi,
 } from '../services/api';
 import {
   agendarLembrete,
   dataDaConsulta,
   formatarHora,
 } from '../services/lembretes';
+import { useUsuario } from '../services/sessao';
+import { nomeCurtoDoDia, formatarDataCurta } from '../services/datas';
 
 // Agenda uma consulta nova ou remarca uma existente (route.params.consulta).
-// Nos dois casos o lembrete vem DEPOIS de o servidor confirmar: agendar
-// antes criaria aviso de uma consulta que talvez nem tenha sido gravada.
+// So aparecem dias e horarios que o servidor diz estarem livres: ninguem
+// digita data. Mesmo assim o servidor confere tudo de novo ao gravar -- o
+// horario pode ter sido ocupado por outra pessoa no meio do caminho (409).
+// O lembrete vem DEPOIS de o servidor confirmar, e so no aparelho do
+// proprio paciente.
 
 // TODO: mover para front/src/theme quando o ThemeContext existir.
 const colors = {
@@ -40,10 +47,35 @@ const colors = {
   danger: '#B0555F',
 };
 
+const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
+
+// Tres semanas: o servidor devolve so os dias com horario livre.
+const DIAS_DE_BUSCA = 21;
+
+const MAX_RESULTADOS_PACIENTE = 6;
+
 function formatarDiaMes(data) {
   const dia = String(data.getDate()).padStart(2, '0');
   const mes = String(data.getMonth() + 1).padStart(2, '0');
   return `${dia}/${mes}`;
+}
+
+// "seg, 05/10 às 08:30"
+function formatarEscolha(data, hora) {
+  return `${formatarDataCurta(dataDaConsulta({ data, hora }))} às ${hora}`;
+}
+
+// Busca sem diferenciar maiusculas nem acentos ("joao" acha "João").
+// normalize nao existe em todo motor JavaScript: sem ele, so ignora
+// maiusculas.
+function normalizar(texto) {
+  const minusculo = String(texto ?? '').toLowerCase();
+
+  try {
+    return minusculo.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  } catch (e) {
+    return minusculo;
+  }
 }
 
 // A mensagem promete so o que vai acontecer de verdade.
@@ -60,7 +92,7 @@ function mensagemDoLembrete(resultado) {
   return `Lembrete agendado para ${formatarDiaMes(quando)} às ${formatarHora(quando)}.`;
 }
 
-function Opcao({ texto, selecionada, onPress }) {
+function Opcao({ texto, detalhe, selecionada, onPress }) {
   return (
     <TouchableOpacity
       style={[styles.opcao, selecionada && styles.opcaoSelecionada]}
@@ -71,6 +103,18 @@ function Opcao({ texto, selecionada, onPress }) {
       >
         {texto}
       </Text>
+      {detalhe ? <Text style={styles.opcaoDetalhe}>{detalhe}</Text> : null}
+    </TouchableOpacity>
+  );
+}
+
+function Chip({ selecionado, onPress, children }) {
+  return (
+    <TouchableOpacity
+      style={[styles.chip, selecionado && styles.chipSelecionado]}
+      onPress={onPress}
+    >
+      {children}
     </TouchableOpacity>
   );
 }
@@ -79,95 +123,151 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   // Presenca da consulta = remarcacao.
   const consulta = route.params?.consulta;
 
+  const { usuario } = useUsuario();
+  const perfil = usuario?.perfil;
+  const ehRecepcao = perfil === 'recepcao';
+
   const [pacientes, setPacientes] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState(null);
 
+  const [busca, setBusca] = useState('');
   const [pacienteId, setPacienteId] = useState(
     consulta ? String(consulta.pacienteId) : null,
   );
+  const [especialidade, setEspecialidade] = useState(null);
   const [medicoId, setMedicoId] = useState(
     consulta ? String(consulta.medicoId) : null,
   );
-  const [data, setData] = useState(consulta?.data ?? '');
-  const [hora, setHora] = useState(consulta?.hora ?? '');
+
+  const [dias, setDias] = useState([]);
+  const [carregandoDias, setCarregandoDias] = useState(false);
+  const [erroDias, setErroDias] = useState(null);
+  const [data, setData] = useState(null);
+  const [hora, setHora] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
   const irParaLogin = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
-  const carregarListas = async () => {
+  const carregarListas = useCallback(async () => {
+    if (!perfil) return;
+
     setCarregando(true);
     setErroCarga(null);
 
     try {
-      const [listaPacientes, listaMedicos] = await Promise.all([
-        buscarPacientes(),
+      // Paciente nao escolhe paciente: nem pede a lista (o servidor
+      // negaria, e ela nao e dele).
+      const [listaMedicos, listaPacientes] = await Promise.all([
         buscarMedicos(),
+        perfil === 'recepcao' ? buscarPacientes() : [],
       ]);
-      setPacientes(listaPacientes);
       setMedicos(listaMedicos);
+      setPacientes(listaPacientes);
     } catch (e) {
       if (e instanceof SessaoExpirada) {
         irParaLogin();
         return;
       }
-      setErroCarga('Não foi possível carregar pacientes e médicos.');
+
+      setErroCarga(
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível carregar os médicos.',
+      );
     } finally {
       setCarregando(false);
     }
-  };
+  }, [perfil]);
 
   useEffect(() => {
     carregarListas();
-  }, []);
+  }, [carregarListas]);
 
-  const validar = () => {
-    if (!pacienteId || !medicoId) {
-      Alert.alert('Campos obrigatórios', 'Escolha o paciente e o médico.');
-      return false;
-    }
+  const carregarDias = useCallback(async () => {
+    if (!medicoId) return;
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) {
-      Alert.alert(
-        'Data ou hora inválida',
-        'Use a data no formato AAAA-MM-DD e a hora no formato HH:MM.',
+    setCarregandoDias(true);
+    setErroDias(null);
+
+    try {
+      const livres = await buscarDisponibilidade(medicoId, {
+        dias: DIAS_DE_BUSCA,
+        ignorarConsultaId: consulta?.id,
+      });
+      setDias(livres);
+    } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        irParaLogin();
+        return;
+      }
+
+      setDias([]);
+      setErroDias(
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível carregar os horários livres.',
       );
-      return false;
+    } finally {
+      setCarregandoDias(false);
     }
+  }, [medicoId, consulta?.id]);
 
-    const quando = dataDaConsulta({ data, hora });
-    const [ano, mes, dia] = data.split('-').map(Number);
-    const [h, m] = hora.split(':').map(Number);
+  useEffect(() => {
+    carregarDias();
+  }, [carregarDias]);
 
-    // new Date aceita 2026-02-31 e "corrige" para marco. Conferir de volta
-    // os campos pega data que nao existe no calendario.
-    const existe =
-      quando.getFullYear() === ano &&
-      quando.getMonth() === mes - 1 &&
-      quando.getDate() === dia &&
-      quando.getHours() === h &&
-      quando.getMinutes() === m;
-
-    if (!existe) {
-      Alert.alert('Data ou hora inválida', 'Essa data ou hora não existe.');
-      return false;
-    }
-
-    if (quando <= new Date()) {
-      Alert.alert('Horário no passado', 'Escolha um horário futuro.');
-      return false;
-    }
-
-    return true;
+  const escolherMedico = (id) => {
+    setMedicoId(id);
+    setData(null);
+    setHora(null);
   };
 
-  const salvar = async () => {
-    if (!validar()) return;
+  const escolherDia = (texto) => {
+    setData(texto);
+    setHora(null);
+  };
 
-    const dados = { pacienteId, medicoId, data, hora };
+  // Os textos de especialidade vem dos medicos (e nao da colecao de
+  // especialidades), porque os dois nao usam as mesmas palavras.
+  const especialidades = [
+    ...new Set(medicos.map((m) => m.especialidade).filter(Boolean)),
+  ].sort();
+
+  const medicosDaEspecialidade = especialidade
+    ? medicos.filter((m) => m.especialidade === especialidade)
+    : medicos;
+
+  const medico = medicos.find((m) => String(m.id) === String(medicoId));
+  const pacienteEscolhido = pacientes.find(
+    (p) => String(p.id) === String(pacienteId),
+  );
+  const diaEscolhido = dias.find((d) => d.data === data);
+
+  const termo = normalizar(busca.trim());
+  const digitos = busca.replace(/\D/g, '');
+  const encontrados = pacientes
+    .filter(
+      (p) =>
+        !termo ||
+        normalizar(p.nome).includes(termo) ||
+        (digitos && String(p.cpf ?? '').replace(/\D/g, '').includes(digitos)),
+    )
+    .slice(0, MAX_RESULTADOS_PACIENTE);
+
+  const pronto =
+    Boolean(medicoId && data && hora) && (!ehRecepcao || Boolean(pacienteId));
+
+  const salvar = async () => {
+    if (!pronto) return;
+
+    // Paciente nao manda pacienteId: o servidor usa o dele.
+    const dados = ehRecepcao
+      ? { pacienteId, medicoId, data, hora }
+      : { medicoId, data, hora };
 
     setSalvando(true);
 
@@ -193,7 +293,37 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         return;
       }
 
-      Alert.alert('Erro', 'Não foi possível salvar a consulta agora.');
+      // Alguem ocupou o horario no meio do caminho: mostra o motivo e
+      // traz a agenda atualizada.
+      if (e instanceof ErroDaApi && e.status === 409) {
+        Alert.alert(
+          'Horário indisponível',
+          e.mensagem ?? 'Escolha outro horário.',
+        );
+        setHora(null);
+        carregarDias();
+        return;
+      }
+
+      Alert.alert(
+        'Não foi possível salvar',
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível salvar a consulta agora.',
+      );
+      return;
+    }
+
+    const titulo = consulta ? 'Consulta remarcada' : 'Consulta agendada';
+
+    // A recepcao agenda pelo aparelho da clinica: lembrete ali avisaria a
+    // pessoa errada. O aparelho do paciente sincroniza quando ele abrir o
+    // app.
+    if (ehRecepcao) {
+      setSalvando(false);
+      Alert.alert(titulo, `${formatarEscolha(data, hora)}.`, [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
       return;
     }
 
@@ -209,10 +339,152 @@ export default function AgendarConsultaScreen({ navigation, route }) {
 
     setSalvando(false);
 
-    Alert.alert(
-      consulta ? 'Consulta remarcada' : 'Consulta agendada',
-      mensagem,
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
+    Alert.alert(titulo, mensagem, [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
+  };
+
+  const renderPaciente = () => {
+    if (!ehRecepcao) return null;
+
+    // Remarcacao muda data e hora, nunca de quem e a consulta.
+    if (consulta) {
+      return (
+        <>
+          <Text style={styles.secao}>Paciente</Text>
+          <Opcao texto={pacienteEscolhido?.nome ?? 'Paciente'} selecionada />
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Text style={styles.secao}>Paciente</Text>
+        <TextInput
+          style={styles.input}
+          value={busca}
+          onChangeText={setBusca}
+          placeholder="Buscar paciente por nome ou CPF"
+          placeholderTextColor={colors.muted}
+          autoCorrect={false}
+        />
+
+        {pacienteEscolhido &&
+          !encontrados.some((p) => String(p.id) === String(pacienteId)) && (
+            <Opcao texto={pacienteEscolhido.nome} selecionada />
+          )}
+
+        {encontrados.map((p) => (
+          <Opcao
+            key={String(p.id)}
+            texto={p.nome}
+            detalhe={p.cpf ? `CPF ${p.cpf}` : null}
+            selecionada={String(pacienteId) === String(p.id)}
+            onPress={() => setPacienteId(String(p.id))}
+          />
+        ))}
+
+        {encontrados.length === 0 && (
+          <Text style={styles.nota}>
+            Nenhum paciente encontrado. Confira o nome ou cadastre o paciente
+            em Pacientes.
+          </Text>
+        )}
+      </>
+    );
+  };
+
+  const renderDias = () => {
+    if (!medicoId) return null;
+
+    if (carregandoDias) {
+      return (
+        <>
+          <Text style={styles.secao}>Dia</Text>
+          <ActivityIndicator color={colors.sage} style={styles.indicadorDias} />
+        </>
+      );
+    }
+
+    if (erroDias) {
+      return (
+        <>
+          <Text style={styles.secao}>Dia</Text>
+          <Text style={styles.erroTexto}>{erroDias}</Text>
+          <TouchableOpacity style={styles.botao} onPress={carregarDias}>
+            <Text style={styles.botaoTexto}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    if (dias.length === 0) {
+      return (
+        <>
+          <Text style={styles.secao}>Dia</Text>
+          <Text style={styles.nota}>
+            {ehRecepcao
+              ? 'Sem horários livres nas próximas 3 semanas. Escolha outro médico ou cadastre horários de atendimento.'
+              : 'Sem horários livres nas próximas 3 semanas. Escolha outro médico.'}
+          </Text>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Text style={styles.secao}>Dia</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+        >
+          {dias.map((d) => {
+            const quando = dataDaConsulta({ data: d.data, hora: '00:00' });
+            const selecionado = d.data === data;
+
+            return (
+              <Chip
+                key={d.data}
+                selecionado={selecionado}
+                onPress={() => escolherDia(d.data)}
+              >
+                <Text
+                  style={[styles.chipTopo, selecionado && styles.chipTextoSel]}
+                >
+                  {nomeCurtoDoDia(quando)}
+                </Text>
+                <Text
+                  style={[styles.chipTexto, selecionado && styles.chipTextoSel]}
+                >
+                  {formatarDiaMes(quando)}
+                </Text>
+              </Chip>
+            );
+          })}
+        </ScrollView>
+
+        {diaEscolhido && (
+          <>
+            <Text style={styles.secao}>Horário</Text>
+            <View style={styles.grade}>
+              {diaEscolhido.horarios.map((h) => (
+                <Chip
+                  key={h}
+                  selecionado={h === hora}
+                  onPress={() => setHora(h)}
+                >
+                  <Text
+                    style={[styles.chipTexto, h === hora && styles.chipTextoSel]}
+                  >
+                    {h}
+                  </Text>
+                </Chip>
+              ))}
+            </View>
+          </>
+        )}
+      </>
     );
   };
 
@@ -232,68 +504,103 @@ export default function AgendarConsultaScreen({ navigation, route }) {
       );
     }
 
+    // Cada bloco aparece quando o anterior foi escolhido.
+    const mostrarMedicos = !ehRecepcao || Boolean(pacienteId);
+
     return (
       <>
-        <Text style={styles.secao}>Paciente</Text>
-        {pacientes.length === 0 && (
-          <Text style={styles.nota}>Nenhum paciente cadastrado.</Text>
+        {renderPaciente()}
+
+        {mostrarMedicos && (
+          <>
+            <Text style={styles.secao}>Especialidade</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chips}
+            >
+              <Chip
+                selecionado={especialidade === null}
+                onPress={() => setEspecialidade(null)}
+              >
+                <Text
+                  style={[
+                    styles.chipTexto,
+                    especialidade === null && styles.chipTextoSel,
+                  ]}
+                >
+                  Todas
+                </Text>
+              </Chip>
+              {especialidades.map((e) => (
+                <Chip
+                  key={e}
+                  selecionado={especialidade === e}
+                  onPress={() => setEspecialidade(e)}
+                >
+                  <Text
+                    style={[
+                      styles.chipTexto,
+                      especialidade === e && styles.chipTextoSel,
+                    ]}
+                  >
+                    {e}
+                  </Text>
+                </Chip>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.secao}>Médico</Text>
+            {medicosDaEspecialidade.length === 0 && (
+              <Text style={styles.nota}>
+                Nenhum médico nesta especialidade.
+              </Text>
+            )}
+            {medicosDaEspecialidade.map((m) => (
+              <Opcao
+                key={String(m.id)}
+                texto={m.nome}
+                detalhe={m.especialidade}
+                selecionada={String(medicoId) === String(m.id)}
+                onPress={() => escolherMedico(String(m.id))}
+              />
+            ))}
+          </>
         )}
-        {pacientes.map((p) => (
-          <Opcao
-            key={String(p.id)}
-            texto={p.nome}
-            selecionada={pacienteId === String(p.id)}
-            onPress={() => setPacienteId(String(p.id))}
-          />
-        ))}
 
-        <Text style={styles.secao}>Médico</Text>
-        {medicos.map((m) => (
-          <Opcao
-            key={String(m.id)}
-            texto={m.especialidade ? `${m.nome} — ${m.especialidade}` : m.nome}
-            selecionada={medicoId === String(m.id)}
-            onPress={() => setMedicoId(String(m.id))}
-          />
-        ))}
+        {mostrarMedicos && renderDias()}
 
-        <Text style={styles.secao}>Data e hora</Text>
+        {pronto && (
+          <View style={styles.resumo}>
+            <Text style={styles.resumoMedico}>
+              {medico?.especialidade
+                ? `${medico.nome}, ${medico.especialidade}`
+                : medico?.nome}
+            </Text>
+            <Text style={styles.resumoQuando}>{formatarEscolha(data, hora)}</Text>
+          </View>
+        )}
 
-        <Text style={styles.label}>Data</Text>
-        <TextInput
-          style={styles.input}
-          value={data}
-          onChangeText={setData}
-          placeholder="AAAA-MM-DD"
-          placeholderTextColor={colors.muted}
-          maxLength={10}
-        />
-
-        <Text style={styles.label}>Hora</Text>
-        <TextInput
-          style={styles.input}
-          value={hora}
-          onChangeText={setHora}
-          placeholder="HH:MM"
-          placeholderTextColor={colors.muted}
-          maxLength={5}
-        />
-
-        <Text style={styles.nota}>
-          Um lembrete é agendado neste aparelho uma hora antes da consulta.
-        </Text>
+        {!ehRecepcao && (
+          <Text style={styles.nota}>
+            Um lembrete é agendado neste aparelho uma hora antes da consulta.
+          </Text>
+        )}
 
         <TouchableOpacity
-          style={[styles.botao, salvando && styles.botaoDesabilitado]}
+          style={[
+            styles.botao,
+            (!pronto || salvando) && styles.botaoDesabilitado,
+          ]}
           onPress={salvar}
-          disabled={salvando}
+          disabled={!pronto || salvando}
         >
           <Text style={styles.botaoTexto}>
             {salvando
               ? 'Salvando...'
               : consulta
-                ? 'Remarcar consulta'
-                : 'Agendar consulta'}
+                ? 'Confirmar remarcação'
+                : 'Confirmar agendamento'}
           </Text>
         </TouchableOpacity>
       </>
@@ -303,7 +610,12 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          hitSlop={AREA_DE_TOQUE}
+        >
           <Feather name="arrow-left" size={22} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>
@@ -312,7 +624,10 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {renderFormulario()}
       </ScrollView>
     </SafeAreaView>
@@ -333,6 +648,7 @@ const styles = StyleSheet.create({
 
   content: { padding: 20, paddingBottom: 40 },
   indicador: { marginTop: 40 },
+  indicadorDias: { marginVertical: 12 },
 
   secao: {
     fontSize: 12,
@@ -359,14 +675,30 @@ const styles = StyleSheet.create({
   },
   opcaoTexto: { fontSize: 14, color: colors.ink },
   opcaoTextoSelecionado: { fontWeight: '700', color: colors.sage },
+  opcaoDetalhe: { fontSize: 12, color: colors.muted, marginTop: 2 },
 
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-    marginTop: 4,
+  chips: { gap: 8, paddingBottom: 4 },
+  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    minWidth: 64,
+    minHeight: 44,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  chipSelecionado: {
+    backgroundColor: colors.sageSoft,
+    borderColor: colors.sage,
+  },
+  chipTopo: { fontSize: 11, color: colors.muted },
+  chipTexto: { fontSize: 14, color: colors.ink, fontWeight: '600' },
+  chipTextoSel: { color: colors.sage },
+
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -379,7 +711,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  nota: { fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 17 },
+  resumo: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 18,
+  },
+  resumoMedico: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  resumoQuando: { fontSize: 14, color: colors.sage, marginTop: 4 },
+
+  nota: { fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
   erroTexto: { fontSize: 14, color: colors.danger, marginBottom: 6 },
 
   botao: {

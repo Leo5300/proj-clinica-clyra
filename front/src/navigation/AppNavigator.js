@@ -8,7 +8,10 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import LoginScreen from "../screens/LoginScreen";
 import LoginBiometricoScreen from "../screens/LoginBiometricoScreen";
+import CriarContaScreen from "../screens/CriarContaScreen";
+import TrocarSenhaScreen from "../screens/TrocarSenhaScreen";
 import HomeScreen from "../screens/HomeScreen";
+import PerfilScreen from "../screens/PerfilScreen";
 import MedicosScreen from "../screens/MedicosScreen";
 import CadastroMedicoScreen from "../screens/CadastroMedicoScreen";
 import PacientesScreen from "../screens/PacientesScreen";
@@ -19,10 +22,13 @@ import ConsultasScreen from "../screens/ConsultasScreen";
 import AgendarConsultaScreen from "../screens/AgendarConsultaScreen";
 import DetalheConsultaScreen from "../screens/DetalheConsultaScreen";
 import EspecialidadesScreen from "../screens/EspecialidadesScreen";
+import CadastroEspecialidadeScreen from "../screens/CadastroEspecialidadeScreen";
 import ComoChegarScreen from "../screens/ComoChegarScreen";
 import SinaisVitaisScreen from "../screens/SinaisVitaisScreen";
+import SemAcessoScreen from "../screens/SemAcessoScreen";
 
-import { estaLogado } from "../services/sessao";
+import { estaLogado, useUsuario } from "../services/sessao";
+import { podeAcessar } from "./permissoes";
 import {
   ouvirToqueEmLembrete,
   obterToqueQueAbriuOApp,
@@ -37,7 +43,55 @@ const navigationRef = createNavigationContainerRef();
 // Um toque em lembrete nunca pula a autenticacao. Enquanto o usuario
 // estiver numa destas telas, o destino fica guardado e so e aberto depois
 // que ele entrar (biometria ou senha).
-const ROTAS_DE_ENTRADA = ["Login", "LoginBiometrico"];
+const ROTAS_DE_ENTRADA = ["Login", "LoginBiometrico", "CriarConta", "TrocarSenha"];
+
+// Envolve uma tela: so renderiza se o perfil logado pode abrir a rota.
+// Fica fora do componente de proposito -- criado dentro do AppNavigator,
+// seria um componente novo a cada render e a tela seria desmontada.
+// Esconder a tela e experiencia de uso; quem protege os dados e o servidor.
+function protegida(Componente, nomeDaRota) {
+  function TelaProtegida(props) {
+    const { usuario, carregando } = useUsuario();
+
+    if (carregando) {
+      return (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#4B7776" />
+        </View>
+      );
+    }
+
+    if (!podeAcessar(usuario?.perfil, nomeDaRota)) {
+      return <SemAcessoScreen {...props} />;
+    }
+
+    return <Componente {...props} />;
+  }
+
+  return TelaProtegida;
+}
+
+const TELAS = {
+  TrocarSenha: protegida(TrocarSenhaScreen, "TrocarSenha"),
+  Home: protegida(HomeScreen, "Home"),
+  Perfil: protegida(PerfilScreen, "Perfil"),
+  Medicos: protegida(MedicosScreen, "Medicos"),
+  CadastroMedico: protegida(CadastroMedicoScreen, "CadastroMedico"),
+  Pacientes: protegida(PacientesScreen, "Pacientes"),
+  CadastroPaciente: protegida(CadastroPacienteScreen, "CadastroPaciente"),
+  Horarios: protegida(HorariosScreen, "Horarios"),
+  CadastroHorario: protegida(CadastroHorarioScreen, "CadastroHorario"),
+  Consultas: protegida(ConsultasScreen, "Consultas"),
+  Agendar: protegida(AgendarConsultaScreen, "Agendar"),
+  DetalheConsulta: protegida(DetalheConsultaScreen, "DetalheConsulta"),
+  Especialidades: protegida(EspecialidadesScreen, "Especialidades"),
+  CadastroEspecialidade: protegida(
+    CadastroEspecialidadeScreen,
+    "CadastroEspecialidade",
+  ),
+  ComoChegar: protegida(ComoChegarScreen, "ComoChegar"),
+  SinaisVitais: protegida(SinaisVitaisScreen, "SinaisVitais"),
+};
 
 export default function AppNavigator() {
   // null = ainda verificando o cofre. Sem esse estado o app pisca a tela de
@@ -114,28 +168,35 @@ export default function AppNavigator() {
           name="LoginBiometrico"
           component={LoginBiometricoScreen}
         />
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Medicos" component={MedicosScreen} />
-        <Stack.Screen name="CadastroMedico" component={CadastroMedicoScreen} />
-        <Stack.Screen name="Pacientes" component={PacientesScreen} />
+        <Stack.Screen name="CriarConta" component={CriarContaScreen} />
+        <Stack.Screen name="TrocarSenha" component={TELAS.TrocarSenha} />
+        <Stack.Screen name="Home" component={TELAS.Home} />
+        <Stack.Screen name="Perfil" component={TELAS.Perfil} />
+        <Stack.Screen name="Medicos" component={TELAS.Medicos} />
+        <Stack.Screen name="CadastroMedico" component={TELAS.CadastroMedico} />
+        <Stack.Screen name="Pacientes" component={TELAS.Pacientes} />
         <Stack.Screen
           name="CadastroPaciente"
-          component={CadastroPacienteScreen}
+          component={TELAS.CadastroPaciente}
         />
-        <Stack.Screen name="Horarios" component={HorariosScreen} />
+        <Stack.Screen name="Horarios" component={TELAS.Horarios} />
         <Stack.Screen
           name="CadastroHorario"
-          component={CadastroHorarioScreen}
+          component={TELAS.CadastroHorario}
         />
-        <Stack.Screen name="Consultas" component={ConsultasScreen} />
-        <Stack.Screen name="Agendar" component={AgendarConsultaScreen} />
+        <Stack.Screen name="Consultas" component={TELAS.Consultas} />
+        <Stack.Screen name="Agendar" component={TELAS.Agendar} />
         <Stack.Screen
           name="DetalheConsulta"
-          component={DetalheConsultaScreen}
+          component={TELAS.DetalheConsulta}
         />
-        <Stack.Screen name="Especialidades" component={EspecialidadesScreen} />
-        <Stack.Screen name="ComoChegar" component={ComoChegarScreen} />
-        <Stack.Screen name="SinaisVitais" component={SinaisVitaisScreen} />
+        <Stack.Screen name="Especialidades" component={TELAS.Especialidades} />
+        <Stack.Screen
+          name="CadastroEspecialidade"
+          component={TELAS.CadastroEspecialidade}
+        />
+        <Stack.Screen name="ComoChegar" component={TELAS.ComoChegar} />
+        <Stack.Screen name="SinaisVitais" component={TELAS.SinaisVitais} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "mock-api": "json-server --watch ../db_clinica.json --port 3000"
+    "mock-api": "json-server --watch ../db_clinica.json --port 3000 --host 127.0.0.1"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
