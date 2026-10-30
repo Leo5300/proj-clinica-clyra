@@ -46,7 +46,7 @@ import {
   useEspacoDaBarra,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque, duracao, planoDaArea } from '../theme';
+import { useTema, espaco, margemTela, raio, toque, duracao } from '../theme';
 
 // Lista de consultas. O servidor ja devolve so as que o perfil pode ver:
 // recepcao ve todas, medico a propria agenda, paciente as proprias.
@@ -97,7 +97,7 @@ function separar(consultas) {
 
 const maiuscula = (texto) => `${texto[0].toUpperCase()}${texto.slice(1)}`;
 
-// plano (opcional): azulejo da data na cor da area da consulta, no paciente.
+// plano (opcional): azulejo da data na cor do perfil (verde suave no paciente).
 function CartaoProxima({ consulta, primeira, linha, tomDoSelo, plano, onPress }) {
   const { cores } = useTema();
   const quando = dataDaConsulta(consulta);
@@ -280,8 +280,7 @@ export default function ConsultasScreen({ navigation, route }) {
 
     const medico = medicoDa(item);
     if (perfil === 'paciente') {
-      // A cor da area no azulejo vem sempre com o nome escrito.
-      return [medico?.nome ?? 'Profissional', medico?.especialidade, medico?.area]
+      return [medico?.nome ?? 'Profissional', medico?.especialidade]
         .filter(Boolean)
         .join(' · ');
     }
@@ -379,6 +378,13 @@ export default function ConsultasScreen({ navigation, route }) {
     );
   };
 
+  // Azulejo da data no paciente: verde suave, a cor do perfil dele.
+  const azulejoDoPaciente = {
+    fundo: cores.verdeSuave,
+    texto: cores.sobreVerdeSuave,
+    texto2: cores.sobreVerdeSuave,
+  };
+
   const renderItem = ({ item, index }) =>
     aba === 'proximas' ? (
       <CartaoProxima
@@ -386,7 +392,7 @@ export default function ConsultasScreen({ navigation, route }) {
         primeira={index === 0}
         linha={linhaDe(item)}
         tomDoSelo={ehPaciente ? 'papel' : 'lavanda'}
-        plano={ehPaciente ? planoDaArea(medicoDa(item)?.area, cores) : null}
+        plano={ehPaciente ? azulejoDoPaciente : null}
         onPress={() => abrir(item)}
       />
     ) : (
