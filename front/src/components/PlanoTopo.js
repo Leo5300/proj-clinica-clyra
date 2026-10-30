@@ -1,10 +1,11 @@
-// Plano colorido do topo das telas, com a marca d'agua e o grao. fundo (cor do plano); corTexto (cor do texto do plano: tinge a marca); marca (padrao true); arredondado (cantos de baixo, padrao true); style (espacamento do conteudo); children.
+// Plano colorido do topo das telas, com a marca d'agua e o grao. fundo (cor do plano); corTexto (cor do texto do plano: tinge a marca); marca (padrao true); arredondado (cantos de baixo, padrao true); style (espacamento do conteudo); estiloAnimado (useAnimatedStyle, para a cor trocar com interpolateColor); children.
 //
 // A marca do CLYRA aparece grande, cortada no canto inferior direito, a 9%
 // na cor do texto. O grao e um PNG pequeno em mosaico, a 6%: nada de ruido
 // gerado em tempo de execucao. Os dois sao decorativos e nao recebem toque.
 import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { raio } from '../theme';
 
 const marca = require('../../assets/imgs/marca-clyra.png');
@@ -20,10 +21,11 @@ export default function PlanoTopo({
   marca: comMarca = true,
   arredondado = true,
   style,
+  estiloAnimado,
   children,
 }) {
   return (
-    <View
+    <Animated.View
       style={[
         {
           backgroundColor: fundo,
@@ -35,6 +37,7 @@ export default function PlanoTopo({
           borderCurve: 'continuous',
         },
         style,
+        estiloAnimado,
       ]}
     >
       <Image
@@ -62,6 +65,6 @@ export default function PlanoTopo({
         />
       ) : null}
       {children}
-    </View>
+    </Animated.View>
   );
 }

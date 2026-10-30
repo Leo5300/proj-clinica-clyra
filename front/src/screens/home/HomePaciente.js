@@ -194,11 +194,12 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation, rolagem }
           titulo="Ver detalhes"
           variante="inverso"
           style={{ flex: 1 }}
-          onPress={() =>
+          onPress={() => {
+            vibrarSelecao();
             navigation.navigate('DetalheConsulta', {
               consultaId: String(consulta.id),
-            })
-          }
+            });
+          }}
         />
         {podeAlterar ? (
           <Botao
@@ -502,11 +503,12 @@ export default function HomePaciente({
                   tabular
                   seta
                   divisor={indice < ultimas.length - 1}
-                  onPress={() =>
+                  onPress={() => {
+                    vibrarSelecao();
                     navigation.navigate('DetalheConsulta', {
                       consultaId: String(c.id),
-                    })
-                  }
+                    });
+                  }}
                 />
                 </Animated.View>
               ))

@@ -32,7 +32,7 @@ import CadastrosScreen from "../screens/CadastrosScreen";
 import SemAcessoScreen from "../screens/SemAcessoScreen";
 
 import { estaLogado, useUsuario } from "../services/sessao";
-import { useTema, arquivosDeFonte } from "../theme";
+import { useTema, arquivosDeFonte, duracao } from "../theme";
 import AvisoDeSessao from "../components/AvisoDeSessao";
 import { podeAcessar } from "./permissoes";
 import {
@@ -115,7 +115,7 @@ export default function AppNavigator() {
   // cofre: sem lampejo de letra trocada. Falha ao carregar nao trava o
   // app -- ele segue com a fonte do sistema.
   const [fontesProntas, erroDasFontes] = useFonts(arquivosDeFonte);
-  const { cores, escuro } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
 
   // Consulta a abrir, vinda do toque num lembrete.
   const destinoPendenteRef = useRef(null);
@@ -225,6 +225,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="DetalheConsulta"
             component={TELAS.DetalheConsulta}
+            // Abrir a consulta: o topo fica, so o conteudo faz crossfade.
+            options={{
+              animation: "fade",
+              animationDuration: movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+            }}
           />
           <Stack.Screen name="Especialidades" component={TELAS.Especialidades} />
           <Stack.Screen
