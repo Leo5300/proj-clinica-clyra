@@ -16,7 +16,7 @@ import {
   EstadoVazio,
   ItemDeLista,
   Logotipo,
-  Numeral,
+  NumeralRolante,
   PlanoTopo,
   Pressionavel,
   Texto,
@@ -101,7 +101,12 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
         accessibilityLabel={`Dia ${quando.getDate()} de ${nomeDoMes(quando)}, ${formatarFaixa(quando)}, ${quandoRelativo(quando)}`}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}
       >
-        <Numeral valor={quando.getDate()} tamanho="grande" cor="sobrePlano" />
+        <NumeralRolante
+          chave="inicio-data"
+          valor={quando.getDate()}
+          tamanho="grande"
+          cor="sobrePlano"
+        />
         <View style={{ flex: 1, gap: 4 }}>
           <Texto variante="titulo" cor="sobrePlano">
             {nomeDoMes(quando)} · {nomeCurtoDoDia(quando)}

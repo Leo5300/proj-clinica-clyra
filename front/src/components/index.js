@@ -20,6 +20,7 @@ export { default as IlustracaoVazio } from './IlustracaoVazio';
 export { default as ItemDeLista } from './ItemDeLista';
 export { default as Logotipo } from './Logotipo';
 export { default as Numeral, medidasDoNumeral } from './Numeral';
+export { default as NumeralRolante } from './NumeralRolante';
 export { default as PlanoTopo } from './PlanoTopo';
 export { default as Pressionavel } from './Pressionavel';
 export { default as Segmentado } from './Segmentado';
