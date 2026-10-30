@@ -951,7 +951,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
-      <BarraDoTopo clara={rolou ? escuro : false} />
+      <BarraDoTopo clara={rolou ? escuro : planoDoTopo.escuro} />
       <ComVidro
         conteudo={
           <Animated.ScrollView
