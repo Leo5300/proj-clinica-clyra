@@ -1,9 +1,9 @@
-// Bloco de carregamento no formato do conteudo. largura; altura; raio; sobreDestaque (no bloco escuro do topo); style. Com "reduzir movimento" fica parado.
+// Bloco de carregamento no formato do conteudo. largura; altura; raio; sobreDestaque (no plano lavanda do topo); style. Lavanda, pulsando devagar; com "reduzir movimento" fica parado.
 import React from 'react';
 import Animated from 'react-native-reanimated';
 import { useTema, duracao } from '../theme';
 
-// Brilho lento: a opacidade respira em 1,4 s. Sem gradiente animado,
+// Pulso lento: so a opacidade respira, em 1,2 s. Nunca brilho diagonal,
 // que custaria um desenho por quadro.
 const RESPIRAR = {
   '0%': { opacity: 1 },

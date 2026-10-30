@@ -14,7 +14,7 @@ export const duracao = {
   lista: 200,
   folha: 300,
   sucesso: 320,
-  esqueleto: 1400,
+  esqueleto: 1200,
 };
 
 // Mesmas curvas nos dois formatos do Reanimated: Easing para withTiming e
