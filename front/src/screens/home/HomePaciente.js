@@ -176,7 +176,7 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation, rolagem }
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
-        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} />
+        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom="verde" />
         <View style={{ flex: 1, gap: 2 }}>
           <Texto variante="corpoForte" cor="sobrePlanoPaciente">
             {medico?.nome ?? 'Profissional'}
@@ -307,13 +307,15 @@ function AvisoDeLembretes({ consultas }) {
         direita={
           <View
             style={{
-              backgroundColor: cores.lavanda,
+              backgroundColor: cores.papel,
+              borderWidth: 1,
+              borderColor: cores.linha,
               borderRadius: raio.capsula,
               paddingHorizontal: espaco.sm,
               paddingVertical: 4,
             }}
           >
-            <Texto variante="pequeno" cor="sobrePlano">
+            <Texto variante="pequeno" cor="tinta">
               Ativos
             </Texto>
           </View>

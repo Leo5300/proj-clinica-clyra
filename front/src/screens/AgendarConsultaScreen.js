@@ -181,7 +181,7 @@ function Rotulo({ children, direita }) {
   );
 }
 
-function CartaoProfissional({ medico, proximo, onPress }) {
+function CartaoProfissional({ medico, proximo, tomDoAvatar, onPress }) {
   const { cores } = useTema();
 
   return (
@@ -214,7 +214,7 @@ function CartaoProfissional({ medico, proximo, onPress }) {
           backgroundColor: corDaArea(medico.area, cores),
         }}
       />
-      <Avatar nome={medico.nome} fotoUri={medico.fotoUri} tamanho={52} />
+      <Avatar nome={medico.nome} fotoUri={medico.fotoUri} tamanho={52} tom={tomDoAvatar} />
       <View style={{ flex: 1, gap: 3 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco.xs }}>
           <Texto variante="corpoForte">{medico.nome}</Texto>
@@ -651,6 +651,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
                   key={String(m.id)}
                   medico={m}
                   proximo={proximos[String(m.id)]}
+                  tomDoAvatar={ehRecepcao ? 'lavanda' : 'verde'}
                   onPress={() => escolherMedico(String(m.id))}
                 />
               ))
@@ -890,7 +891,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     topo = (
       <TopoDoPasso plano={planoDoTopo} etapa={consulta ? null : 2} titulo={consulta ? 'Novo horário' : 'Dia e horário'}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm, marginTop: espaco.sm }}>
-          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom={ehRecepcao ? 'vidro' : 'lavanda'} />
+          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom={ehRecepcao ? 'vidro' : 'verde'} />
           <View style={{ flex: 1, gap: 2 }}>
             <Texto variante="corpoForte" cor={planoDoTopo.texto}>
               {medico?.nome ?? 'Profissional'}

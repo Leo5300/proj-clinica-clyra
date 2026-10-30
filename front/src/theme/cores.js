@@ -67,6 +67,10 @@ const claro = {
   planoPaciente: '#0B7A6E',
   sobrePlanoPaciente: '#FFFFFF',
   sobrePlanoPaciente2: '#E6F6F2',
+  // Acento do perfil Paciente (o "+" flutuante): verde com sinal branco.
+  acentoPaciente: '#0B7A6E',
+  acentoPacienteVidro: 'rgba(11,122,110,0.94)',
+  sobreAcentoPaciente: '#FFFFFF',
 
   alerta: '#A4434E',
   alertaSuave: '#F7E6E8',
@@ -158,6 +162,10 @@ const escuro = {
   planoPaciente: '#0B7A6E',
   sobrePlanoPaciente: '#FFFFFF',
   sobrePlanoPaciente2: '#E6F6F2',
+  // Acento do perfil Paciente (o "+" flutuante): verde com sinal branco.
+  acentoPaciente: '#0B7A6E',
+  acentoPacienteVidro: 'rgba(11,122,110,0.94)',
+  sobreAcentoPaciente: '#FFFFFF',
 
   alerta: '#E58A94',
   alertaSuave: '#3A1F23',
@@ -202,12 +210,12 @@ export function comAlfa(hex, alfa) {
   return `rgba(${r},${g},${b},${alfa})`;
 }
 
-// Cor de cada perfil. cor = texto e icone; fundo = selo. Paciente e
-// profissional sao lavanda; a recepcao e neutra.
+// Cor de cada perfil. cor = texto e icone; fundo = selo. Profissional e
+// lavanda; a recepcao e neutra; o paciente e papel com texto tinta.
 export function coresDoPerfil(cores) {
   return {
     recepcao: { cor: cores.sobreNeutro, fundo: cores.neutroSuave },
     medico: { cor: cores.sobreLavandaSuave, fundo: cores.lavandaSuave },
-    paciente: { cor: cores.sobreLavandaSuave, fundo: cores.lavandaSuave },
+    paciente: { cor: cores.tinta, fundo: cores.papel },
   };
 }

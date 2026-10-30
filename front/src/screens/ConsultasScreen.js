@@ -49,7 +49,16 @@ import {
   useEspacoDaBarra,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque, duracao, curva } from '../theme';
+import {
+  useTema,
+  espaco,
+  margemTela,
+  raio,
+  toque,
+  duracao,
+  curva,
+  planoDaArea,
+} from '../theme';
 
 // Lista de consultas. O servidor ja devolve so as que o perfil pode ver:
 // recepcao ve todas, medico a propria agenda, paciente as proprias.
@@ -103,7 +112,8 @@ function separar(consultas) {
 
 const maiuscula = (texto) => `${texto[0].toUpperCase()}${texto.slice(1)}`;
 
-function CartaoProxima({ consulta, primeira, linha, onPress }) {
+// plano (opcional): azulejo da data na cor da area da consulta, no paciente.
+function CartaoProxima({ consulta, primeira, linha, tomDoSelo, plano, onPress }) {
   const { cores } = useTema();
   const quando = dataDaConsulta(consulta);
   const hoje = mesmoDia(quando, new Date());
@@ -130,17 +140,17 @@ function CartaoProxima({ consulta, primeira, linha, onPress }) {
           minHeight: 62,
           borderRadius: 14,
           borderCurve: 'continuous',
-          backgroundColor: primeira ? cores.destaque : cores.superficie2,
+          backgroundColor: plano ? plano.fundo : primeira ? cores.destaque : cores.superficie2,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Texto variante="pequeno" cor={primeira ? 'sobreDestaque2' : 'apoio'}>
+        <Texto variante="pequeno" cor={plano ? plano.texto2 : primeira ? 'sobreDestaque2' : 'apoio'}>
           {nomeDoMes(quando)}
         </Texto>
         <Texto
           variante="tituloMedio"
-          cor={primeira ? 'sobreDestaque' : 'tinta'}
+          cor={plano ? plano.texto : primeira ? 'sobreDestaque' : 'tinta'}
           tabular
           maxFontSizeMultiplier={1.2}
         >
@@ -155,7 +165,7 @@ function CartaoProxima({ consulta, primeira, linha, onPress }) {
         <Texto variante="legenda" cor="apoio">
           {linha}
         </Texto>
-        <Selo texto="Agendada" icone="calendar" style={{ marginTop: 3 }} />
+        <Selo texto="Agendada" tom={tomDoSelo} icone="calendar" style={{ marginTop: 3 }} />
       </View>
 
       <Feather name="chevron-right" size={20} color={cores.apoio} />
@@ -286,7 +296,8 @@ export default function ConsultasScreen({ navigation, route }) {
 
     const medico = medicoDa(item);
     if (perfil === 'paciente') {
-      return [medico?.nome ?? 'Profissional', medico?.especialidade]
+      // A cor da area no azulejo vem sempre com o nome escrito.
+      return [medico?.nome ?? 'Profissional', medico?.especialidade, medico?.area]
         .filter(Boolean)
         .join(' · ');
     }
@@ -396,6 +407,8 @@ export default function ConsultasScreen({ navigation, route }) {
         consulta={item}
         primeira={index === 0}
         linha={linhaDe(item)}
+        tomDoSelo={ehPaciente ? 'papel' : 'lavanda'}
+        plano={ehPaciente ? planoDaArea(medicoDa(item)?.area, cores) : null}
         onPress={() => abrir(item)}
       />
     ) : (

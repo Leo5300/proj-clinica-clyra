@@ -1,4 +1,4 @@
-// Selo de status em capsula. texto; tom: 'lavanda' (agendada, ok: confirmacao e lavanda suave, nunca verde) | 'neutro' | 'alerta' | 'atencao'; icone (Feather); style.
+// Selo de status em capsula. texto; tom: 'lavanda' (agendada, ok: confirmacao e lavanda suave, nunca verde) | 'papel' (estado no perfil Paciente: papel, borda linha, texto tinta) | 'neutro' | 'alerta' | 'atencao'; icone (Feather); style.
 import React from 'react';
 import { View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -7,6 +7,8 @@ import { useTema, raio } from '../theme';
 
 function coresDoTom(tom, cores) {
   switch (tom) {
+    case 'papel':
+      return [cores.papel, cores.tinta];
     case 'neutro':
       return [cores.neutroSuave, cores.sobreNeutro];
     case 'alerta':
@@ -35,6 +37,7 @@ export default function Selo({ texto, tom = 'lavanda', icone, style }) {
           borderRadius: raio.capsula,
           backgroundColor: fundo,
         },
+        tom === 'papel' && { borderWidth: 1, borderColor: cores.linha },
         style,
       ]}
     >

@@ -47,6 +47,23 @@ export function planoDoPaciente(cores) {
   };
 }
 
+// Acento de cada perfil (o "+" flutuante): verde no paciente, lavanda na
+// equipe. solido = sem transparencia; translucido = vidro; texto = sinal.
+export function acentoDoPerfil(perfil, cores) {
+  if (perfil === 'paciente') {
+    return {
+      solido: cores.acentoPaciente,
+      translucido: cores.acentoPacienteVidro,
+      texto: cores.sobreAcentoPaciente,
+    };
+  }
+  return {
+    solido: cores.vidroTintaSolido,
+    translucido: cores.vidroTinta,
+    texto: cores.sobreVidroTinta,
+  };
+}
+
 // Topo do Inicio do profissional: lilas ou menta, texto tinta nos dois.
 export function topoDoProfissional(area, cores) {
   return {

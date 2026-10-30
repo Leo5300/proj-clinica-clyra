@@ -1,4 +1,4 @@
-// Superficie de vidro para o que flutua. espessura: 'claro' | 'regular' | 'espesso' | 'tinta'; raio; interativo (e um botao); style; children.
+// Superficie de vidro para o que flutua. espessura: 'claro' | 'regular' | 'espesso' | 'tinta'; acento (com 'tinta': { solido, translucido } de acentoDoPerfil, no lugar da lavanda); raio; interativo (e um botao); style; children.
 //
 // O modo e escolhido em tempo de execucao:
 // - iOS 26: GlassView (Liquid Glass) do sistema.
@@ -107,10 +107,20 @@ export default function Vidro({
   espessura = 'regular',
   raio = raios.capsula,
   interativo = false,
+  acento,
   style,
   children,
 }) {
-  const { cores, escuro, sombras, transparenciaReduzida } = useTema();
+  const { cores: coresDoTema, escuro, sombras, transparenciaReduzida } = useTema();
+  // O acento do perfil troca so a cor da espessura 'tinta'.
+  const cores = acento
+    ? {
+        ...coresDoTema,
+        destaque: acento.solido,
+        vidroTinta: acento.translucido,
+        vidroTintaSolido: acento.solido,
+      }
+    : coresDoTema;
   const alvo = useContext(AlvoContexto);
 
   const forma = { borderRadius: raio, borderCurve: 'continuous' };
