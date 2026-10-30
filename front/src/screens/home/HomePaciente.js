@@ -9,11 +9,14 @@ import {
   Avatar,
   BarraAbas,
   Botao,
+  CartaoTinta,
   ComVidro,
   Esqueleto,
   EstadoErro,
   ItemDeLista,
   Logotipo,
+  Numeral,
+  PlanoTopo,
   Pressionavel,
   Texto,
   Vidro,
@@ -24,6 +27,7 @@ import {
 } from '../../components';
 import { useTema, espaco, margemTela, raio, toque, estilosDeTexto } from '../../theme';
 import {
+  ANTECEDENCIA_MINUTOS,
   dataDaConsulta,
   garantirPermissao,
   notificacoesPermitidas,
@@ -32,11 +36,12 @@ import {
 import {
   saudacaoPorHorario,
   quandoRelativo,
+  nomeCurtoDoDia,
   nomeDoMes,
-  nomeLongoDoDia,
   formatarFaixa,
   formatarDiaEHora,
 } from '../../services/datas';
+import { especialidadeERegistro } from '../../services/profissionais';
 
 // Inicio do paciente: a proxima consulta em destaque, o aviso dos
 // lembretes e as ultimas consultas. Tudo vem da API e do usuario logado.
@@ -45,17 +50,18 @@ import {
 const ANTECEDENCIA_MINIMA_MS = 24 * 60 * 60 * 1000;
 const MAX_ULTIMAS = 5;
 
+const LEMBRETE =
+  ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
+
 function BlocoDestaque({ children }) {
   const { cores } = useTema();
   const insets = useSafeAreaInsets();
 
   return (
-    <View
+    <PlanoTopo
+      fundo={cores.destaque}
+      corTexto={cores.sobrePlano}
       style={{
-        backgroundColor: cores.destaque,
-        borderBottomLeftRadius: raio.destaque,
-        borderBottomRightRadius: raio.destaque,
-        borderCurve: 'continuous',
         paddingTop: insets.top + espaco.xs,
         paddingHorizontal: margemTela + 2,
         paddingBottom: 26,
@@ -63,10 +69,10 @@ function BlocoDestaque({ children }) {
       }}
     >
       <View style={{ minHeight: toque.minimo, justifyContent: 'center' }}>
-        <Logotipo cor="sobreDestaque2" />
+        <Logotipo cor="sobrePlano" />
       </View>
       {children}
-    </View>
+    </PlanoTopo>
   );
 }
 
@@ -80,43 +86,53 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
   return (
     <View style={{ gap: 18 }}>
       <View style={{ gap: 2 }}>
-        <Texto variante="rotulo" cor="sobreDestaque2">
+        <Texto variante="rotulo" cor="sobrePlano2">
           {saudacaoPorHorario(new Date())}
           {primeiroNome ? `, ${primeiroNome}` : ''}
         </Texto>
-        <Texto variante="secao" cor="sobreDestaque" accessibilityRole="header">
-          Sua próxima consulta é {quandoRelativo(quando)}
+        <Texto variante="corpoForte" cor="sobrePlano" accessibilityRole="header">
+          Sua próxima consulta
         </Texto>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', gap: 14 }}>
-        <Texto
-          variante="dataGrande"
-          cor="dataDestaque"
-          tabular
-          maxFontSizeMultiplier={1.15}
-        >
-          {quando.getDate()}
-        </Texto>
-        <View style={{ gap: 2, paddingBottom: 6 }}>
-          <Texto variante="titulo" cor="sobreDestaque">
-            {nomeDoMes(quando)} · {nomeLongoDoDia(quando)}
+      <View
+        accessible
+        accessibilityLabel={`Dia ${quando.getDate()} de ${nomeDoMes(quando)}, ${formatarFaixa(quando)}, ${quandoRelativo(quando)}`}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}
+      >
+        <Numeral valor={quando.getDate()} tamanho="grande" cor="sobrePlano" />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Texto variante="titulo" cor="sobrePlano">
+            {nomeDoMes(quando)} · {nomeCurtoDoDia(quando)}
           </Texto>
-          <Texto variante="corpo" cor="sobreDestaque2" tabular>
+          <Texto variante="corpo" cor="sobrePlano2" tabular>
             {formatarFaixa(quando)}
           </Texto>
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: cores.manteiga,
+              borderRadius: raio.capsula,
+              paddingHorizontal: 9,
+              paddingVertical: 2,
+            }}
+          >
+            <Texto variante="pequeno" cor="sobreManteiga">
+              {quandoRelativo(quando)}
+            </Texto>
+          </View>
         </View>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
-        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} />
+        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom="vidro" />
         <View style={{ flex: 1, gap: 2 }}>
-          <Texto variante="corpoForte" cor="sobreDestaque">
+          <Texto variante="corpoForte" cor="sobrePlano">
             {medico?.nome ?? 'Profissional'}
           </Texto>
-          {medico?.especialidade ? (
-            <Texto variante="rotulo" cor="sobreDestaque2">
-              {medico.especialidade}
+          {especialidadeERegistro(medico) ? (
+            <Texto variante="rotulo" cor="sobrePlano2">
+              {especialidadeERegistro(medico)}
             </Texto>
           ) : null}
         </View>
@@ -147,10 +163,10 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
         <Feather
           name="clock"
           size={14}
-          color={cores.sobreDestaque2}
+          color={cores.sobrePlano2}
           style={{ marginTop: 2 }}
         />
-        <Texto variante="legenda" cor="sobreDestaque2" style={{ flex: 1 }}>
+        <Texto variante="legenda" cor="sobrePlano2" style={{ flex: 1 }}>
           {podeAlterar
             ? `Remarcação livre até ${formatarDiaEHora(limite)}`
             : 'Faltam menos de 24 h. Para remarcar, ligue para a recepção.'}
@@ -210,39 +226,25 @@ function AvisoDeLembretes({ consultas }) {
 
   if (permitido) {
     return (
-      <View
+      <CartaoTinta
         accessibilityRole="summary"
-        style={{
-          backgroundColor: cores.lavandaSuave,
-          borderRadius: raio.cartao,
-          borderCurve: 'continuous',
-          padding: espaco.md,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 14,
-        }}
-      >
-        <View
-          style={{
-            width: toque.minimo,
-            height: toque.minimo,
-            borderRadius: raio.capsula,
-            backgroundColor: cores.acao,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Feather name="bell" size={20} color={cores.sobreAcao} />
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Texto variante="rotuloForte" cor="sobreLavandaSuave">
-            Lembretes ativos
-          </Texto>
-          <Texto variante="legenda" cor="sobreLavandaSuave">
-            Você recebe um aviso neste aparelho uma hora antes de cada consulta.
-          </Texto>
-        </View>
-      </View>
+        titulo="Lembretes ativos"
+        texto={`Avisamos ${LEMBRETE} antes de cada consulta, neste aparelho.`}
+        direita={
+          <View
+            style={{
+              backgroundColor: cores.lavanda,
+              borderRadius: raio.capsula,
+              paddingHorizontal: espaco.sm,
+              paddingVertical: 4,
+            }}
+          >
+            <Texto variante="pequeno" cor="sobrePlano">
+              Ativos
+            </Texto>
+          </View>
+        }
+      />
     );
   }
 
@@ -277,7 +279,7 @@ function AvisoDeLembretes({ consultas }) {
         <Texto variante="legenda" cor="apoio">
           {negado
             ? 'As notificações estão desligadas. Ative nos ajustes do aparelho.'
-            : 'Um aviso neste aparelho uma hora antes de cada consulta.'}
+            : `Um aviso neste aparelho ${LEMBRETE} antes de cada consulta.`}
         </Texto>
       </View>
       {!negado ? (
