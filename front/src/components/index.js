@@ -29,4 +29,5 @@ export { useRolagem } from './useRolagem';
 export { default as Tela } from './Tela';
 export { default as TelaDeLista } from './TelaDeLista';
 export { default as Texto } from './Texto';
+export { default as TopoDeTela } from './TopoDeTela';
 export { default as Vidro, ComVidro, modoDoVidro, escalaDoVidro } from './Vidro';

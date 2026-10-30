@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TopoDeTela } from '../components';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,8 +24,6 @@ import {
   SessaoExpirada,
   ErroDaApi,
 } from '../services/api';
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
 function Campo({ label, erro, nota, ...inputProps }) {
   const { cores } = useTema();
@@ -233,19 +232,11 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="chevron-left" size={26} color={cores.tinta} />
-        </TouchableOpacity>
-        <Text style={styles.title}>{medico ? 'Editar profissional' : 'Novo profissional'}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <TopoDeTela
+        titulo={medico ? 'Editar profissional' : 'Novo profissional'}
+        aoVoltar={() => navigation.goBack()}
+      />
 
       <ScrollView contentContainerStyle={styles.form}>
         <View style={styles.fotoBloco}>

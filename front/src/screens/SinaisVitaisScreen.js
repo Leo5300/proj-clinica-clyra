@@ -18,7 +18,7 @@ import {
 import { useUsuario } from '../services/sessao';
 import {
   Botao,
-  Cabecalho,
+  TopoDeTela,
   Campo,
   ItemDeLista,
   Selo,
@@ -522,8 +522,8 @@ export default function SinaisVitaisScreen({ navigation, route }) {
   };
 
   return (
-    <Tela>
-      <Cabecalho titulo="Sinais vitais" aoVoltar={() => navigation.goBack()} />
+    <Tela bordas={[]}>
+      <TopoDeTela titulo="Sinais vitais" aoVoltar={() => navigation.goBack()} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{

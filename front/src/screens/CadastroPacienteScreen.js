@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TopoDeTela } from '../components';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -31,8 +32,6 @@ import { brParaIso } from '../services/datas';
 //                                 sem editar nada;
 //   modo: 'meusDados' (paciente) -> contato e endereco editaveis; nome,
 //                                 CPF e nascimento so pela recepcao.
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
 // "1990-04-12" -> "12/04/1990". O servidor guarda AAAA-MM-DD; a pessoa
 // le e digita dd/mm/aaaa.
@@ -524,21 +523,8 @@ export default function CadastroPacienteScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="chevron-left" size={26} color={cores.tinta} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>{titulo}</Text>
-
-        <View style={styles.headerSpacer} />
-      </View>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <TopoDeTela titulo={titulo} aoVoltar={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.form}>
         {renderConteudo()}

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TopoDeTela } from '../components';
 import { Feather } from '@expo/vector-icons';
 import {
   buscarMedicos,
@@ -171,18 +172,11 @@ const salvar = async () => {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="chevron-left" size={26} color={cores.tinta} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>
-          {horario ? 'Editar horário' : 'Novo horário'}
-        </Text>
-
-        <View style={styles.headerSpace} />
-      </View>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <TopoDeTela
+        titulo={horario ? 'Editar horário' : 'Novo horário'}
+        aoVoltar={() => navigation.goBack()}
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.label}>Dia da semana</Text>

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { TopoDeTela } from '../components';
 import {
   criarEspecialidade,
   atualizarEspecialidade,
@@ -23,8 +23,6 @@ import {
 // A clinica atende em duas areas; a area decide o conselho do
 // profissional (CRP ou CRM).
 const AREAS = ['Psicologia', 'Psiquiatria'];
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
 export default function CadastroEspecialidadeScreen({ navigation, route }) {
   const { cores } = useTema();
@@ -74,21 +72,11 @@ export default function CadastroEspecialidadeScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="chevron-left" size={26} color={cores.tinta} />
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {especialidade ? 'Editar especialidade' : 'Nova especialidade'}
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <TopoDeTela
+        titulo={especialidade ? 'Editar especialidade' : 'Nova especialidade'}
+        aoVoltar={() => navigation.goBack()}
+      />
 
       <ScrollView
         contentContainerStyle={styles.form}
