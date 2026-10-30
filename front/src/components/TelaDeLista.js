@@ -1,9 +1,10 @@
-// Tela de lista de cadastro com os tres estados. titulo; subtitulo; navigation; abaAtual (rota, quando a tela e aba: mostra a barra e nao o voltar); acaoNova { rotulo, onPress } (o "+"); topo (plano colorido de largura inteira no lugar do titulo); cabecalhoDaLista (no abaixo do topo: filtro, busca, "Equipe · Novo profissional"); carregando; erro; aoTentar; dados; renderItem; keyExtractor; vazio { titulo, texto, acao }.
+// Tela de lista de cadastro com os tres estados. titulo; subtitulo; navigation; abaAtual (rota, quando a tela e aba: mostra a barra e nao o voltar); acaoNova { rotulo, onPress } (o "+"); topo (plano colorido de largura inteira no lugar do titulo); cabecalhoDaLista (no abaixo do topo: filtro, busca, "Equipe · Novo profissional"); barraClara (icones claros na barra de status sobre o topo); carregando; erro; aoTentar; dados; renderItem; keyExtractor; vazio { titulo, texto, acao }.
 import React from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BarraAbas, { useEspacoDaBarra } from './BarraAbas';
+import BarraDoTopo from './BarraDoTopo';
 import Botao from './Botao';
 import Cabecalho from './Cabecalho';
 import Esqueleto from './Esqueleto';
@@ -36,6 +37,7 @@ export default function TelaDeLista({
   acaoNova,
   topo,
   cabecalhoDaLista,
+  barraClara = false,
   carregando,
   erro,
   aoTentar,
@@ -44,7 +46,7 @@ export default function TelaDeLista({
   keyExtractor,
   vazio,
 }) {
-  const { cores } = useTema();
+  const { cores, escuro } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
   const { aoRolar, rolou } = useRolagem(50);
@@ -99,6 +101,7 @@ export default function TelaDeLista({
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      {topo ? <BarraDoTopo clara={rolou ? escuro : barraClara} /> : null}
       <ComVidro
         conteudo={
           <Animated.FlatList

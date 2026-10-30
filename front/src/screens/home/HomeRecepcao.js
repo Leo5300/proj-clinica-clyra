@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   BarraAbas,
+  BarraDoTopo,
   Botao,
   ComVidro,
   Esqueleto,
@@ -23,6 +24,7 @@ import {
   Texto,
   useEntradaDeLista,
   useEspacoDaBarra,
+  useRolagem,
 } from '../../components';
 import { useTema, espaco, margemTela, raio, duracao, corDaArea } from '../../theme';
 import { dataDaConsulta } from '../../services/lembretes';
@@ -131,9 +133,10 @@ export default function HomeRecepcao({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores, movimentoReduzido } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
+  const { aoRolar, rolou } = useRolagem(80);
   // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
   const chegada = FadeIn.duration(
     movimentoReduzido ? duracao.reduzido : duracao.conteudo,
@@ -278,9 +281,12 @@ export default function HomeRecepcao({
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : true} />
       <ComVidro
         conteudo={
           <Animated.ScrollView
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={atualizando}

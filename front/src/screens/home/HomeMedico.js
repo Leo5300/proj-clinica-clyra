@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   BarraAbas,
+  BarraDoTopo,
   Botao,
   ComVidro,
   Esqueleto,
@@ -16,6 +17,7 @@ import {
   Texto,
   useEntradaDeLista,
   useEspacoDaBarra,
+  useRolagem,
 } from '../../components';
 import {
   useTema,
@@ -203,8 +205,9 @@ export default function HomeMedico({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores, movimentoReduzido } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
+  const { aoRolar, rolou } = useRolagem(80);
   const espacoDaBarra = useEspacoDaBarra();
   // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
   const chegada = FadeIn.duration(
@@ -329,9 +332,12 @@ export default function HomeMedico({
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : false} />
       <ComVidro
         conteudo={
           <Animated.ScrollView
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={atualizando}

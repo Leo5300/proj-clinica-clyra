@@ -29,6 +29,7 @@ import {
 } from '../services/datas';
 import {
   Avatar,
+  BarraDoTopo,
   BilheteConsulta,
   Botao,
   Cabecalho,
@@ -245,7 +246,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   const consulta = route.params?.consulta;
 
   const { usuario } = useUsuario();
-  const { cores, movimentoReduzido } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const { aoRolar, rolou } = useRolagem(60);
 
@@ -946,6 +947,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : false} />
       <ComVidro
         conteudo={
           <Animated.ScrollView

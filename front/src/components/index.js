@@ -4,6 +4,7 @@ export { default as Avatar, iniciais } from './Avatar';
 export { default as AvisoDeSessao } from './AvisoDeSessao';
 export { default as BarraAbas, useEspacoDaBarra, ehAba } from './BarraAbas';
 export { default as BilheteConsulta } from './BilheteConsulta';
+export { default as BarraDoTopo } from './BarraDoTopo';
 export { default as Botao } from './Botao';
 export { default as BotaoExcluir } from './BotaoExcluir';
 export { default as Cabecalho } from './Cabecalho';

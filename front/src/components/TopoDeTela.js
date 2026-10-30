@@ -3,6 +3,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import BarraDoTopo from './BarraDoTopo';
 import PlanoTopo from './PlanoTopo';
 import Pressionavel from './Pressionavel';
 import Texto from './Texto';
@@ -53,6 +54,7 @@ export default function TopoDeTela({ titulo, subtitulo, aoVoltar, style }) {
           {subtitulo}
         </Texto>
       ) : null}
+      <BarraDoTopo clara={false} />
     </PlanoTopo>
   );
 }

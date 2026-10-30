@@ -40,6 +40,7 @@ import {
 } from '../services/datas';
 import { CLINICA } from '../services/localizacao';
 import {
+  BarraDoTopo,
   BilheteConsulta,
   Botao,
   Cabecalho,
@@ -151,7 +152,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const consultaId = route.params?.consultaId;
 
   const { usuario } = useUsuario();
-  const { cores, movimentoReduzido } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const { aoRolar, rolou } = useRolagem(120);
   // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
@@ -622,6 +623,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : topoVerde} />
       <ComVidro
         conteudo={
           <Animated.ScrollView onScroll={aoRolar} scrollEventThrottle={16}>
