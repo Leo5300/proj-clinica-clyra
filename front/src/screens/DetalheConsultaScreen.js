@@ -499,6 +499,9 @@ export default function DetalheConsultaScreen({ navigation, route }) {
               texto={passou ? 'Anterior' : 'Agendada'}
               tom={perfil === 'paciente' ? 'papel' : passou ? 'neutro' : 'lavanda'}
               icone={passou ? 'check' : 'calendar'}
+              // O Selo se alinha a esquerda por padrao: aqui fica a direita,
+              // longe do voltar flutuante.
+              style={{ alignSelf: 'flex-end' }}
             />
           </View>
           <Texto variante="rotulo" cor={plano.texto2}>
