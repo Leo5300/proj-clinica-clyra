@@ -32,6 +32,7 @@ import {
   escalaDoVidro,
   modoDoVidro,
   iniciais,
+  useEntradaDeLista,
   useEspacoDaBarra,
   useRolagem,
 } from '../../components';
@@ -397,6 +398,7 @@ export default function HomePaciente({
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
   const { aoRolar, rolou, rolagem } = useRolagem(60);
+  const entrada = useEntradaDeLista('inicio-ultimas', !carregando);
   const [capsula, setCapsula] = useState(false);
 
   useAnimatedReaction(
@@ -493,8 +495,8 @@ export default function HomePaciente({
               </Texto>
             ) : (
               ultimas.map((c, indice) => (
+                <Animated.View key={String(c.id)} entering={entrada(indice)}>
                 <ItemDeLista
-                  key={String(c.id)}
                   titulo={formatarDiaEHora(dataDaConsulta(c))}
                   subtitulo={medicos[String(c.medicoId)]?.nome ?? 'Profissional'}
                   tabular
@@ -506,6 +508,7 @@ export default function HomePaciente({
                     })
                   }
                 />
+                </Animated.View>
               ))
             )}
           </View>

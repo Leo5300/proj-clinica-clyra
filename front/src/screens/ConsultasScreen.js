@@ -43,6 +43,7 @@ import {
   Selo,
   Texto,
   ehAba,
+  useEntradaDeLista,
   useEspacoDaBarra,
   useRolagem,
 } from '../components';
@@ -183,6 +184,7 @@ export default function ConsultasScreen({ navigation, route }) {
   const [pacientes, setPacientes] = useState({});
   const [medicos, setMedicos] = useState({});
   const [carregando, setCarregando] = useState(true);
+  const entrada = useEntradaDeLista('consultas', !carregando);
   const [erro, setErro] = useState(null);
   const [lembretesAgendados, setLembretesAgendados] = useState(null);
   const [permitido, setPermitido] = useState(true);
@@ -377,7 +379,11 @@ export default function ConsultasScreen({ navigation, route }) {
     );
   };
 
-  const renderItem = ({ item, index }) =>
+  const renderItem = ({ item, index }) => (
+    <Animated.View entering={entrada(index)}>{renderLinha({ item, index })}</Animated.View>
+  );
+
+  const renderLinha = ({ item, index }) =>
     aba === 'proximas' ? (
       <CartaoProxima
         consulta={item}

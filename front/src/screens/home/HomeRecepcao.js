@@ -21,6 +21,7 @@ import {
   Selo,
   TODAS,
   Texto,
+  useEntradaDeLista,
   useEspacoDaBarra,
 } from '../../components';
 import { useTema, espaco, margemTela, raio, duracao, corDaArea } from '../../theme';
@@ -54,13 +55,13 @@ function faltaPara(data, agora) {
 
 const plural = (n, um, varios) => (n === 1 ? um : varios);
 
-function LinhaDaAgenda({ consulta, paciente, medico, agora, proxima, passada, onPress }) {
+function LinhaDaAgenda({ consulta, paciente, medico, agora, proxima, passada, entrada, onPress }) {
   const { cores, movimentoReduzido } = useTema();
   const quando = dataDaConsulta(consulta);
 
   return (
     <Animated.View
-      entering={movimentoReduzido ? undefined : ENTRA}
+      entering={entrada ?? (movimentoReduzido ? undefined : ENTRA)}
       exiting={movimentoReduzido ? undefined : SAI}
       layout={movimentoReduzido ? undefined : REFLUI}
     >
@@ -133,6 +134,7 @@ export default function HomeRecepcao({
   const { cores } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
+  const entrada = useEntradaDeLista('agenda-recepcao', !carregando);
 
   const [area, setArea] = useState(TODAS);
   const [cedoAberto, setCedoAberto] = useState(false);
@@ -260,6 +262,7 @@ export default function HomeRecepcao({
                 medico={medicos[String(c.medicoId)]}
                 agora={agora}
                 proxima={indice === 0}
+                entrada={entrada(indice)}
                 onPress={() => abrir(c)}
               />
             ))

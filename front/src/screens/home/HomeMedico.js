@@ -14,6 +14,7 @@ import {
   Numeral,
   PlanoTopo,
   Texto,
+  useEntradaDeLista,
   useEspacoDaBarra,
 } from '../../components';
 import {
@@ -204,6 +205,7 @@ export default function HomeMedico({
   const { cores } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
+  const entrada = useEntradaDeLista('agenda-profissional', !carregando);
 
   const agora = new Date();
   const ordenadas = [...consultas].sort(
@@ -270,8 +272,8 @@ export default function HomeMedico({
               const quando = dataDaConsulta(c);
               const passou = quando <= agora;
               return (
+                <Animated.View key={String(c.id)} entering={entrada(indice)}>
                 <ItemDeLista
-                  key={String(c.id)}
                   esquerda={
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
                       <Texto
@@ -301,6 +303,7 @@ export default function HomeMedico({
                     navigation.navigate('DetalheConsulta', { consultaId: String(c.id) })
                   }
                 />
+                </Animated.View>
               );
             })}
           </View>

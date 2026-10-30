@@ -12,6 +12,7 @@ import EstadoVazio from './EstadoVazio';
 import Texto from './Texto';
 import { ComVidro } from './Vidro';
 import { useRolagem } from './useRolagem';
+import { useEntradaDeLista } from './useEntradaDeLista';
 import { useTema, espaco, margemTela, toque } from '../theme';
 
 function Carregando() {
@@ -47,6 +48,7 @@ export default function TelaDeLista({
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
   const { aoRolar, rolou } = useRolagem(50);
+  const entrada = useEntradaDeLista(`lista-${titulo}`, !carregando && !erro);
   const comoAba = Boolean(abaAtual);
 
   const maisNovo = acaoNova ? (
@@ -102,7 +104,9 @@ export default function TelaDeLista({
           <Animated.FlatList
             data={carregando || erro ? [] : dados}
             keyExtractor={keyExtractor}
-            renderItem={renderItem}
+            renderItem={(info) => (
+              <Animated.View entering={entrada(info.index)}>{renderItem(info)}</Animated.View>
+            )}
             onScroll={aoRolar}
             scrollEventThrottle={16}
             ListHeaderComponent={cabecalho}
