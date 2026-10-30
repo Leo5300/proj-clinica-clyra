@@ -1,4 +1,4 @@
-// Grupo de opcoes exclusivas. opcoes [{ valor, rotulo }]; valor; aoMudar(valor); variante: 'suave' (trilho cinza, padrao) | 'vidro' (capsula de vidro, para filtro fixo); rotuloDoGrupo; style.
+// Grupo de opcoes exclusivas. opcoes [{ valor, rotulo }]; valor; aoMudar(valor); variante: 'suave' (trilho claro, selecionado em tinta; padrao) | 'vidro' (capsula de vidro, para filtro fixo); rotuloDoGrupo; style.
 import React from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -21,7 +21,7 @@ export default function Segmentado({
   rotuloDoGrupo,
   style,
 }) {
-  const { cores, sombras } = useTema();
+  const { cores } = useTema();
   const deVidro = variante === 'vidro';
 
   const botoes = opcoes.map((opcao) => {
@@ -30,8 +30,8 @@ export default function Segmentado({
     let fundo = 'transparent';
     let texto = deVidro ? cores.tinta : cores.tinta2;
     if (selecionada) {
-      fundo = deVidro ? cores.selFundo : cores.superficie;
-      texto = deVidro ? cores.selTexto : cores.tinta;
+      fundo = cores.selFundo;
+      texto = cores.selTexto;
     }
 
     return (
@@ -50,13 +50,12 @@ export default function Segmentado({
           style={[
             {
               minHeight: deVidro ? 42 : toque.minimo,
-              borderRadius: deVidro ? raio.capsula : 11,
+              borderRadius: raio.capsula,
               borderCurve: 'continuous',
               alignItems: 'center',
               justifyContent: 'center',
               paddingHorizontal: 8,
               backgroundColor: fundo,
-              boxShadow: selecionada && !deVidro ? sombras.leve : undefined,
             },
             transicaoDeCor,
           ]}
@@ -94,9 +93,11 @@ export default function Segmentado({
       style={[
         linha,
         {
-          borderRadius: raio.botao,
+          borderRadius: raio.capsula,
           borderCurve: 'continuous',
-          backgroundColor: cores.superficie2,
+          backgroundColor: cores.superficie,
+          borderWidth: 1,
+          borderColor: cores.linha,
         },
         style,
       ]}
