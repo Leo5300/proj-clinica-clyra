@@ -231,14 +231,21 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     setHora(null);
   };
 
-  // Os textos de especialidade vem dos medicos (e nao da colecao de
-  // especialidades), porque os dois nao usam as mesmas palavras.
+  // So as especialidades que tem medico: escolher uma sem ninguem para
+  // atender levaria a pessoa a uma lista vazia. O filtro e pelo id; o nome
+  // e o da tela de Especialidades, devolvido pela API junto com o medico.
   const especialidades = [
-    ...new Set(medicos.map((m) => m.especialidade).filter(Boolean)),
-  ].sort();
+    ...new Map(
+      medicos
+        .filter((m) => m.especialidadeId && m.especialidade)
+        .map((m) => [String(m.especialidadeId), m.especialidade]),
+    ),
+  ]
+    .map(([id, nome]) => ({ id, nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome));
 
   const medicosDaEspecialidade = especialidade
-    ? medicos.filter((m) => m.especialidade === especialidade)
+    ? medicos.filter((m) => String(m.especialidadeId) === especialidade)
     : medicos;
 
   const medico = medicos.find((m) => String(m.id) === String(medicoId));
@@ -534,17 +541,17 @@ export default function AgendarConsultaScreen({ navigation, route }) {
               </Chip>
               {especialidades.map((e) => (
                 <Chip
-                  key={e}
-                  selecionado={especialidade === e}
-                  onPress={() => setEspecialidade(e)}
+                  key={e.id}
+                  selecionado={especialidade === e.id}
+                  onPress={() => setEspecialidade(e.id)}
                 >
                   <Text
                     style={[
                       styles.chipTexto,
-                      especialidade === e && styles.chipTextoSel,
+                      especialidade === e.id && styles.chipTextoSel,
                     ]}
                   >
-                    {e}
+                    {e.nome}
                   </Text>
                 </Chip>
               ))}

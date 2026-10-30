@@ -376,8 +376,8 @@ GPS, Bluetooth ou notificações: elas ficam em `localizacao.js`, `bluetooth.js`
 
 ## Testes
 
-Teste automático das permissões da API (76 casos: login, perfis, dados de cada um,
-regras de agendamento e autocadastro). Com os dois servidores no ar:
+Teste automático das permissões da API (80 casos: login, perfis, dados de cada um,
+regras de agendamento, autocadastro e especialidade do médico). Com os dois servidores no ar:
 
 ```bash
 node servidor/testes-permissoes.js

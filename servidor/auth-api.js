@@ -605,35 +605,60 @@ async function excluirPaciente({ params }) {
 // MEDICOS
 // =====================================================================
 
+// O medico guarda so o especialidadeId; o nome vem da colecao de
+// especialidades. Assim nao ha dois textos para a mesma especialidade, e
+// renomear uma especialidade vale para todos os medicos dela.
+function nomeDaEspecialidade(medico, especialidades) {
+  const especialidade = especialidades.find((e) =>
+    mesmoId(e.id, medico.especialidadeId),
+  );
+
+  return especialidade?.nome ?? null;
+}
+
 // Paciente e medico veem so o necessario para escolher e reconhecer o
 // profissional. Contato e endereco ficam com a recepcao.
-function medicoParaPerfil(medico, perfil, usuarios) {
+function medicoParaPerfil(medico, perfil, usuarios, especialidades) {
+  const especialidade = nomeDaEspecialidade(medico, especialidades);
+
   if (perfil === 'recepcao') {
     return {
       ...medico,
+      especialidade,
       temAcesso: usuarios.some(
         (u) => u.perfil === 'medico' && mesmoId(u.vinculoId, medico.id),
       ),
     };
   }
 
-  const { id, nome, especialidade, crm, fotoUri } = medico;
-  return { id, nome, especialidade, crm, fotoUri };
+  const { id, nome, especialidadeId, crm, fotoUri } = medico;
+  return { id, nome, especialidadeId, especialidade, crm, fotoUri };
 }
 
-// temAcesso e calculado; nao e gravado no cadastro.
+// temAcesso e o nome da especialidade sao calculados; nao sao gravados.
 function camposDoMedico(corpo) {
-  const { temAcesso, ...campos } = semId(corpo);
-  return campos;
+  const { temAcesso, especialidade, ...campos } = semId(corpo);
+  return { ...campos, especialidadeId: idOuNulo(campos.especialidadeId) };
+}
+
+async function exigirEspecialidade(especialidadeId) {
+  if (!(await obter('especialidades', especialidadeId))) {
+    throw new ErroHttp(400, 'Escolha a especialidade do médico.');
+  }
 }
 
 async function listarMedicos({ usuario }) {
-  const [medicos, usuarios] = await Promise.all([
+  const [medicos, usuarios, especialidades] = await Promise.all([
     listar('medicos'),
     usuario.perfil === 'recepcao' ? listar('usuarios') : [],
+    listar('especialidades'),
   ]);
 
-  return ok(medicos.map((m) => medicoParaPerfil(m, usuario.perfil, usuarios)));
+  return ok(
+    medicos.map((m) =>
+      medicoParaPerfil(m, usuario.perfil, usuarios, especialidades),
+    ),
+  );
 }
 
 async function obterMedico({ usuario, params }) {
@@ -643,10 +668,14 @@ async function obterMedico({ usuario, params }) {
     throw new ErroHttp(404, 'Médico não encontrado.');
   }
 
-  const usuarios =
-    usuario.perfil === 'recepcao' ? await listar('usuarios') : [];
+  const [usuarios, especialidades] = await Promise.all([
+    usuario.perfil === 'recepcao' ? listar('usuarios') : [],
+    listar('especialidades'),
+  ]);
 
-  return ok(medicoParaPerfil(medico, usuario.perfil, usuarios));
+  return ok(
+    medicoParaPerfil(medico, usuario.perfil, usuarios, especialidades),
+  );
 }
 
 // Cadastro de medico ja nasce com acesso ao app: o medico entra com a
@@ -654,14 +683,11 @@ async function obterMedico({ usuario, params }) {
 async function criarMedico({ corpo }) {
   const campos = camposDoMedico(corpo);
 
-  if (
-    !texto(campos.nome) ||
-    !texto(campos.especialidade) ||
-    !texto(campos.crm) ||
-    !texto(campos.email)
-  ) {
-    throw new ErroHttp(400, 'Informe nome, especialidade, CRM e e-mail.');
+  if (!texto(campos.nome) || !texto(campos.crm) || !texto(campos.email)) {
+    throw new ErroHttp(400, 'Informe nome, CRM e e-mail.');
   }
+
+  await exigirEspecialidade(campos.especialidadeId);
 
   const email = normalizarEmail(campos.email);
 
@@ -685,7 +711,11 @@ async function criarMedico({ corpo }) {
 
   // Unica vez em que a senha temporaria aparece: so o hash e gravado.
   return criado({
-    medico: { ...medico, temAcesso: true },
+    medico: {
+      ...medico,
+      especialidade: nomeDaEspecialidade(medico, await listar('especialidades')),
+      temAcesso: true,
+    },
     acesso: { email, senhaTemporaria },
   });
 }
@@ -699,13 +729,11 @@ async function atualizarMedico({ params, corpo }) {
 
   const campos = camposDoMedico(corpo);
 
-  if (
-    !texto(campos.nome) ||
-    !texto(campos.especialidade) ||
-    !texto(campos.crm)
-  ) {
-    throw new ErroHttp(400, 'Informe nome, especialidade e CRM.');
+  if (!texto(campos.nome) || !texto(campos.crm)) {
+    throw new ErroHttp(400, 'Informe nome e CRM.');
   }
+
+  await exigirEspecialidade(campos.especialidadeId);
 
   // O e-mail do cadastro e o login do medico: os dois andam juntos.
   const usuarioDoMedico = await usuarioVinculado('medico', atual.id);
@@ -733,7 +761,11 @@ async function atualizarMedico({ params, corpo }) {
 
   const medico = await substituir('medicos', atual.id, campos);
 
-  return ok({ ...medico, temAcesso: Boolean(usuarioDoMedico) });
+  return ok({
+    ...medico,
+    especialidade: nomeDaEspecialidade(medico, await listar('especialidades')),
+    temAcesso: Boolean(usuarioDoMedico),
+  });
 }
 
 async function excluirMedico({ params }) {
@@ -856,6 +888,15 @@ async function atualizarEspecialidade({ params, corpo }) {
 
 async function excluirEspecialidade({ params }) {
   const atual = await especialidadeExistente(params.id);
+  const medicos = await listar('medicos');
+
+  // Excluir deixaria medicos sem especialidade (e sumiria do agendamento).
+  if (medicos.some((m) => mesmoId(m.especialidadeId, atual.id))) {
+    throw new ErroHttp(
+      409,
+      'Há médicos com esta especialidade. Altere a especialidade deles antes de excluir.',
+    );
+  }
 
   await apagar('especialidades', atual.id);
 

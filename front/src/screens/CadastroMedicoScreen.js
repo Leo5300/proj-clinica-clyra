@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -6,16 +6,19 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
   Alert,
   Image,
   StyleSheet,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
   criarMedico,
   atualizarMedico,
   gerarAcessoMedico,
+  buscarEspecialidades,
   SessaoExpirada,
   ErroDaApi,
 } from '../services/api';
@@ -29,6 +32,7 @@ const colors = {
   ink: '#4A5560',
   muted: '#8B909A',
   sage: '#4B7776',
+  sageSoft: '#E3EEEA',
   danger: '#B0555F',
 };
 
@@ -56,7 +60,15 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   const medico = route.params?.medico;
 
   const [nome, setNome] = useState(medico?.nome ?? '');
-  const [especialidade, setEspecialidade] = useState(medico?.especialidade ?? '');
+  // A especialidade e escolhida da lista cadastrada, nunca digitada: o
+  // medico guarda so o id, e o nome vem sempre da tela de Especialidades.
+  const [especialidadeId, setEspecialidadeId] = useState(
+    medico?.especialidadeId ? String(medico.especialidadeId) : null,
+  );
+  const [especialidades, setEspecialidades] = useState([]);
+  const [carregandoEspecialidades, setCarregandoEspecialidades] =
+    useState(true);
+  const [erroEspecialidades, setErroEspecialidades] = useState(null);
   const [crm, setCrm] = useState(medico?.crm ?? '');
   const [email, setEmail] = useState(medico?.email ?? '');
   const [telefone, setTelefone] = useState(medico?.telefone ?? '');
@@ -71,13 +83,40 @@ export default function CadastroMedicoScreen({ navigation, route }) {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
+  const carregarEspecialidades = useCallback(async () => {
+    setErroEspecialidades(null);
+
+    try {
+      const lista = await buscarEspecialidades();
+      setEspecialidades(
+        [...lista].sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
+      );
+    } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
+      }
+
+      setErroEspecialidades('Não foi possível carregar as especialidades.');
+    } finally {
+      setCarregandoEspecialidades(false);
+    }
+  }, [navigation]);
+
+  // Ao voltar de "Cadastrar especialidade", a nova ja aparece na lista.
+  useFocusEffect(
+    useCallback(() => {
+      carregarEspecialidades();
+    }, [carregarEspecialidades]),
+  );
+
   // O servidor confere de novo; validar aqui so poupa a viagem. O e-mail
   // e obrigatorio no cadastro novo porque e o login do medico.
   const validar = () => {
     const novos = {};
 
     if (!nome.trim()) novos.nome = 'Informe o nome.';
-    if (!especialidade.trim()) novos.especialidade = 'Informe a especialidade.';
+    if (!especialidadeId) novos.especialidade = 'Escolha a especialidade.';
     if (!crm.trim()) novos.crm = 'Informe o CRM.';
     if (!medico && !email.trim().includes('@')) {
       novos.email = 'Informe o e-mail do médico.';
@@ -117,7 +156,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
 
     const dados = {
       nome: nome.trim(),
-      especialidade: especialidade.trim(),
+      especialidadeId,
       crm: crm.trim(),
       email: email.trim(),
       telefone: telefone.trim(),
@@ -243,7 +282,60 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   </Text>
 </View>
         <Campo label="Nome" value={nome} onChangeText={setNome} erro={erros.nome} />
-        <Campo label="Especialidade" value={especialidade} onChangeText={setEspecialidade} erro={erros.especialidade} />
+        <View style={styles.campo}>
+          <Text style={styles.label}>Especialidade</Text>
+
+          {carregandoEspecialidades ? (
+            <ActivityIndicator color={colors.sage} style={styles.indicador} />
+          ) : erroEspecialidades ? (
+            <TouchableOpacity onPress={carregarEspecialidades}>
+              <Text style={styles.erroCampo}>
+                {erroEspecialidades} Toque para tentar de novo.
+              </Text>
+            </TouchableOpacity>
+          ) : especialidades.length === 0 ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CadastroEspecialidade')}
+            >
+              <Text style={styles.nota}>
+                Nenhuma especialidade cadastrada.{' '}
+                <Text style={styles.link}>Cadastrar especialidade</Text>
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.opcoes}>
+              {especialidades.map((e) => {
+                const selecionada = String(e.id) === especialidadeId;
+
+                return (
+                  <TouchableOpacity
+                    key={String(e.id)}
+                    style={[styles.opcao, selecionada && styles.opcaoSelecionada]}
+                    onPress={() => {
+                      setEspecialidadeId(String(e.id));
+                      setErros((atuais) => ({ ...atuais, especialidade: null }));
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: selecionada }}
+                  >
+                    <Text
+                      style={[
+                        styles.opcaoTexto,
+                        selecionada && styles.opcaoTextoSelecionado,
+                      ]}
+                    >
+                      {e.nome}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {erros.especialidade && (
+            <Text style={styles.erroCampo}>{erros.especialidade}</Text>
+          )}
+        </View>
         <Campo label="CRM" value={crm} onChangeText={setCrm} erro={erros.crm} />
         <Campo
           label="E-mail"
@@ -366,5 +458,23 @@ fotoOpcional: {
   },
   acessoText: { color: colors.sage, fontWeight: '700', fontSize: 14 },
   nota: { fontSize: 12, color: colors.muted, marginTop: 6 },
+  link: { color: colors.sage, fontWeight: '700' },
+  indicador: { alignSelf: 'flex-start', marginVertical: 6 },
+  opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  opcao: {
+    minHeight: 44,
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  opcaoSelecionada: {
+    backgroundColor: colors.sageSoft,
+    borderColor: colors.sage,
+  },
+  opcaoTexto: { fontSize: 14, color: colors.ink },
+  opcaoTextoSelecionado: { color: colors.sage, fontWeight: '700' },
   erroCampo: { fontSize: 12, color: colors.danger, marginTop: 6 },
 });

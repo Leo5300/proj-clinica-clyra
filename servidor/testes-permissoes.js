@@ -243,7 +243,7 @@ async function testarApi() {
     token: recepcao,
     corpo: {
       nome: 'Paula Mendes',
-      especialidade: 'Clínico Geral',
+      especialidadeId: '7',
       crm: '67890/MG',
       email: emailDoNovoMedico,
       telefone: '(31) 90000-0000',
@@ -271,6 +271,11 @@ async function testarApi() {
       r.dados.fotoUri === 'file:///foto-paula.jpg',
   );
   verificar('5. medico novo com temAcesso', true, r.dados?.temAcesso === true);
+  verificar(
+    '5. medico novo com o nome da especialidade escolhida',
+    'Clínica Geral',
+    r.dados?.especialidade,
+  );
 
   // 6
   r = await chamar('POST', '/login', {
@@ -391,7 +396,7 @@ async function testarApi() {
 
   r = await chamar('POST', '/medicos', {
     token: paciente,
-    corpo: { nome: 'X', especialidade: 'Y', crm: 'Z', email: 'x@y.com' },
+    corpo: { nome: 'X', especialidadeId: '1', crm: 'Z', email: 'x@y.com' },
   });
   verificar('10. paciente POST /medicos', 403, r.status);
 
@@ -663,6 +668,28 @@ async function testarApi() {
   // 19
   r = await chamar('GET', '/qualquercoisa', { token: recepcao });
   verificar('19. rota inexistente', 404, r.status);
+
+  // 20 - especialidade do medico e referencia, nao texto livre
+  r = await chamar('GET', '/medicos/1', { token: paciente });
+  verificar(
+    '20. medico devolve o nome da especialidade',
+    '200 Cardiologia',
+    `${r.status} ${r.dados?.especialidade}`,
+  );
+
+  r = await chamar('POST', '/medicos', {
+    token: recepcao,
+    corpo: {
+      nome: 'Teste Especialidade',
+      especialidadeId: 'nao-existe',
+      crm: '11111/MG',
+      email: `especialidade.${sufixo}@clinica.com`,
+    },
+  });
+  verificar('20. medico com especialidade inexistente', 400, r.status);
+
+  r = await chamar('DELETE', '/especialidades/1', { token: recepcao });
+  verificar('20. excluir especialidade usada por medico', 409, r.status);
 }
 
 async function main() {
