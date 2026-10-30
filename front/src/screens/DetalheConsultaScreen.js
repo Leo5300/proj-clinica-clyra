@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Linking, View } from 'react-native';
 import Animated, {
+  FadeIn,
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
@@ -153,6 +154,10 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const { cores, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const { aoRolar, rolou } = useRolagem(120);
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
 
   // O topo nasce lavanda e, se a consulta for de Psiquiatria, vai a verde
   // no mesmo tempo do crossfade (200 ms). Com "reduzir movimento", troca na
@@ -507,7 +512,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
 
     return (
-      <>
+      <Animated.View entering={chegada}>
         <PlanoTopo
           fundo={plano.fundo}
           corTexto={plano.texto}
@@ -609,7 +614,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
             </View>
           ) : null}
         </View>
-      </>
+      </Animated.View>
     );
   };
 

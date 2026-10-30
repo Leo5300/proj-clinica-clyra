@@ -131,9 +131,13 @@ export default function HomeRecepcao({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores } = useTema();
+  const { cores, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
   const entrada = useEntradaDeLista('agenda-recepcao', !carregando);
 
   const [area, setArea] = useState(TODAS);
@@ -178,7 +182,7 @@ export default function HomeRecepcao({
     );
   } else {
     corpo = (
-      <View style={{ gap: espaco.sm }}>
+      <Animated.View entering={chegada} style={{ gap: espaco.sm }}>
         {areas.length > 1 ? (
           <FiltroArea areas={areas} valor={area} aoMudar={setArea} />
         ) : null}
@@ -268,7 +272,7 @@ export default function HomeRecepcao({
             ))
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   }
 

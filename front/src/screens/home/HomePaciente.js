@@ -399,6 +399,10 @@ export default function HomePaciente({
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
   const { aoRolar, rolou, rolagem } = useRolagem(60);
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
   const entrada = useEntradaDeLista('inicio-ultimas', !carregando);
   const [capsula, setCapsula] = useState(false);
 
@@ -439,7 +443,7 @@ export default function HomePaciente({
     );
   } else {
     conteudo = (
-      <>
+      <Animated.View entering={chegada}>
         <BlocoDestaque>
           {proxima ? (
             <ProximaConsulta
@@ -515,7 +519,7 @@ export default function HomePaciente({
             )}
           </View>
         </View>
-      </>
+      </Animated.View>
     );
   }
 

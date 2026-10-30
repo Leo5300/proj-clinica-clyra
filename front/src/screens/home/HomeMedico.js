@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
@@ -25,6 +25,7 @@ import {
   corDaArea,
   topoDoProfissional,
   tomDoAvatar,
+  duracao,
 } from '../../theme';
 import { dataDaConsulta } from '../../services/lembretes';
 import { buscarSinaisVitais } from '../../services/api';
@@ -202,9 +203,13 @@ export default function HomeMedico({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores } = useTema();
+  const { cores, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
   const entrada = useEntradaDeLista('agenda-profissional', !carregando);
 
   const agora = new Date();
@@ -244,7 +249,7 @@ export default function HomeMedico({
     corpo = <EstadoErro aoTentar={aoTentar} />;
   } else {
     corpo = (
-      <>
+      <Animated.View entering={chegada} style={{ gap: espaco.lg }}>
         {proxima ? (
           <ProximoPaciente
             consulta={proxima}
@@ -318,7 +323,7 @@ export default function HomeMedico({
             style={{ alignSelf: 'flex-start' }}
           />
         ) : null}
-      </>
+      </Animated.View>
     );
   }
 
