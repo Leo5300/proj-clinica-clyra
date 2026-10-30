@@ -116,6 +116,12 @@ export default function AppNavigator() {
   // app -- ele segue com a fonte do sistema.
   const [fontesProntas, erroDasFontes] = useFonts(arquivosDeFonte);
   const { cores, escuro, movimentoReduzido } = useTema();
+  const { usuario } = useUsuario();
+
+  // Na recepcao, trocar de aba e um fade curto: so a cor do topo muda e a
+  // lista aparece, sem deslizar. Nos outros perfis (e com "reduzir
+  // movimento"), a troca e direta.
+  const abaComFade = usuario?.perfil === "recepcao" && !movimentoReduzido;
 
   // Consulta a abrir, vinda do toque num lembrete.
   const destinoPendenteRef = useRef(null);
@@ -193,10 +199,16 @@ export default function AppNavigator() {
       >
         <Stack.Navigator
           initialRouteName={logado ? "LoginBiometrico" : "Login"}
-          // Abas sao irmas: trocar de aba (viaAba) nunca anima.
+          // Abas sao irmas: trocar de aba (viaAba) nunca desliza.
           screenOptions={({ route }) => ({
             headerShown: false,
-            animation: route.params?.viaAba ? "none" : "default",
+            animation: route.params?.viaAba
+              ? abaComFade
+                ? "fade"
+                : "none"
+              : "default",
+            animationDuration:
+              route.params?.viaAba && abaComFade ? duracao.corDaAba : undefined,
           })}
         >
           <Stack.Screen name="Login" component={LoginScreen} />
