@@ -259,7 +259,11 @@ export default function PerfilScreen({ navigation }) {
             </View>
           </Pressionavel>
         ) : (
-          <Avatar nome={usuario.nome} tamanho={96} />
+          <Avatar
+            nome={usuario.nome}
+            tamanho={96}
+            tom={perfil === 'paciente' ? 'verde' : 'lavanda'}
+          />
         )}
 
         <Texto variante="titulo" style={{ textAlign: 'center', marginTop: espaco.xs }}>

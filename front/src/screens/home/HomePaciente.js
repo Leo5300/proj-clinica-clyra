@@ -126,7 +126,7 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
-        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} />
+        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom="verde" />
         <View style={{ flex: 1, gap: 2 }}>
           <Texto variante="corpoForte" cor="sobrePlanoPaciente">
             {medico?.nome ?? 'Profissional'}
