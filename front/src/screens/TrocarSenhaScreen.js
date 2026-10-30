@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,6 +10,8 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   trocarSenha,
@@ -25,26 +26,17 @@ import { atualizarUsuario } from '../services/sessao';
 //     o servidor bloqueia o resto ate a troca.
 //   sem parametro     -> troca voluntaria, vinda do Perfil.
 
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  danger: '#B0555F',
-};
-
 const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
 function Regra({ atendida, texto }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   return (
     <View style={styles.regra}>
       <Feather
         name={atendida ? 'check-circle' : 'circle'}
         size={14}
-        color={atendida ? colors.sage : colors.muted}
+        color={atendida ? cores.acao : cores.apoio}
       />
       <Text style={[styles.regraTexto, atendida && styles.regraAtendida]}>
         {texto}
@@ -54,6 +46,8 @@ function Regra({ atendida, texto }) {
 }
 
 export default function TrocarSenhaScreen({ navigation, route }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   const obrigatorio = route.params?.obrigatorio === true;
 
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -125,7 +119,7 @@ export default function TrocarSenhaScreen({ navigation, route }) {
             accessibilityLabel="Voltar"
             hitSlop={AREA_DE_TOQUE}
           >
-            <Feather name="arrow-left" size={22} color={colors.ink} />
+            <Feather name="chevron-left" size={26} color={cores.tinta} />
           </TouchableOpacity>
         )}
         <Text style={styles.title}>
@@ -212,58 +206,61 @@ export default function TrocarSenhaScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: cores.papel },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    title: { fontSize: 17, fontFamily: fontes.textoForte, color: cores.tinta },
+    headerSpacer: { width: 22 },
 
-  form: { padding: 20, paddingBottom: 40 },
-  intro: {
-    fontSize: 14,
-    color: colors.ink,
-    lineHeight: 20,
-    marginBottom: 18,
-  },
-  erroTopo: { fontSize: 13, color: colors.danger, marginBottom: 14 },
+    form: { padding: 20, paddingBottom: 40 },
+    intro: {
+      fontFamily: fontes.texto,
+      fontSize: 14,
+      color: cores.tinta,
+      lineHeight: 20,
+      marginBottom: 18,
+    },
+    erroTopo: { fontFamily: fontes.texto, fontSize: 13, color: cores.alerta, marginBottom: 14 },
 
-  campo: { marginBottom: 16 },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  erroCampo: { fontSize: 12, color: colors.danger, marginTop: 6 },
+    campo: { marginBottom: 16 },
+    label: {
+      fontSize: 12,
+      fontFamily: fontes.textoSemi,
+      color: cores.apoio,
+      marginBottom: 6,
+    },
+    input: {
+      fontFamily: fontes.texto,
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: cores.tinta,
+    },
+    erroCampo: { fontFamily: fontes.texto, fontSize: 12, color: cores.alerta, marginTop: 6 },
 
-  regras: { gap: 6, marginBottom: 8 },
-  regra: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  regraTexto: { fontSize: 13, color: colors.muted },
-  regraAtendida: { color: colors.sage },
+    regras: { gap: 6, marginBottom: 8 },
+    regra: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    regraTexto: { fontFamily: fontes.texto, fontSize: 13, color: cores.apoio },
+    regraAtendida: { color: cores.link },
 
-  botao: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
-});
+    botao: {
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    botaoDesabilitado: { opacity: 0.6 },
+    botaoTexto: { color: cores.sobreAcao, fontFamily: fontes.textoForte, fontSize: 14 },
+  });

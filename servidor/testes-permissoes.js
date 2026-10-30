@@ -273,7 +273,7 @@ async function testarApi() {
   verificar('5. medico novo com temAcesso', true, r.dados?.temAcesso === true);
   verificar(
     '5. medico novo com o nome da especialidade escolhida',
-    'Clínica Geral',
+    'Psicogeriatria',
     r.dados?.especialidade,
   );
 
@@ -673,7 +673,7 @@ async function testarApi() {
   r = await chamar('GET', '/medicos/1', { token: paciente });
   verificar(
     '20. medico devolve o nome da especialidade',
-    '200 Cardiologia',
+    '200 Psicologia clínica',
     `${r.status} ${r.dados?.especialidade}`,
   );
 

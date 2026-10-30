@@ -5,7 +5,7 @@
       "id": "1",
       "nome": "João de Oliveira",
       "especialidadeId": "1",
-      "crm": "12345/MG",
+      "crm": "04/12345",
       "email": "joao@clinica.com",
       "telefone": "(31) 98765-4321",
       "endereco": "Rua A, 100"
@@ -14,7 +14,7 @@
       "id": "2",
       "nome": "Antônio de Oliveira",
       "especialidadeId": "2",
-      "crm": "23456/MG",
+      "crm": "04/23456",
       "email": "antonio@clinica.com",
       "telefone": "(31) 99876-5432",
       "endereco": "Av. B, 200"
@@ -23,7 +23,7 @@
       "id": "3",
       "nome": "Maria da Silva",
       "especialidadeId": "3",
-      "crm": "34567/SP",
+      "crm": "06/34567",
       "email": "maria@clinica.com",
       "telefone": "(11) 97654-3210",
       "endereco": "Rua C, 300"
@@ -31,7 +31,7 @@
     {
       "id": "4",
       "nome": "Beatriz Souza",
-      "especialidadeId": "4",
+      "especialidadeId": "5",
       "crm": "45678/RJ",
       "email": "beatriz@clinica.com",
       "telefone": "(21) 96543-2109",
@@ -40,7 +40,7 @@
     {
       "id": "5",
       "nome": "Carlos Santos",
-      "especialidadeId": "5",
+      "especialidadeId": "6",
       "crm": "56789/BA",
       "email": "carlos@clinica.com",
       "telefone": "(71) 95432-1098",
@@ -84,31 +84,108 @@
   "especialidades": [
     {
       "id": "1",
-      "nome": "Cardiologia"
+      "nome": "Psicologia clínica",
+      "area": "Psicologia"
     },
     {
       "id": "2",
-      "nome": "Pediatria"
+      "nome": "Psicologia infantil",
+      "area": "Psicologia"
     },
     {
       "id": "3",
-      "nome": "Dermatologia"
+      "nome": "Neuropsicologia",
+      "area": "Psicologia"
     },
     {
       "id": "4",
-      "nome": "Ginecologia"
+      "nome": "Terapia de casal e família",
+      "area": "Psicologia"
     },
     {
       "id": "5",
-      "nome": "Neurologia"
+      "nome": "Psiquiatria geral",
+      "area": "Psiquiatria"
     },
     {
       "id": "6",
-      "nome": "Oftalmologia"
+      "nome": "Psiquiatria da infância e adolescência",
+      "area": "Psiquiatria"
     },
     {
       "id": "7",
-      "nome": "Clínica Geral"
+      "nome": "Psicogeriatria",
+      "area": "Psiquiatria"
+    },
+    {
+      "id": "8",
+      "nome": "Terapia cognitivo-comportamental",
+      "area": "Psicologia"
+    },
+    {
+      "id": "9",
+      "nome": "Psicologia do adolescente",
+      "area": "Psicologia"
+    },
+    {
+      "id": "10",
+      "nome": "Psicologia perinatal e materna",
+      "area": "Psicologia"
+    },
+    {
+      "id": "11",
+      "nome": "Avaliação psicológica",
+      "area": "Psicologia"
+    },
+    {
+      "id": "12",
+      "nome": "Psicologia do luto e das perdas",
+      "area": "Psicologia"
+    },
+    {
+      "id": "13",
+      "nome": "Psicanálise",
+      "area": "Psicologia"
+    },
+    {
+      "id": "14",
+      "nome": "Psicologia da saúde",
+      "area": "Psicologia"
+    },
+    {
+      "id": "15",
+      "nome": "Terapia do trauma",
+      "area": "Psicologia"
+    },
+    {
+      "id": "16",
+      "nome": "Neuropsiquiatria",
+      "area": "Psiquiatria"
+    },
+    {
+      "id": "17",
+      "nome": "Dependência química",
+      "area": "Psiquiatria"
+    },
+    {
+      "id": "18",
+      "nome": "Psiquiatria forense",
+      "area": "Psiquiatria"
+    },
+    {
+      "id": "19",
+      "nome": "Psiquiatria perinatal",
+      "area": "Psiquiatria"
+    },
+    {
+      "id": "20",
+      "nome": "Transtornos alimentares",
+      "area": "Psiquiatria"
+    },
+    {
+      "id": "21",
+      "nome": "Transtornos de ansiedade e do humor",
+      "area": "Psiquiatria"
     }
   ],
   "horarios": [

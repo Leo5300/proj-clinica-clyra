@@ -1,18 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { Linking, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   buscarConsulta,
+  buscarConsultas,
   excluirConsulta,
   buscarMedicos,
   buscarPaciente,
@@ -27,34 +21,43 @@ import {
   formatarHora,
 } from '../services/lembretes';
 import { useUsuario } from '../services/sessao';
-import { nomeCurtoDoDia, formatarDataLonga } from '../services/datas';
+import {
+  formatarDataPorExtenso,
+  formatarDiaEHora,
+  formatarDiaEMes,
+  formatarFaixa,
+  nomeLongoDoDia,
+  DURACAO_CONSULTA_MIN,
+} from '../services/datas';
 import { CLINICA } from '../services/localizacao';
+import {
+  Avatar,
+  Botao,
+  Cabecalho,
+  ComVidro,
+  Esqueleto,
+  EstadoErro,
+  EstadoVazio,
+  FolhaDecisao,
+  ItemDeLista,
+  Selo,
+  SeloSucesso,
+  Texto,
+  useRolagem,
+} from '../components';
+import { useTema, espaco, margemTela, raio, toque } from '../theme';
+import { vibrarImpacto } from '../services/haptica';
+import { especialidadeERegistro, tomDaArea } from '../services/profissionais';
 
 // Tela de destino do toque no lembrete. Recebe so o consultaId (o que
 // viaja em content.data) e busca o resto no servidor: a notificacao pode
 // ter sido agendada dias atras, e o servidor e a fonte da verdade.
 
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  danger: '#B0555F',
-};
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
-
 // Mesma regra do servidor: o paciente so remarca ou cancela sozinho com
 // 24 h de antecedencia. A tela so evita oferecer o que seria recusado.
 const ANTECEDENCIA_MINIMA_MS = 24 * 60 * 60 * 1000;
 
-// "seg, 05/10/2026 às 08:30"
-function formatarQuando(data) {
-  return `${nomeCurtoDoDia(data)}, ${formatarDataLonga(data)} às ${formatarHora(data)}`;
-}
+const MAX_HISTORICO = 4;
 
 // "registrado em 05/10 às 08:12"
 function formatarRegistro(texto) {
@@ -75,21 +78,71 @@ function resumoDoSinal(sinal) {
   return `${sinal.frequenciaCardiaca} bpm, ${leituras} (${origem})`;
 }
 
+// Cartao opaco: dado de saude, horario e valor nunca vao em vidro.
+function Cartao({ children, style }) {
+  const { cores } = useTema();
+
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: cores.superficie,
+          borderColor: cores.linha,
+          borderWidth: 1,
+          borderRadius: raio.cartaoGrande,
+          borderCurve: 'continuous',
+          padding: espaco.md + 2,
+          gap: espaco.sm,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+function Linha({ icone, rotulo, valor }) {
+  const { cores } = useTema();
+
+  return (
+    <View style={{ flexDirection: 'row', gap: espaco.sm, alignItems: 'flex-start' }}>
+      <Feather name={icone} size={18} color={cores.apoio} style={{ marginTop: 2 }} />
+      <View style={{ flex: 1, gap: 1 }}>
+        <Texto variante="legenda" cor="apoio">
+          {rotulo}
+        </Texto>
+        <Texto variante="rotulo" selectable>
+          {valor}
+        </Texto>
+      </View>
+    </View>
+  );
+}
+
 export default function DetalheConsultaScreen({ navigation, route }) {
   const consultaId = route.params?.consultaId;
 
   const { usuario } = useUsuario();
+  const { cores } = useTema();
+  const insets = useSafeAreaInsets();
+  const { aoRolar, rolou } = useRolagem(120);
+
   const perfil = usuario?.perfil;
 
   const [consulta, setConsulta] = useState(null);
   const [paciente, setPaciente] = useState(null);
   const [medico, setMedico] = useState(null);
+  const [historico, setHistorico] = useState([]);
   const [ultimoSinal, setUltimoSinal] = useState(null);
   const [erroSinais, setErroSinais] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
   const [naoExiste, setNaoExiste] = useState(false);
   const [cancelando, setCancelando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [cancelada, setCancelada] = useState(false);
+  const [erroCancelar, setErroCancelar] = useState(null);
 
   const irParaLogin = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -98,7 +151,6 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const carregar = useCallback(async () => {
     if (!perfil) return;
 
-    setCarregando(true);
     setErro(null);
     setNaoExiste(false);
 
@@ -108,16 +160,32 @@ export default function DetalheConsultaScreen({ navigation, route }) {
 
       // Nomes buscados a parte: a consulta guarda so os ids. O paciente
       // logado nao precisa buscar o proprio cadastro para esta tela.
-      const [pacienteDados, medicos] = await Promise.all([
+      const [pacienteDados, medicos, todas] = await Promise.all([
         perfil === 'paciente'
           ? null
           : buscarPaciente(dados.pacienteId).catch(() => null),
         buscarMedicos().catch(() => []),
+        buscarConsultas().catch(() => []),
       ]);
 
       setPaciente(pacienteDados);
       setMedico(
         medicos.find((m) => String(m.id) === String(dados.medicoId)) ?? null,
+      );
+
+      // Historico do mesmo paciente com o mesmo profissional.
+      const agora = new Date();
+      setHistorico(
+        todas
+          .filter(
+            (c) =>
+              String(c.id) !== String(dados.id) &&
+              String(c.medicoId) === String(dados.medicoId) &&
+              String(c.pacienteId) === String(dados.pacienteId) &&
+              dataDaConsulta(c) < agora,
+          )
+          .sort((a, b) => dataDaConsulta(b) - dataDaConsulta(a))
+          .slice(0, MAX_HISTORICO),
       );
 
       // Sinais vitais so para quem atende e para o proprio paciente. Falha
@@ -147,7 +215,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       } else if (e instanceof SemPermissao) {
         setErro(e.mensagem ?? 'Você não tem permissão para isso.');
       } else {
-        setErro('Não foi possível carregar a consulta agora.');
+        setErro('Confira a internet do celular e tente de novo.');
       }
     } finally {
       setCarregando(false);
@@ -159,12 +227,14 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   // memoria.
   useFocusEffect(
     useCallback(() => {
-      carregar();
-    }, [carregar]),
+      if (!cancelada) carregar();
+    }, [carregar, cancelada]),
   );
 
   const cancelarConsulta = async () => {
+    vibrarImpacto();
     setCancelando(true);
+    setErroCancelar(null);
 
     try {
       // Primeiro o servidor: se o DELETE falhar, a consulta continua
@@ -175,19 +245,15 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       // aviso dispara -- e o paciente vai a clinica a toa.
       await cancelarLembrete(consultaId);
 
-      Alert.alert(
-        'Consulta cancelada',
-        'A consulta e o lembrete foram cancelados.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      setConfirmando(false);
+      setCancelada(true);
     } catch (e) {
       if (e instanceof SessaoExpirada) {
         irParaLogin();
         return;
       }
 
-      Alert.alert(
-        'Não foi possível cancelar',
+      setErroCancelar(
         e instanceof ErroDaApi && e.mensagem
           ? e.mensagem
           : 'Não foi possível cancelar a consulta agora.',
@@ -197,19 +263,8 @@ export default function DetalheConsultaScreen({ navigation, route }) {
     }
   };
 
-  const confirmarCancelamento = () => {
-    Alert.alert(
-      'Cancelar consulta',
-      'A consulta e o lembrete dela serão cancelados.',
-      [
-        { text: 'Voltar', style: 'cancel' },
-        {
-          text: 'Cancelar consulta',
-          style: 'destructive',
-          onPress: cancelarConsulta,
-        },
-      ],
-    );
+  const ligarParaRecepcao = () => {
+    Linking.openURL(`tel:${CLINICA.telefone.replace(/\D/g, '')}`).catch(() => {});
   };
 
   const renderSinaisVitais = (passou) => {
@@ -226,225 +281,309 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       Boolean(pacienteDoRegistro) && (perfil === 'medico' || !passou);
 
     return (
-      <View style={styles.card}>
-        <Text style={styles.cardTitulo}>Sinais vitais</Text>
+      <Cartao>
+        <Texto variante="secao" accessibilityRole="header">
+          Sinais vitais
+        </Texto>
 
         {erroSinais ? (
-          <Text style={styles.texto}>{erroSinais}</Text>
+          <Texto variante="rotulo" cor="tinta2">
+            {erroSinais}
+          </Texto>
         ) : ultimoSinal ? (
-          <>
-            <Text style={styles.valor}>{resumoDoSinal(ultimoSinal)}</Text>
-            <Text style={styles.nota}>
+          <View style={{ gap: 2 }}>
+            <Texto variante="corpoForte" tabular selectable>
+              {resumoDoSinal(ultimoSinal)}
+            </Texto>
+            <Texto variante="legenda" cor="apoio" tabular>
               {formatarRegistro(ultimoSinal.registradoEm)}
-            </Text>
-          </>
+            </Texto>
+          </View>
         ) : (
-          <Text style={styles.texto}>Nenhum registro para esta consulta.</Text>
+          <Texto variante="rotulo" cor="tinta2">
+            Nenhum registro para esta consulta.
+          </Texto>
         )}
 
         {podeRegistrar && (
-          <TouchableOpacity
-            style={[styles.botao, styles.botaoSecundario]}
+          <Botao
+            titulo="Registrar sinais vitais"
+            variante="contorno"
+            icone="activity"
             onPress={() =>
               navigation.navigate('SinaisVitais', {
                 paciente: pacienteDoRegistro,
                 consultaId,
               })
             }
-          >
-            <Text style={styles.botaoSecundarioTexto}>
-              Registrar sinais vitais
-            </Text>
-          </TouchableOpacity>
+          />
         )}
+      </Cartao>
+    );
+  };
+
+  const renderAcoes = (passou, faltaMs, quando) => {
+    // Medico consulta a agenda; quem marca e desmarca e a recepcao ou o
+    // proprio paciente.
+    if (perfil === 'medico') return null;
+
+    if (passou) {
+      return perfil === 'paciente' ? (
+        <Botao
+          titulo="Agendar nova consulta"
+          onPress={() => navigation.navigate('Agendar')}
+        />
+      ) : null;
+    }
+
+    // Menos de 24 h: os botoes que o servidor recusaria dao lugar a um
+    // caminho que funciona.
+    if (perfil === 'paciente' && faltaMs < ANTECEDENCIA_MINIMA_MS) {
+      return (
+        <View style={{ gap: espaco.sm }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: espaco.xs,
+              backgroundColor: cores.atencaoSuave,
+              borderRadius: raio.campo,
+              padding: espaco.sm,
+            }}
+          >
+            <Feather name="clock" size={16} color={cores.atencao} style={{ marginTop: 2 }} />
+            <Texto variante="legenda" cor="atencao" style={{ flex: 1 }}>
+              Faltam menos de 24 horas. Para remarcar ou cancelar agora, fale
+              com a recepção.
+            </Texto>
+          </View>
+          <Cartao>
+            <Texto variante="corpoForte">Recepção da clínica</Texto>
+            <Texto variante="rotulo" cor="tinta2" tabular selectable>
+              {CLINICA.telefone}
+            </Texto>
+            <Botao titulo="Ligar para a recepção" icone="phone" onPress={ligarParaRecepcao} />
+          </Cartao>
+        </View>
+      );
+    }
+
+    const limite = new Date(quando.getTime() - ANTECEDENCIA_MINIMA_MS);
+
+    return (
+      <View style={{ gap: espaco.sm }}>
+        {perfil === 'paciente' ? (
+          <Texto variante="legenda" cor="apoio">
+            Remarque ou cancele pelo app até {formatarDiaEHora(limite)}. Depois
+            disso, fale com a recepção.
+          </Texto>
+        ) : null}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Botao
+            titulo="Cancelar"
+            variante="contorno"
+            style={{ flex: 1 }}
+            onPress={() => {
+              setErroCancelar(null);
+              setConfirmando(true);
+            }}
+          />
+          <Botao
+            titulo="Remarcar"
+            style={{ flex: 1 }}
+            onPress={() => navigation.navigate('Agendar', { consulta })}
+          />
+        </View>
       </View>
     );
   };
 
-  const renderAcoes = (passou, faltaMs) => {
-    // Medico consulta a agenda; quem marca e desmarca e a recepcao ou o
-    // proprio paciente.
-    if (perfil === 'medico' || passou) return null;
-
-    if (perfil === 'paciente' && faltaMs < ANTECEDENCIA_MINIMA_MS) {
-      return (
-        <Text style={styles.nota}>
-          Faltam menos de 24 h. Para remarcar ou cancelar, ligue para a
-          recepção: {CLINICA.telefone}.
-        </Text>
-      );
-    }
-
-    return (
-      <>
-        <TouchableOpacity
-          style={styles.botao}
-          onPress={() => navigation.navigate('Agendar', { consulta })}
-          disabled={cancelando}
-        >
-          <Text style={styles.botaoTexto}>Remarcar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.botao,
-            styles.botaoPerigo,
-            cancelando && styles.botaoDesabilitado,
-          ]}
-          onPress={confirmarCancelamento}
-          disabled={cancelando}
-        >
-          <Text style={styles.botaoTexto}>
-            {cancelando ? 'Cancelando...' : 'Cancelar consulta'}
-          </Text>
-        </TouchableOpacity>
-      </>
-    );
-  };
+  const topo = insets.top + espaco.xs + toque.minimo + espaco.md;
 
   const renderConteudo = () => {
     if (carregando) {
       return (
-        <ActivityIndicator
-          color={colors.sage}
-          style={styles.indicador}
-        />
+        <View style={{ paddingTop: topo, paddingHorizontal: margemTela + 2, gap: espaco.md }}>
+          <View style={{ alignItems: 'center', gap: espaco.sm }}>
+            <Esqueleto largura={88} altura={88} raio={44} />
+            <Esqueleto largura={200} altura={22} raio={6} />
+          </View>
+          <Esqueleto altura={140} raio={raio.cartaoGrande} />
+          <Esqueleto altura={48} raio={raio.botao} />
+        </View>
+      );
+    }
+
+    if (cancelada) {
+      return (
+        <View style={{ paddingTop: topo + espaco.xl, paddingHorizontal: margemTela + 2, gap: espaco.lg }}>
+          <SeloSucesso
+            titulo="Consulta cancelada"
+            texto="O horário voltou para a agenda da clínica e o lembrete deste aparelho foi cancelado."
+          />
+          <Botao titulo="Voltar" onPress={() => navigation.goBack()} />
+        </View>
       );
     }
 
     if (naoExiste) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.cardTitulo}>Esta consulta não existe mais</Text>
-          <Text style={styles.texto}>
-            Ela foi cancelada em outro lugar. O lembrete dela neste aparelho
-            também foi cancelado.
-          </Text>
+        <View style={{ paddingTop: topo, paddingHorizontal: margemTela + 2 }}>
+          <EstadoVazio
+            titulo="Esta consulta não existe mais"
+            texto="Ela foi cancelada em outro lugar. O lembrete dela neste aparelho também foi cancelado."
+          />
         </View>
       );
     }
 
-    if (erro) {
+    if (erro || !consulta) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.erroTexto}>{erro}</Text>
-          <TouchableOpacity style={styles.botao} onPress={carregar}>
-            <Text style={styles.botaoTexto}>Tentar novamente</Text>
-          </TouchableOpacity>
+        <View style={{ paddingTop: topo, paddingHorizontal: margemTela + 2 }}>
+          <EstadoErro texto={erro ?? undefined} aoTentar={carregar} />
         </View>
       );
     }
-
-    if (!consulta) return null;
 
     const quando = dataDaConsulta(consulta);
     const faltaMs = quando - new Date();
     const passou = faltaMs <= 0;
+    const registro = especialidadeERegistro(medico);
 
     return (
       <>
-        <View style={styles.card}>
-          <Text style={styles.rotulo}>Quando</Text>
-          <Text style={styles.valor}>{formatarQuando(quando)}</Text>
-
-          <Text style={styles.rotulo}>Médico</Text>
-          <Text style={styles.valor}>{medico?.nome ?? '—'}</Text>
-          {medico?.especialidade ? (
-            <Text style={styles.nota}>{medico.especialidade}</Text>
+        <View
+          style={{
+            backgroundColor: cores.superficie2,
+            borderBottomLeftRadius: raio.destaque,
+            borderBottomRightRadius: raio.destaque,
+            borderCurve: 'continuous',
+            paddingTop: topo,
+            paddingBottom: espaco.lg,
+            paddingHorizontal: margemTela + 2,
+            alignItems: 'center',
+            gap: espaco.xs,
+          }}
+        >
+          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tamanho={88} />
+          <Texto variante="titulo" style={{ textAlign: 'center', marginTop: espaco.xs }}>
+            {medico?.nome ?? 'Profissional'}
+          </Texto>
+          {registro ? (
+            <Texto variante="rotulo" cor="tinta2" style={{ textAlign: 'center' }} selectable>
+              {registro}
+            </Texto>
           ) : null}
-
-          {perfil !== 'paciente' && (
-            <>
-              <Text style={styles.rotulo}>Paciente</Text>
-              <Text style={styles.valor}>{paciente?.nome ?? '—'}</Text>
-            </>
-          )}
+          {medico?.area ? (
+            <Selo
+              texto={medico.area}
+              tom={tomDaArea(medico.area)}
+              style={{ alignSelf: 'center' }}
+            />
+          ) : null}
+          <Selo
+            texto={passou ? 'Anterior' : 'Agendada'}
+            tom={passou ? 'neutro' : 'salvia'}
+            icone={passou ? 'check' : 'calendar'}
+            style={{ alignSelf: 'center', marginTop: 4 }}
+          />
         </View>
 
-        {renderSinaisVitais(passou)}
+        <View style={{ padding: margemTela + 2, gap: espaco.md, paddingBottom: insets.bottom + espaco.xl }}>
+          <Cartao>
+            <View style={{ gap: 2 }}>
+              <Texto variante="tituloMedio">{formatarDataPorExtenso(quando)}</Texto>
+              <Texto variante="rotulo" cor="tinta2" tabular>
+                {formatarFaixa(quando)} · {DURACAO_CONSULTA_MIN} min
+              </Texto>
+            </View>
 
-        {renderAcoes(passou, faltaMs)}
+            {perfil !== 'paciente' ? (
+              <Linha icone="user" rotulo="Paciente" valor={paciente?.nome ?? '—'} />
+            ) : null}
+            {perfil === 'paciente' ? (
+              <Linha icone="map-pin" rotulo="Local" valor={CLINICA.endereco} />
+            ) : null}
+            {perfil === 'paciente' && !passou ? (
+              <Linha
+                icone="bell"
+                rotulo="Lembrete"
+                valor="Uma hora antes, neste aparelho"
+              />
+            ) : null}
+          </Cartao>
+
+          {renderSinaisVitais(passou)}
+
+          {renderAcoes(passou, faltaMs, quando)}
+
+          {historico.length > 0 ? (
+            <View style={{ gap: 2, marginTop: espaco.xs }}>
+              <Texto variante="secao" accessibilityRole="header">
+                Com {medico?.nome ?? 'este profissional'}
+              </Texto>
+              {historico.map((c, indice) => (
+                <ItemDeLista
+                  key={String(c.id)}
+                  titulo={formatarDiaEHora(dataDaConsulta(c))}
+                  tabular
+                  seta
+                  divisor={indice < historico.length - 1}
+                  onPress={() =>
+                    navigation.push('DetalheConsulta', { consultaId: String(c.id) })
+                  }
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
       </>
     );
   };
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Consulta</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+  const quando = consulta ? dataDaConsulta(consulta) : null;
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {renderConteudo()}
-      </ScrollView>
-    </SafeAreaView>
+  return (
+    <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <ComVidro
+        conteudo={
+          <Animated.ScrollView onScroll={aoRolar} scrollEventThrottle={16}>
+            {renderConteudo()}
+          </Animated.ScrollView>
+        }
+      >
+        <Cabecalho
+          flutuante
+          titulo={medico?.nome ?? 'Consulta'}
+          rolou={rolou}
+          aoVoltar={() => navigation.goBack()}
+        />
+      </ComVidro>
+
+      <FolhaDecisao
+        visivel={confirmando}
+        aoFechar={() => !cancelando && setConfirmando(false)}
+        titulo={
+          quando ? `Cancelar a consulta de ${nomeLongoDoDia(quando)}?` : 'Cancelar a consulta?'
+        }
+        texto={
+          quando
+            ? `${formatarDiaEMes(quando)} às ${formatarHora(quando)} com ${medico?.nome ?? 'o profissional'}. Você pode marcar outro horário quando quiser.`
+            : null
+        }
+        acaoPrincipal={{
+          titulo: 'Cancelar consulta',
+          variante: 'alerta',
+          carregando: cancelando,
+          onPress: cancelarConsulta,
+        }}
+        acaoSecundaria={{ titulo: 'Manter consulta', onPress: () => setConfirmando(false) }}
+      >
+        {erroCancelar ? (
+          <Texto variante="legenda" cor="alerta" selectable>
+            {erroCancelar}
+          </Texto>
+        ) : null}
+      </FolhaDecisao>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
-
-  content: { padding: 20, paddingBottom: 40 },
-  indicador: { marginTop: 40 },
-
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTitulo: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: 6,
-  },
-  rotulo: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginTop: 10,
-  },
-  valor: { fontSize: 15, color: colors.ink, marginTop: 2 },
-  nota: { fontSize: 13, color: colors.muted, marginTop: 4, lineHeight: 18 },
-  texto: { fontSize: 14, color: colors.ink, lineHeight: 20 },
-  erroTexto: { fontSize: 14, color: colors.danger, marginBottom: 6 },
-
-  botao: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  botaoSecundario: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 14,
-  },
-  botaoSecundarioTexto: { color: colors.sage, fontWeight: '700', fontSize: 14 },
-  botaoPerigo: { backgroundColor: colors.danger },
-  botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
-});

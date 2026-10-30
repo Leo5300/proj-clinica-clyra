@@ -1,6 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -11,6 +10,8 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,26 +24,15 @@ import {
   ErroDaApi,
 } from '../services/api';
 
-// TODO: mover para front/src/theme quando o ThemeContext existir
-// (feature/design-system). Mesma paleta usada na MedicosScreen.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  sageSoft: '#E3EEEA',
-  danger: '#B0555F',
-};
-
 const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
 function Campo({ label, erro, nota, ...inputProps }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   return (
     <View style={styles.campo}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} placeholderTextColor={colors.muted} {...inputProps} />
+      <TextInput style={styles.input} placeholderTextColor={cores.desativado} {...inputProps} />
       {nota && <Text style={styles.nota}>{nota}</Text>}
       {erro && <Text style={styles.erroCampo}>{erro}</Text>}
     </View>
@@ -52,10 +42,12 @@ function Campo({ label, erro, nota, ...inputProps }) {
 // A senha temporaria so existe nesta resposta do servidor: depois dela,
 // so o hash fica gravado. Por isso o aviso diz que ela nao volta.
 function textoDoAcesso(acesso) {
-  return `Acesso criado para ${acesso.email}. Senha temporária: ${acesso.senhaTemporaria}. Entregue ao médico; ele vai criar a própria senha no primeiro acesso. Esta senha não será mostrada de novo.`;
+  return `Acesso criado para ${acesso.email}. Senha temporária: ${acesso.senhaTemporaria}. Entregue ao profissional; ele vai criar a própria senha no primeiro acesso. Esta senha não será mostrada de novo.`;
 }
 
 export default function CadastroMedicoScreen({ navigation, route }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   // Se veio um medico em route.params, e edicao (PUT); sem ele, e cadastro (POST).
   const medico = route.params?.medico;
 
@@ -112,14 +104,26 @@ export default function CadastroMedicoScreen({ navigation, route }) {
 
   // O servidor confere de novo; validar aqui so poupa a viagem. O e-mail
   // e obrigatorio no cadastro novo porque e o login do medico.
+  // O registro e um campo so (crm); o conselho que aparece depende da
+  // area da especialidade: Psicologia = CRP, Psiquiatria = CRM.
+  const areaEscolhida = especialidades.find(
+    (e) => String(e.id) === especialidadeId,
+  )?.area;
+  const conselho =
+    areaEscolhida === 'Psicologia'
+      ? 'CRP'
+      : areaEscolhida === 'Psiquiatria'
+        ? 'CRM'
+        : null;
+
   const validar = () => {
     const novos = {};
 
     if (!nome.trim()) novos.nome = 'Informe o nome.';
     if (!especialidadeId) novos.especialidade = 'Escolha a especialidade.';
-    if (!crm.trim()) novos.crm = 'Informe o CRM.';
+    if (!crm.trim()) novos.crm = `Informe o ${conselho ?? 'registro'}.`;
     if (!medico && !email.trim().includes('@')) {
-      novos.email = 'Informe o e-mail do médico.';
+      novos.email = 'Informe o e-mail do profissional.';
     }
 
     setErros(novos);
@@ -133,7 +137,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   if (!permissao.granted) {
     Alert.alert(
       'Câmera não liberada',
-      'Sem permissão de câmera não é possível tirar a foto. Você pode cadastrar o médico normalmente sem ela.',
+      'Sem permissão de câmera não é possível tirar a foto. Você pode cadastrar o profissional normalmente sem ela.',
     );
     return;
   }
@@ -171,13 +175,13 @@ export default function CadastroMedicoScreen({ navigation, route }) {
       if (medico) {
         await atualizarMedico(medico.id, dados);
 
-        Alert.alert('Sucesso', 'Médico atualizado.', [
+        Alert.alert('Sucesso', 'Profissional atualizado.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
         const resposta = await criarMedico(dados);
 
-        Alert.alert('Médico cadastrado', textoDoAcesso(resposta.acesso), [
+        Alert.alert('Profissional cadastrado', textoDoAcesso(resposta.acesso), [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       }
@@ -192,7 +196,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
         'Erro',
         e instanceof ErroDaApi && e.mensagem
           ? e.mensagem
-          : 'Não foi possível salvar o médico agora.',
+          : 'Não foi possível salvar o profissional agora.',
       );
     } finally {
       setSalvando(false);
@@ -237,9 +241,9 @@ export default function CadastroMedicoScreen({ navigation, route }) {
           accessibilityLabel="Voltar"
           hitSlop={AREA_DE_TOQUE}
         >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
+          <Feather name="chevron-left" size={26} color={cores.tinta} />
         </TouchableOpacity>
-        <Text style={styles.title}>{medico ? 'Editar médico' : 'Novo médico'}</Text>
+        <Text style={styles.title}>{medico ? 'Editar profissional' : 'Novo profissional'}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -259,7 +263,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
         <Feather
           name="camera"
           size={26}
-          color={colors.muted}
+          color={cores.apoio}
         />
       </View>
     )}
@@ -286,7 +290,7 @@ export default function CadastroMedicoScreen({ navigation, route }) {
           <Text style={styles.label}>Especialidade</Text>
 
           {carregandoEspecialidades ? (
-            <ActivityIndicator color={colors.sage} style={styles.indicador} />
+            <ActivityIndicator color={cores.link} style={styles.indicador} />
           ) : erroEspecialidades ? (
             <TouchableOpacity onPress={carregarEspecialidades}>
               <Text style={styles.erroCampo}>
@@ -336,14 +340,19 @@ export default function CadastroMedicoScreen({ navigation, route }) {
             <Text style={styles.erroCampo}>{erros.especialidade}</Text>
           )}
         </View>
-        <Campo label="CRM" value={crm} onChangeText={setCrm} erro={erros.crm} />
+        <Campo
+          label={conselho ?? 'Registro (CRP ou CRM)'}
+          value={crm}
+          onChangeText={setCrm}
+          erro={erros.crm}
+        />
         <Campo
           label="E-mail"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
-          nota="O médico usa este e-mail para entrar no app."
+          nota="O profissional usa este e-mail para entrar no app."
           erro={erros.email}
         />
         <Campo label="Telefone" value={telefone} onChangeText={setTelefone} keyboardType="phone-pad" />
@@ -377,104 +386,108 @@ export default function CadastroMedicoScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: cores.papel },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    title: { fontSize: 17, fontFamily: fontes.textoForte, color: cores.tinta },
+    headerSpacer: { width: 22 },
+
+    form: { padding: 20, paddingBottom: 40 },
+    fotoBloco: { alignItems: 'center', marginBottom: 24 },
+
+  avatarWrap: { marginBottom: 8 },
+
+  avatar: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
   },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
 
-  form: { padding: 20, paddingBottom: 40 },
-  fotoBloco: { alignItems: 'center', marginBottom: 24 },
-
-avatarWrap: { marginBottom: 8 },
-
-avatar: {
-  width: 110,
-  height: 110,
-  borderRadius: 55,
-},
-
-avatarVazio: {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-
-fotoLink: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: colors.sage,
-  marginBottom: 4,
-},
-
-fotoRemover: {
-  fontSize: 12,
-  color: colors.muted,
-  marginBottom: 4,
-},
-
-fotoOpcional: {
-  fontSize: 11,
-  color: colors.muted,
-},
-  campo: { marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 6 },
-  input: {
-    backgroundColor: colors.surface,
+  avatarVazio: {
+    backgroundColor: cores.superficie,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
-
-  salvarBtn: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderColor: cores.linha,
     alignItems: 'center',
-    marginTop: 8,
-  },
-  salvarBtnDisabled: { opacity: 0.6 },
-  salvarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  acessoBtn: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  acessoText: { color: colors.sage, fontWeight: '700', fontSize: 14 },
-  nota: { fontSize: 12, color: colors.muted, marginTop: 6 },
-  link: { color: colors.sage, fontWeight: '700' },
-  indicador: { alignSelf: 'flex-start', marginVertical: 6 },
-  opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  opcao: {
-    minHeight: 44,
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
   },
-  opcaoSelecionada: {
-    backgroundColor: colors.sageSoft,
-    borderColor: colors.sage,
+
+  fotoLink: {
+    fontSize: 13,
+    fontFamily: fontes.textoSemi,
+    color: cores.link,
+    marginBottom: 4,
   },
-  opcaoTexto: { fontSize: 14, color: colors.ink },
-  opcaoTextoSelecionado: { color: colors.sage, fontWeight: '700' },
-  erroCampo: { fontSize: 12, color: colors.danger, marginTop: 6 },
-});
+
+  fotoRemover: {
+    fontFamily: fontes.texto,
+    fontSize: 12,
+    color: cores.apoio,
+    marginBottom: 4,
+  },
+
+  fotoOpcional: {
+    fontFamily: fontes.texto,
+    fontSize: 11,
+    color: cores.apoio,
+  },
+    campo: { marginBottom: 16 },
+    label: { fontSize: 12, fontFamily: fontes.textoSemi, color: cores.apoio, marginBottom: 6 },
+    input: {
+      fontFamily: fontes.texto,
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: cores.tinta,
+    },
+
+    salvarBtn: {
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    salvarBtnDisabled: { opacity: 0.6 },
+    salvarText: { color: cores.sobreAcao, fontFamily: fontes.textoForte, fontSize: 14 },
+    acessoBtn: {
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 10,
+    },
+    acessoText: { color: cores.link, fontFamily: fontes.textoForte, fontSize: 14 },
+    nota: { fontFamily: fontes.texto, fontSize: 12, color: cores.apoio, marginTop: 6 },
+    link: { color: cores.link, fontFamily: fontes.textoForte },
+    indicador: { alignSelf: 'flex-start', marginVertical: 6 },
+    opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    opcao: {
+      minHeight: 44,
+      justifyContent: 'center',
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+    },
+    opcaoSelecionada: {
+      backgroundColor: cores.salviaSuave,
+      borderColor: cores.acao,
+    },
+    opcaoTexto: { fontFamily: fontes.texto, fontSize: 14, color: cores.tinta },
+    opcaoTextoSelecionado: { color: cores.link, fontFamily: fontes.textoForte },
+    erroCampo: { fontFamily: fontes.texto, fontSize: 12, color: cores.alerta, marginTop: 6 },
+  });

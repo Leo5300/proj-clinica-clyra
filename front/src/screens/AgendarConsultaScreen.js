@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { BackHandler, ScrollView, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   buscarPacientes,
@@ -26,33 +18,51 @@ import {
   formatarHora,
 } from '../services/lembretes';
 import { useUsuario } from '../services/sessao';
-import { nomeCurtoDoDia, formatarDataCurta } from '../services/datas';
+import {
+  nomeCurtoDoDia,
+  formatarDiaEMes,
+  formatarDiaEHora,
+  faixaDeMeses,
+  DURACAO_CONSULTA_MIN,
+} from '../services/datas';
+import {
+  Avatar,
+  Botao,
+  Cabecalho,
+  Campo,
+  Chip,
+  ComVidro,
+  Esqueleto,
+  EstadoErro,
+  EstadoVazio,
+  FolhaDecisao,
+  ItemDeLista,
+  Pressionavel,
+  Segmentado,
+  Selo,
+  SeloSucesso,
+  Texto,
+  useRolagem,
+} from '../components';
+import { useTema, espaco, margemTela, raio, toque } from '../theme';
+import { vibrarAviso } from '../services/haptica';
+import { especialidadeERegistro, tomDaArea } from '../services/profissionais';
 
 // Agenda uma consulta nova ou remarca uma existente (route.params.consulta).
+// Dois passos: 1) com quem (area e profissional); 2) dia e horario.
 // So aparecem dias e horarios que o servidor diz estarem livres: ninguem
 // digita data. Mesmo assim o servidor confere tudo de novo ao gravar -- o
 // horario pode ter sido ocupado por outra pessoa no meio do caminho (409).
 // O lembrete vem DEPOIS de o servidor confirmar, e so no aparelho do
 // proprio paciente.
 
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  sageSoft: '#E4EEEC',
-  danger: '#B0555F',
-};
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
-
 // Tres semanas: o servidor devolve so os dias com horario livre.
 const DIAS_DE_BUSCA = 21;
 
 const MAX_RESULTADOS_PACIENTE = 6;
+
+// Valor do filtro sem area escolhida.
+const TODAS = 'todas';
 
 function formatarDiaMes(data) {
   const dia = String(data.getDate()).padStart(2, '0');
@@ -60,9 +70,9 @@ function formatarDiaMes(data) {
   return `${dia}/${mes}`;
 }
 
-// "seg, 05/10 às 08:30"
+// "Ter, 3 nov às 14:30"
 function formatarEscolha(data, hora) {
-  return `${formatarDataCurta(dataDaConsulta({ data, hora }))} às ${hora}`;
+  return `${formatarDiaEMes(dataDaConsulta({ data, hora }))} às ${hora}`;
 }
 
 // Busca sem diferenciar maiusculas nem acentos ("joao" acha "João").
@@ -92,30 +102,80 @@ function mensagemDoLembrete(resultado) {
   return `Lembrete agendado para ${formatarDiaMes(quando)} às ${formatarHora(quando)}.`;
 }
 
-function Opcao({ texto, detalhe, selecionada, onPress }) {
+
+function Titulo({ texto, etapa }) {
   return (
-    <TouchableOpacity
-      style={[styles.opcao, selecionada && styles.opcaoSelecionada]}
-      onPress={onPress}
-    >
-      <Text
-        style={[styles.opcaoTexto, selecionada && styles.opcaoTextoSelecionado]}
-      >
+    <View style={{ gap: 4 }}>
+      <Texto variante="tituloGrande" accessibilityRole="header">
         {texto}
-      </Text>
-      {detalhe ? <Text style={styles.opcaoDetalhe}>{detalhe}</Text> : null}
-    </TouchableOpacity>
+      </Texto>
+      <Texto variante="rotulo" cor="apoio">
+        Etapa {etapa} de 2
+      </Texto>
+    </View>
   );
 }
 
-function Chip({ selecionado, onPress, children }) {
+function Rotulo({ children, direita }) {
   return (
-    <TouchableOpacity
-      style={[styles.chip, selecionado && styles.chipSelecionado]}
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <Texto variante="secao" accessibilityRole="header">
+        {children}
+      </Texto>
+      {direita ? (
+        <Texto variante="legenda" cor="apoio">
+          {direita}
+        </Texto>
+      ) : null}
+    </View>
+  );
+}
+
+function CartaoProfissional({ medico, proximo, onPress }) {
+  const { cores } = useTema();
+
+  return (
+    <Pressionavel
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Escolher ${medico.nome}`}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        padding: espaco.md,
+        borderRadius: raio.cartao,
+        borderCurve: 'continuous',
+        backgroundColor: cores.superficie,
+        borderWidth: 1,
+        borderColor: cores.linha,
+      }}
     >
-      {children}
-    </TouchableOpacity>
+      <Avatar nome={medico.nome} fotoUri={medico.fotoUri} tamanho={52} />
+      <View style={{ flex: 1, gap: 3 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco.xs }}>
+          <Texto variante="corpoForte">{medico.nome}</Texto>
+          {medico.area ? <Selo texto={medico.area} tom={tomDaArea(medico.area)} /> : null}
+        </View>
+        {especialidadeERegistro(medico) ? (
+          <Texto variante="legenda" cor="apoio">
+            {especialidadeERegistro(medico)}
+          </Texto>
+        ) : null}
+        {proximo === undefined ? (
+          <Esqueleto largura={150} altura={14} raio={4} style={{ marginTop: 2 }} />
+        ) : proximo ? (
+          <Texto variante="legendaForte" cor="link" tabular>
+            Próximo livre: {formatarDiaEHora(dataDaConsulta(proximo))}
+          </Texto>
+        ) : (
+          <Texto variante="legenda" cor="apoio">
+            Sem horários livres nas próximas 3 semanas
+          </Texto>
+        )}
+      </View>
+      <Feather name="chevron-right" size={20} color={cores.apoio} />
+    </Pressionavel>
   );
 }
 
@@ -124,19 +184,29 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   const consulta = route.params?.consulta;
 
   const { usuario } = useUsuario();
+  const { cores } = useTema();
+  const insets = useSafeAreaInsets();
+  const { aoRolar, rolou } = useRolagem(60);
+
   const perfil = usuario?.perfil;
   const ehRecepcao = perfil === 'recepcao';
+
+  // Remarcacao ja sabe com quem: comeca no horario.
+  const [passo, setPasso] = useState(consulta ? 2 : 1);
 
   const [pacientes, setPacientes] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState(null);
+  // id do medico -> primeiro horario livre ({ data, hora }), null se nao
+  // ha, ausente enquanto carrega.
+  const [proximos, setProximos] = useState({});
 
   const [busca, setBusca] = useState('');
   const [pacienteId, setPacienteId] = useState(
     consulta ? String(consulta.pacienteId) : null,
   );
-  const [especialidade, setEspecialidade] = useState(null);
+  const [area, setArea] = useState(TODAS);
   const [medicoId, setMedicoId] = useState(
     consulta ? String(consulta.medicoId) : null,
   );
@@ -147,6 +217,12 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   const [data, setData] = useState(null);
   const [hora, setHora] = useState(null);
   const [salvando, setSalvando] = useState(false);
+
+  // { hora, mensagem, sugestao } quando o servidor recusou.
+  const [conflito, setConflito] = useState(null);
+  const [folhaConflito, setFolhaConflito] = useState(false);
+  // { titulo, texto, consultaId } depois de gravar.
+  const [sucesso, setSucesso] = useState(null);
 
   const irParaLogin = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -176,7 +252,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
       setErroCarga(
         e instanceof ErroDaApi && e.mensagem
           ? e.mensagem
-          : 'Não foi possível carregar os médicos.',
+          : 'Não foi possível carregar os profissionais.',
       );
     } finally {
       setCarregando(false);
@@ -187,8 +263,32 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     carregarListas();
   }, [carregarListas]);
 
+  // Primeiro horario livre de cada profissional, para o passo 1. Falhar
+  // aqui so esconde a linha: a escolha continua possivel.
+  useEffect(() => {
+    if (medicos.length === 0) return undefined;
+
+    let ativo = true;
+
+    medicos.forEach((m) => {
+      buscarDisponibilidade(m.id, { dias: DIAS_DE_BUSCA })
+        .then((livres) => {
+          const dia = livres.find((d) => d.horarios?.length > 0);
+          const proximo = dia ? { data: dia.data, hora: dia.horarios[0] } : null;
+          if (ativo) setProximos((atuais) => ({ ...atuais, [String(m.id)]: proximo }));
+        })
+        .catch(() => {
+          if (ativo) setProximos((atuais) => ({ ...atuais, [String(m.id)]: null }));
+        });
+    });
+
+    return () => {
+      ativo = false;
+    };
+  }, [medicos]);
+
   const carregarDias = useCallback(async () => {
-    if (!medicoId) return;
+    if (!medicoId) return [];
 
     setCarregandoDias(true);
     setErroDias(null);
@@ -199,10 +299,11 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         ignorarConsultaId: consulta?.id,
       });
       setDias(livres);
+      return livres;
     } catch (e) {
       if (e instanceof SessaoExpirada) {
         irParaLogin();
-        return;
+        return [];
       }
 
       setDias([]);
@@ -211,6 +312,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
           ? e.mensagem
           : 'Não foi possível carregar os horários livres.',
       );
+      return [];
     } finally {
       setCarregandoDias(false);
     }
@@ -220,10 +322,24 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     carregarDias();
   }, [carregarDias]);
 
+  // Voltar do Android no passo 2 volta ao passo 1, nao sai da tela.
+  useEffect(() => {
+    if (passo !== 2 || consulta) return undefined;
+
+    const inscricao = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPasso(1);
+      return true;
+    });
+
+    return () => inscricao.remove();
+  }, [passo, consulta]);
+
   const escolherMedico = (id) => {
     setMedicoId(id);
     setData(null);
     setHora(null);
+    setConflito(null);
+    setPasso(2);
   };
 
   const escolherDia = (texto) => {
@@ -231,22 +347,22 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     setHora(null);
   };
 
-  // So as especialidades que tem medico: escolher uma sem ninguem para
-  // atender levaria a pessoa a uma lista vazia. O filtro e pelo id; o nome
-  // e o da tela de Especialidades, devolvido pela API junto com o medico.
-  const especialidades = [
-    ...new Map(
-      medicos
-        .filter((m) => m.especialidadeId && m.especialidade)
-        .map((m) => [String(m.especialidadeId), m.especialidade]),
-    ),
-  ]
-    .map(([id, nome]) => ({ id, nome }))
-    .sort((a, b) => a.nome.localeCompare(b.nome));
+  const voltar = () => {
+    if (passo === 2 && !consulta) {
+      setPasso(1);
+      return;
+    }
+    navigation.goBack();
+  };
 
-  const medicosDaEspecialidade = especialidade
-    ? medicos.filter((m) => String(m.especialidadeId) === especialidade)
-    : medicos;
+  // So as areas que tem profissional, como a API devolve (sem lista fixa):
+  // escolher uma area sem ninguem levaria a uma lista vazia.
+  const areas = [...new Set(medicos.map((m) => m.area).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b),
+  );
+
+  const medicosDaArea =
+    area === TODAS ? medicos : medicos.filter((m) => m.area === area);
 
   const medico = medicos.find((m) => String(m.id) === String(medicoId));
   const pacienteEscolhido = pacientes.find(
@@ -277,6 +393,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
       : { medicoId, data, hora };
 
     setSalvando(true);
+    setConflito(null);
 
     let consultaSalva;
 
@@ -300,24 +417,37 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         return;
       }
 
-      // Alguem ocupou o horario no meio do caminho: mostra o motivo e
-      // traz a agenda atualizada.
+      // Alguem ocupou o horario no meio do caminho: mostra qual, traz a
+      // agenda atualizada e sugere o livre mais perto.
       if (e instanceof ErroDaApi && e.status === 409) {
-        Alert.alert(
-          'Horário indisponível',
-          e.mensagem ?? 'Escolha outro horário.',
-        );
+        vibrarAviso();
+        const ocupado = hora;
         setHora(null);
-        carregarDias();
+        const livres = await carregarDias();
+        const doDia = livres.find((d) => d.data === data);
+        const outroDia = livres.find((d) => d.horarios?.length > 0);
+        let sugestao = null;
+        if (doDia?.horarios?.length > 0) {
+          sugestao = {
+            data,
+            hora: doDia.horarios.find((h) => h > ocupado) ?? doDia.horarios[0],
+          };
+        } else if (outroDia) {
+          sugestao = { data: outroDia.data, hora: outroDia.horarios[0] };
+        }
+        setConflito({ hora: ocupado, mensagem: e.mensagem, sugestao });
+        setFolhaConflito(true);
         return;
       }
 
-      Alert.alert(
-        'Não foi possível salvar',
-        e instanceof ErroDaApi && e.mensagem
-          ? e.mensagem
-          : 'Não foi possível salvar a consulta agora.',
-      );
+      setConflito({
+        hora: null,
+        mensagem:
+          e instanceof ErroDaApi && e.mensagem
+            ? e.mensagem
+            : 'Não foi possível salvar a consulta agora.',
+        sugestao: null,
+      });
       return;
     }
 
@@ -328,9 +458,11 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     // app.
     if (ehRecepcao) {
       setSalvando(false);
-      Alert.alert(titulo, `${formatarEscolha(data, hora)}.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      setSucesso({
+        titulo,
+        texto: `${formatarEscolha(data, hora)}.`,
+        consultaId: String(consultaSalva.id),
+      });
       return;
     }
 
@@ -345,10 +477,29 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     }
 
     setSalvando(false);
+    setSucesso({
+      titulo,
+      texto: `${formatarEscolha(data, hora)}. ${mensagem}`,
+      consultaId: String(consultaSalva.id),
+    });
+  };
 
-    Alert.alert(titulo, mensagem, [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+  const agendarOutra = () => {
+    setSucesso(null);
+    setMedicoId(null);
+    setData(null);
+    setHora(null);
+    setConflito(null);
+    if (ehRecepcao) setPacienteId(null);
+    setPasso(1);
+  };
+
+  const ficarComSugestao = () => {
+    const sugestao = conflito?.sugestao;
+    setFolhaConflito(false);
+    if (!sugestao) return;
+    setData(sugestao.data);
+    setHora(sugestao.hora);
   };
 
   const renderPaciente = () => {
@@ -357,388 +508,391 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     // Remarcacao muda data e hora, nunca de quem e a consulta.
     if (consulta) {
       return (
-        <>
-          <Text style={styles.secao}>Paciente</Text>
-          <Opcao texto={pacienteEscolhido?.nome ?? 'Paciente'} selecionada />
-        </>
+        <View style={{ gap: espaco.xs }}>
+          <Rotulo>Paciente</Rotulo>
+          <ItemDeLista titulo={pacienteEscolhido?.nome ?? 'Paciente'} divisor={false} />
+        </View>
       );
     }
 
     return (
-      <>
-        <Text style={styles.secao}>Paciente</Text>
-        <TextInput
-          style={styles.input}
+      <View style={{ gap: espaco.xs }}>
+        <Rotulo>Para quem é a consulta?</Rotulo>
+        <Campo
           value={busca}
           onChangeText={setBusca}
           placeholder="Buscar paciente por nome ou CPF"
-          placeholderTextColor={colors.muted}
+          accessibilityLabel="Buscar paciente"
           autoCorrect={false}
         />
 
         {pacienteEscolhido &&
           !encontrados.some((p) => String(p.id) === String(pacienteId)) && (
-            <Opcao texto={pacienteEscolhido.nome} selecionada />
+            <ItemDeLista
+              titulo={pacienteEscolhido.nome}
+              corDoTitulo="link"
+              direita={<Feather name="check" size={20} color={cores.link} />}
+            />
           )}
 
-        {encontrados.map((p) => (
-          <Opcao
-            key={String(p.id)}
-            texto={p.nome}
-            detalhe={p.cpf ? `CPF ${p.cpf}` : null}
-            selecionada={String(pacienteId) === String(p.id)}
-            onPress={() => setPacienteId(String(p.id))}
-          />
-        ))}
+        {encontrados.map((p) => {
+          const escolhido = String(pacienteId) === String(p.id);
+          return (
+            <ItemDeLista
+              key={String(p.id)}
+              titulo={p.nome}
+              subtitulo={p.cpf ? `CPF ${p.cpf}` : null}
+              corDoTitulo={escolhido ? 'link' : 'tinta'}
+              direita={
+                escolhido ? <Feather name="check" size={20} color={cores.link} /> : null
+              }
+              accessibilityLabel={`Escolher ${p.nome}`}
+              onPress={() => setPacienteId(String(p.id))}
+            />
+          );
+        })}
 
         {encontrados.length === 0 && (
-          <Text style={styles.nota}>
+          <Texto variante="legenda" cor="apoio">
             Nenhum paciente encontrado. Confira o nome ou cadastre o paciente
             em Pacientes.
-          </Text>
+          </Texto>
         )}
-      </>
+      </View>
     );
   };
 
-  const renderDias = () => {
-    if (!medicoId) return null;
-
-    if (carregandoDias) {
-      return (
-        <>
-          <Text style={styles.secao}>Dia</Text>
-          <ActivityIndicator color={colors.sage} style={styles.indicadorDias} />
-        </>
-      );
-    }
-
-    if (erroDias) {
-      return (
-        <>
-          <Text style={styles.secao}>Dia</Text>
-          <Text style={styles.erroTexto}>{erroDias}</Text>
-          <TouchableOpacity style={styles.botao} onPress={carregarDias}>
-            <Text style={styles.botaoTexto}>Tentar novamente</Text>
-          </TouchableOpacity>
-        </>
-      );
-    }
-
-    if (dias.length === 0) {
-      return (
-        <>
-          <Text style={styles.secao}>Dia</Text>
-          <Text style={styles.nota}>
-            {ehRecepcao
-              ? 'Sem horários livres nas próximas 3 semanas. Escolha outro médico ou cadastre horários de atendimento.'
-              : 'Sem horários livres nas próximas 3 semanas. Escolha outro médico.'}
-          </Text>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <Text style={styles.secao}>Dia</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
-        >
-          {dias.map((d) => {
-            const quando = dataDaConsulta({ data: d.data, hora: '00:00' });
-            const selecionado = d.data === data;
-
-            return (
-              <Chip
-                key={d.data}
-                selecionado={selecionado}
-                onPress={() => escolherDia(d.data)}
-              >
-                <Text
-                  style={[styles.chipTopo, selecionado && styles.chipTextoSel]}
-                >
-                  {nomeCurtoDoDia(quando)}
-                </Text>
-                <Text
-                  style={[styles.chipTexto, selecionado && styles.chipTextoSel]}
-                >
-                  {formatarDiaMes(quando)}
-                </Text>
-              </Chip>
-            );
-          })}
-        </ScrollView>
-
-        {diaEscolhido && (
-          <>
-            <Text style={styles.secao}>Horário</Text>
-            <View style={styles.grade}>
-              {diaEscolhido.horarios.map((h) => (
-                <Chip
-                  key={h}
-                  selecionado={h === hora}
-                  onPress={() => setHora(h)}
-                >
-                  <Text
-                    style={[styles.chipTexto, h === hora && styles.chipTextoSel]}
-                  >
-                    {h}
-                  </Text>
-                </Chip>
-              ))}
-            </View>
-          </>
-        )}
-      </>
-    );
-  };
-
-  const renderFormulario = () => {
-    if (carregando) {
-      return <ActivityIndicator color={colors.sage} style={styles.indicador} />;
-    }
-
-    if (erroCarga) {
-      return (
-        <View>
-          <Text style={styles.erroTexto}>{erroCarga}</Text>
-          <TouchableOpacity style={styles.botao} onPress={carregarListas}>
-            <Text style={styles.botaoTexto}>Tentar novamente</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // Cada bloco aparece quando o anterior foi escolhido.
+  const renderPasso1 = () => {
+    const titulo = ehRecepcao ? 'Nova consulta' : 'Com quem você quer marcar?';
     const mostrarMedicos = !ehRecepcao || Boolean(pacienteId);
 
     return (
       <>
+        <Titulo texto={titulo} etapa={1} />
+
         {renderPaciente()}
 
         {mostrarMedicos && (
-          <>
-            <Text style={styles.secao}>Especialidade</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chips}
-            >
-              <Chip
-                selecionado={especialidade === null}
-                onPress={() => setEspecialidade(null)}
-              >
-                <Text
-                  style={[
-                    styles.chipTexto,
-                    especialidade === null && styles.chipTextoSel,
-                  ]}
-                >
-                  Todas
-                </Text>
-              </Chip>
-              {especialidades.map((e) => (
-                <Chip
-                  key={e.id}
-                  selecionado={especialidade === e.id}
-                  onPress={() => setEspecialidade(e.id)}
-                >
-                  <Text
-                    style={[
-                      styles.chipTexto,
-                      especialidade === e.id && styles.chipTextoSel,
-                    ]}
-                  >
-                    {e.nome}
-                  </Text>
-                </Chip>
-              ))}
-            </ScrollView>
+          <View style={{ gap: espaco.sm }}>
+            {ehRecepcao ? <Rotulo>Profissional</Rotulo> : null}
 
-            <Text style={styles.secao}>Médico</Text>
-            {medicosDaEspecialidade.length === 0 && (
-              <Text style={styles.nota}>
-                Nenhum médico nesta especialidade.
-              </Text>
-            )}
-            {medicosDaEspecialidade.map((m) => (
-              <Opcao
-                key={String(m.id)}
-                texto={m.nome}
-                detalhe={m.especialidade}
-                selecionada={String(medicoId) === String(m.id)}
-                onPress={() => escolherMedico(String(m.id))}
+            {areas.length > 1 ? (
+              <Segmentado
+                rotuloDoGrupo="Área"
+                opcoes={[
+                  { valor: TODAS, rotulo: 'Todas' },
+                  ...areas.map((a) => ({ valor: a, rotulo: a })),
+                ]}
+                valor={area}
+                aoMudar={setArea}
               />
-            ))}
-          </>
-        )}
+            ) : null}
 
-        {mostrarMedicos && renderDias()}
-
-        {pronto && (
-          <View style={styles.resumo}>
-            <Text style={styles.resumoMedico}>
-              {medico?.especialidade
-                ? `${medico.nome}, ${medico.especialidade}`
-                : medico?.nome}
-            </Text>
-            <Text style={styles.resumoQuando}>{formatarEscolha(data, hora)}</Text>
+            {medicosDaArea.length === 0 ? (
+              <EstadoVazio
+                titulo="Nenhum profissional aqui"
+                texto="Não há profissional nesta área. Escolha outra."
+              />
+            ) : (
+              medicosDaArea.map((m) => (
+                <CartaoProfissional
+                  key={String(m.id)}
+                  medico={m}
+                  proximo={proximos[String(m.id)]}
+                  onPress={() => escolherMedico(String(m.id))}
+                />
+              ))
+            )}
           </View>
         )}
-
-        {!ehRecepcao && (
-          <Text style={styles.nota}>
-            Um lembrete é agendado neste aparelho uma hora antes da consulta.
-          </Text>
-        )}
-
-        <TouchableOpacity
-          style={[
-            styles.botao,
-            (!pronto || salvando) && styles.botaoDesabilitado,
-          ]}
-          onPress={salvar}
-          disabled={!pronto || salvando}
-        >
-          <Text style={styles.botaoTexto}>
-            {salvando
-              ? 'Salvando...'
-              : consulta
-                ? 'Confirmar remarcação'
-                : 'Confirmar agendamento'}
-          </Text>
-        </TouchableOpacity>
       </>
     );
   };
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {consulta ? 'Remarcar consulta' : 'Agendar consulta'}
-        </Text>
-        <View style={styles.headerSpacer} />
+  const renderHorarios = () => {
+    if (carregandoDias) {
+      return (
+        <View style={{ gap: espaco.sm }} accessibilityState={{ busy: true }}>
+          <View style={{ flexDirection: 'row', gap: espaco.xs }}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Esqueleto key={i} largura={56} altura={60} raio={raio.campo} />
+            ))}
+          </View>
+          <Esqueleto altura={100} raio={raio.campo} />
+        </View>
+      );
+    }
+
+    if (erroDias) {
+      return <EstadoErro texto={erroDias} aoTentar={carregarDias} />;
+    }
+
+    if (dias.length === 0) {
+      return (
+        <EstadoVazio
+          titulo="Sem horários livres"
+          texto={
+            ehRecepcao
+              ? 'Nada livre nas próximas 3 semanas. Escolha outro profissional ou cadastre horários de atendimento.'
+              : 'Nada livre nas próximas 3 semanas. Escolha outro profissional.'
+          }
+          acao={consulta ? null : { titulo: 'Trocar profissional', onPress: () => setPasso(1) }}
+        />
+      );
+    }
+
+    const datas = dias.map((d) => dataDaConsulta({ data: d.data, hora: '00:00' }));
+    const manha = diaEscolhido?.horarios.filter((h) => h < '12:00') ?? [];
+    const tarde = diaEscolhido?.horarios.filter((h) => h >= '12:00') ?? [];
+
+    const grade = (rotulo, lista) =>
+      lista.length > 0 ? (
+        <View style={{ gap: espaco.xs }}>
+          <Texto variante="rotulo" cor="apoio">
+            {rotulo}
+          </Texto>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.xs }}>
+            {lista.map((h) => (
+              <Chip
+                key={h}
+                rotulo={h}
+                selecionado={h === hora}
+                onPress={() => setHora(h)}
+                style={{ minWidth: 76 }}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null;
+
+    return (
+      <>
+        <View style={{ gap: espaco.sm }}>
+          <Rotulo direita={faixaDeMeses(datas)}>Dia</Rotulo>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: espaco.xs, paddingHorizontal: margemTela + 2 }}
+            style={{ marginHorizontal: -(margemTela + 2) }}
+          >
+            {dias.map((d, i) => (
+              <Chip
+                key={d.data}
+                detalhe={nomeCurtoDoDia(datas[i])}
+                rotulo={String(datas[i].getDate())}
+                selecionado={d.data === data}
+                onPress={() => escolherDia(d.data)}
+                accessibilityLabel={formatarDiaEMes(datas[i])}
+                style={{ minWidth: 56 }}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        {conflito ? (
+          <View
+            accessibilityRole="alert"
+            style={{
+              flexDirection: 'row',
+              gap: espaco.xs,
+              backgroundColor: cores.alertaSuave,
+              borderColor: cores.alertaBorda,
+              borderWidth: 1,
+              borderRadius: raio.campo,
+              padding: espaco.sm,
+            }}
+          >
+            <Feather name="alert-circle" size={16} color={cores.alerta} style={{ marginTop: 2 }} />
+            <Texto variante="legenda" cor="alerta" style={{ flex: 1 }} selectable>
+              {conflito.hora
+                ? `Alguém marcou ${conflito.hora} agora há pouco. Escolha outro, os livres já estão atualizados.`
+                : conflito.mensagem}
+            </Texto>
+          </View>
+        ) : null}
+
+        {diaEscolhido ? (
+          <View style={{ gap: espaco.md }}>
+            <Rotulo>Horários</Rotulo>
+            {grade('Manhã', manha)}
+            {grade('Tarde', tarde)}
+          </View>
+        ) : (
+          <Texto variante="rotulo" cor="apoio">
+            Escolha um dia para ver os horários livres.
+          </Texto>
+        )}
+      </>
+    );
+  };
+
+  const renderPasso2 = () => (
+    <>
+      <Titulo texto={consulta ? 'Novo horário' : 'Escolha o horário'} etapa={2} />
+
+      {ehRecepcao && pacienteEscolhido ? (
+        <Texto variante="rotulo" cor="tinta2">
+          Paciente: {pacienteEscolhido.nome}
+        </Texto>
+      ) : null}
+
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: espaco.sm,
+          padding: espaco.md,
+          borderRadius: raio.cartao,
+          borderCurve: 'continuous',
+          backgroundColor: cores.superficie,
+          borderWidth: 1,
+          borderColor: cores.linha,
+        }}
+      >
+        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Texto variante="corpoForte">{medico?.nome ?? 'Profissional'}</Texto>
+          <Texto variante="legenda" cor="apoio">
+            {[medico?.especialidade, `${DURACAO_CONSULTA_MIN} min`].filter(Boolean).join(' · ')}
+          </Texto>
+        </View>
+        <Botao variante="texto" compacto titulo="Trocar" onPress={() => setPasso(1)} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+      {renderHorarios()}
+
+      {!ehRecepcao ? (
+        <Texto variante="legenda" cor="apoio">
+          Você pode remarcar ou cancelar pelo app até 24 h antes do horário. Um
+          lembrete é agendado neste aparelho uma hora antes da consulta.
+        </Texto>
+      ) : null}
+    </>
+  );
+
+  let corpo;
+  if (carregando) {
+    corpo = (
+      <View style={{ gap: 10 }} accessibilityState={{ busy: true }}>
+        <Esqueleto largura={240} altura={32} raio={8} />
+        <Esqueleto altura={44} raio={raio.campo} />
+        {[0, 1, 2].map((i) => (
+          <Esqueleto key={i} altura={84} raio={raio.cartao} />
+        ))}
+      </View>
+    );
+  } else if (erroCarga) {
+    corpo = <EstadoErro texto={erroCarga} aoTentar={carregarListas} />;
+  } else {
+    corpo = passo === 1 ? renderPasso1() : renderPasso2();
+  }
+
+  const tituloDaCapsula =
+    passo === 1 ? 'Escolha o profissional' : 'Escolha o horário';
+  const comBarra = passo === 2 && !carregando && !erroCarga;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <ComVidro
+        conteudo={
+          <Animated.ScrollView
+            key={passo}
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingTop: insets.top + espaco.xs + toque.minimo + espaco.lg,
+              paddingHorizontal: margemTela + 2,
+              paddingBottom: comBarra ? 140 + insets.bottom : insets.bottom + espaco.xl,
+              gap: 22,
+            }}
+          >
+            {corpo}
+          </Animated.ScrollView>
+        }
       >
-        {renderFormulario()}
-      </ScrollView>
-    </SafeAreaView>
+        <Cabecalho
+          flutuante
+          titulo={tituloDaCapsula}
+          rolou={rolou}
+          aoVoltar={voltar}
+        />
+
+        {comBarra ? (
+          // Barra opaca: o resumo tem data e hora, e dado nao vai em vidro.
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: cores.superficie,
+              borderTopWidth: 1,
+              borderTopColor: cores.linha,
+              paddingHorizontal: margemTela + 2,
+              paddingTop: espaco.sm,
+              paddingBottom: insets.bottom + espaco.sm,
+              gap: 6,
+            }}
+          >
+            <Texto variante="legenda" cor="apoio" tabular numberOfLines={2}>
+              {pronto
+                ? `${medico?.nome ?? ''} · ${formatarEscolha(data, hora)}`
+                : `${medico?.nome ?? ''} · ${DURACAO_CONSULTA_MIN} min`}
+            </Texto>
+            <Botao
+              titulo={
+                !hora
+                  ? 'Escolha o horário'
+                  : consulta
+                    ? 'Confirmar remarcação'
+                    : 'Confirmar agendamento'
+              }
+              desativado={!pronto}
+              carregando={salvando}
+              onPress={salvar}
+            />
+          </View>
+        ) : null}
+      </ComVidro>
+
+      <FolhaDecisao
+        visivel={folhaConflito}
+        aoFechar={() => setFolhaConflito(false)}
+        titulo="Esse horário acabou de ser ocupado"
+        texto={
+          conflito?.sugestao
+            ? `Alguém marcou ${conflito.hora} agora há pouco. O mais perto livre é ${formatarEscolha(conflito.sugestao.data, conflito.sugestao.hora)}.`
+            : 'Alguém marcou esse horário agora há pouco. Os livres já estão atualizados.'
+        }
+        acaoPrincipal={
+          conflito?.sugestao
+            ? { titulo: `Ficar com ${conflito.sugestao.hora}`, onPress: ficarComSugestao }
+            : { titulo: 'Escolher outro', onPress: () => setFolhaConflito(false) }
+        }
+        acaoSecundaria={
+          conflito?.sugestao
+            ? { titulo: 'Escolher outro', onPress: () => setFolhaConflito(false) }
+            : false
+        }
+      />
+
+      <FolhaDecisao
+        visivel={Boolean(sucesso)}
+        aoFechar={() => navigation.goBack()}
+        acaoPrincipal={{
+          titulo: 'Ver detalhes',
+          onPress: () =>
+            navigation.replace('DetalheConsulta', { consultaId: sucesso?.consultaId }),
+        }}
+        acaoSecundaria={
+          consulta
+            ? { titulo: 'Voltar', onPress: () => navigation.goBack() }
+            : { titulo: 'Agendar outra', onPress: agendarOutra }
+        }
+      >
+        {sucesso ? <SeloSucesso titulo={sucesso.titulo} texto={sucesso.texto} /> : null}
+      </FolhaDecisao>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
-
-  content: { padding: 20, paddingBottom: 40 },
-  indicador: { marginTop: 40 },
-  indicadorDias: { marginVertical: 12 },
-
-  secao: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: colors.muted,
-    marginTop: 18,
-    marginBottom: 8,
-  },
-
-  opcao: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-  },
-  opcaoSelecionada: {
-    backgroundColor: colors.sageSoft,
-    borderColor: colors.sage,
-  },
-  opcaoTexto: { fontSize: 14, color: colors.ink },
-  opcaoTextoSelecionado: { fontWeight: '700', color: colors.sage },
-  opcaoDetalhe: { fontSize: 12, color: colors.muted, marginTop: 2 },
-
-  chips: { gap: 8, paddingBottom: 4 },
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    minWidth: 64,
-    minHeight: 44,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipSelecionado: {
-    backgroundColor: colors.sageSoft,
-    borderColor: colors.sage,
-  },
-  chipTopo: { fontSize: 11, color: colors.muted },
-  chipTexto: { fontSize: 14, color: colors.ink, fontWeight: '600' },
-  chipTextoSel: { color: colors.sage },
-
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-    marginBottom: 10,
-  },
-
-  resumo: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginTop: 18,
-  },
-  resumoMedico: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  resumoQuando: { fontSize: 14, color: colors.sage, marginTop: 4 },
-
-  nota: { fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
-  erroTexto: { fontSize: 14, color: colors.danger, marginBottom: 6 },
-
-  botao: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
-});

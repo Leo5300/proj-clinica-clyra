@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -10,6 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   buscarMedicos,
@@ -17,17 +18,9 @@ import {
   atualizarHorario,
   SessaoExpirada,
   SemPermissao,
+  ErroDaApi,
 } from '../services/api';
 import { useUsuario } from '../services/sessao';
-
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-};
 
 const diasSemana = [
   'Segunda-feira',
@@ -39,6 +32,8 @@ const diasSemana = [
 ];
 
 export default function CadastroHorarioScreen({ navigation, route }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   const horario = route?.params?.horario;
 
   // O medico cadastra so na propria agenda: nao escolhe medico, e o
@@ -78,7 +73,7 @@ export default function CadastroHorarioScreen({ navigation, route }) {
 
       Alert.alert(
         'Erro',
-        'Não foi possível carregar os médicos agora.',
+        'Não foi possível carregar os profissionais agora.',
       );
     } finally {
       setCarregandoMedicos(false);
@@ -101,7 +96,7 @@ export default function CadastroHorarioScreen({ navigation, route }) {
     }
 
     if (!medicoId && !ehMedico) {
-      Alert.alert('Atenção', 'Selecione um médico.');
+      Alert.alert('Atenção', 'Selecione um profissional.');
       return false;
     }
 
@@ -128,52 +123,23 @@ const salvar = async () => {
     horaFim,
   };
 
-  console.log('Tentando salvar horario:', dados);
-
+  // O servidor confere sobreposicao e faixa valida; a tela so mostra o
+  // que ele respondeu. Alert nativo, nunca window.alert (nao existe no
+  // aparelho).
   try {
     setSalvando(true);
 
     if (horario) {
       await atualizarHorario(horario.id, dados);
-
-      console.log('Horario atualizado com sucesso.');
-
-      if (typeof window !== 'undefined') {
-        window.alert('Horário atualizado com sucesso.');
-        navigation.goBack();
-      } else {
-        Alert.alert(
-          'Sucesso',
-          'Horário atualizado com sucesso.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ],
-        );
-      }
     } else {
-      const novoHorario = await criarHorario(dados);
-
-      console.log('Horario cadastrado com sucesso:', novoHorario);
-
-      if (typeof window !== 'undefined') {
-        window.alert('Horário cadastrado com sucesso.');
-        navigation.goBack();
-      } else {
-        Alert.alert(
-          'Sucesso',
-          'Horário cadastrado com sucesso.',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ],
-        );
-      }
+      await criarHorario(dados);
     }
+
+    Alert.alert(
+      horario ? 'Horário atualizado' : 'Horário cadastrado',
+      `${diaSemana}, das ${horaInicio} às ${horaFim}.`,
+      [{ text: 'OK', onPress: () => navigation.goBack() }],
+    );
   } catch (e) {
     if (e instanceof SessaoExpirada) {
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -188,18 +154,12 @@ const salvar = async () => {
       return;
     }
 
-    console.error('Erro ao salvar horario:', e);
-
-    if (typeof window !== 'undefined') {
-      window.alert(
-        `Não foi possível salvar o horário.\n\n${e.message}`,
-      );
-    } else {
-      Alert.alert(
-        'Erro',
-        `Não foi possível salvar o horário.\n\n${e.message}`,
-      );
-    }
+    Alert.alert(
+      'Não foi possível salvar o horário',
+      e instanceof ErroDaApi && e.mensagem
+        ? e.mensagem
+        : 'Confira a internet do celular e tente de novo.',
+    );
   } finally {
     setSalvando(false);
   }
@@ -214,7 +174,7 @@ const salvar = async () => {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={22} color={colors.ink} />
+          <Feather name="chevron-left" size={26} color={cores.tinta} />
         </TouchableOpacity>
 
         <Text style={styles.title}>
@@ -250,21 +210,21 @@ const salvar = async () => {
           ))}
         </View>
 
-        <Text style={styles.label}>Médico</Text>
+        <Text style={styles.label}>Profissional</Text>
 
         {ehMedico ? (
           <Text style={styles.medicoSelecionadoText}>
-            Médico: {usuario.nome}
+            Profissional: {usuario.nome}
           </Text>
         ) : carregandoMedicos ? (
           <View style={styles.loadingMedicos}>
             <ActivityIndicator
               size="small"
-              color={colors.sage}
+              color={cores.link}
             />
 
             <Text style={styles.loadingText}>
-              Carregando médicos...
+              Carregando profissionais...
             </Text>
           </View>
         ) : (
@@ -309,7 +269,7 @@ const salvar = async () => {
                     <Feather
                       name="check"
                       size={18}
-                      color="#FFFFFF"
+                      color={cores.selTexto}
                     />
                   )}
                 </TouchableOpacity>
@@ -320,7 +280,7 @@ const salvar = async () => {
 
         {!ehMedico && medicoSelecionado && (
           <Text style={styles.medicoSelecionadoText}>
-            Médico selecionado: {medicoSelecionado.nome} (ID:{' '}
+            Profissional selecionado: {medicoSelecionado.nome} (ID:{' '}
             {medicoSelecionado.id})
           </Text>
         )}
@@ -332,7 +292,7 @@ const salvar = async () => {
           value={horaInicio}
           onChangeText={setHoraInicio}
           placeholder="Ex.: 08:00"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={cores.desativado}
           keyboardType="numbers-and-punctuation"
           maxLength={5}
         />
@@ -344,7 +304,7 @@ const salvar = async () => {
           value={horaFim}
           onChangeText={setHoraFim}
           placeholder="Ex.: 12:00"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={cores.desativado}
           keyboardType="numbers-and-punctuation"
           maxLength={5}
         />
@@ -366,164 +326,170 @@ const salvar = async () => {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: cores.papel,
+    },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
 
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.ink,
-  },
+    title: {
+      fontSize: 17,
+      fontFamily: fontes.textoForte,
+      color: cores.tinta,
+    },
 
-  headerSpace: {
-    width: 22,
-  },
+    headerSpace: {
+      width: 22,
+    },
 
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
+    content: {
+      padding: 20,
+      paddingBottom: 40,
+    },
 
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.ink,
-    marginBottom: 8,
-    marginTop: 14,
-  },
+    label: {
+      fontSize: 13,
+      fontFamily: fontes.textoSemi,
+      color: cores.tinta,
+      marginBottom: 8,
+      marginTop: 14,
+    },
 
-  diasContainer: {
-    gap: 8,
-  },
+    diasContainer: {
+      gap: 8,
+    },
 
-  diaButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
+    diaButton: {
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+    },
 
-  diaButtonSelecionado: {
-    backgroundColor: colors.sage,
-    borderColor: colors.sage,
-  },
+    diaButtonSelecionado: {
+      backgroundColor: cores.acao,
+      borderColor: cores.acao,
+    },
 
-  diaButtonText: {
-    color: colors.ink,
-    fontSize: 13,
-  },
+    diaButtonText: {
+      fontFamily: fontes.texto,
+      color: cores.tinta,
+      fontSize: 13,
+    },
 
-  diaButtonTextSelecionado: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
+    diaButtonTextSelecionado: {
+      color: cores.sobreAcao,
+      fontFamily: fontes.textoSemi,
+    },
 
-  loadingMedicos: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 14,
-  },
+    loadingMedicos: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 10,
+      padding: 14,
+    },
 
-  loadingText: {
-    marginLeft: 10,
-    color: colors.muted,
-    fontSize: 13,
-  },
+    loadingText: {
+      fontFamily: fontes.texto,
+      marginLeft: 10,
+      color: cores.apoio,
+      fontSize: 13,
+    },
 
-  medicosContainer: {
-    gap: 8,
-  },
+    medicosContainer: {
+      gap: 8,
+    },
 
-  medicoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 14,
-  },
+    medicoButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 10,
+      padding: 14,
+    },
 
-  medicoButtonSelecionado: {
-    backgroundColor: colors.sage,
-    borderColor: colors.sage,
-  },
+    medicoButtonSelecionado: {
+      backgroundColor: cores.acao,
+      borderColor: cores.acao,
+    },
 
-  medicoInfo: {
-    flex: 1,
-  },
+    medicoInfo: {
+      flex: 1,
+    },
 
-  medicoNome: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: '600',
-  },
+    medicoNome: {
+      color: cores.tinta,
+      fontSize: 14,
+      fontFamily: fontes.textoSemi,
+    },
 
-  medicoNomeSelecionado: {
-    color: '#FFFFFF',
-  },
+    medicoNomeSelecionado: {
+      color: cores.sobreAcao,
+    },
 
-  medicoId: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 4,
-  },
+    medicoId: {
+      fontFamily: fontes.texto,
+      color: cores.apoio,
+      fontSize: 12,
+      marginTop: 4,
+    },
 
-  medicoIdSelecionado: {
-    color: '#FFFFFF',
-  },
+    medicoIdSelecionado: {
+      color: cores.sobreAcao,
+    },
 
-  medicoSelecionadoText: {
-    color: colors.sage,
-    fontSize: 12,
-    marginTop: 8,
-  },
+    medicoSelecionadoText: {
+      fontFamily: fontes.texto,
+      color: cores.link,
+      fontSize: 12,
+      marginTop: 8,
+    },
 
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
+    input: {
+      fontFamily: fontes.texto,
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: cores.tinta,
+    },
 
-  saveButton: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 28,
-  },
+    saveButton: {
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 28,
+    },
 
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
+    saveButtonDisabled: {
+      opacity: 0.6,
+    },
 
-  saveText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+    saveText: {
+      color: cores.sobreAcao,
+      fontSize: 14,
+      fontFamily: fontes.textoForte,
+    },
+  });
 

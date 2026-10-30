@@ -1,16 +1,6 @@
 import React, { useState, useCallback } from "react";
-import {
-  SafeAreaView,
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-} from "react-native";
+import { Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
 import {
   buscarPacientes,
   excluirPaciente,
@@ -19,19 +9,13 @@ import {
   ErroDaApi,
 } from "../services/api";
 import { useUsuario } from "../services/sessao";
-
-const colors = {
-  bg: "#F5F5F2",
-  surface: "#FFFFFF",
-  border: "#E2E1DB",
-  ink: "#4A5560",
-  muted: "#8B909A",
-  sage: "#4B7776",
-  danger: "#B0555F",
-};
-
-// Icones de 18-22 px: o hitSlop leva a area de toque aos 44 px minimos.
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
+import {
+  Avatar,
+  BotaoExcluir,
+  ItemDeLista,
+  TelaDeLista,
+  ehAba,
+} from "../components";
 
 // "1990-04-12" -> "12/04/1990"
 function dataParaExibir(iso) {
@@ -45,6 +29,7 @@ export default function PacientesScreen({ navigation }) {
   // nem endereco.
   const { usuario } = useUsuario();
   const ehMedico = usuario?.perfil === "medico";
+  const comoAba = ehAba(usuario?.perfil, "Pacientes");
 
   const [pacientes, setPacientes] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -122,184 +107,76 @@ export default function PacientesScreen({ navigation }) {
     );
   };
 
+  const renderItem = ({ item }) => {
+    const subtitulo = ehMedico
+      ? [
+          item.dataNascimento
+            ? `Nascimento ${dataParaExibir(item.dataNascimento)}`
+            : null,
+          item.telefone,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : `CPF ${item.cpf}`;
+
+    return (
+      <ItemDeLista
+        titulo={item.nome}
+        subtitulo={subtitulo || null}
+        detalhe={ehMedico ? null : item.email}
+        esquerda={<Avatar nome={item.nome} fotoUri={item.fotoUri} tom="neutro" />}
+        seta={ehMedico}
+        accessibilityLabel={`Abrir ${item.nome}`}
+        onPress={() => abrir(item)}
+        direita={
+          ehMedico ? null : (
+            <BotaoExcluir
+              rotulo={`Excluir ${item.nome}`}
+              onPress={() => confirmarExclusao(item)}
+            />
+          )
+        }
+      />
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>
-          {ehMedico ? "Meus pacientes" : "Pacientes"}
-        </Text>
-
-        {ehMedico ? (
-          <View style={styles.headerSpacer} />
-        ) : (
-          <TouchableOpacity
-            onPress={() => navigation.navigate("CadastroPaciente")}
-            accessibilityRole="button"
-            accessibilityLabel="Cadastrar paciente"
-            hitSlop={AREA_DE_TOQUE}
-          >
-            <Feather name="plus" size={22} color={colors.ink} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {carregando ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.sage} size="large" />
-        </View>
-      ) : erro ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{erro}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={carregarPacientes}>
-            <Text style={styles.retryText}>Tentar novamente</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={pacientes}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardInfo}
-                onPress={() => abrir(item)}
-              >
-                <Text style={styles.nome}>{item.nome}</Text>
-                {ehMedico ? (
-                  <>
-                    {item.dataNascimento ? (
-                      <Text style={styles.cpf}>
-                        Nascimento {dataParaExibir(item.dataNascimento)}
-                      </Text>
-                    ) : null}
-                    {item.telefone ? (
-                      <Text style={styles.detalhe}>{item.telefone}</Text>
-                    ) : null}
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.cpf}>CPF {item.cpf}</Text>
-                    <Text style={styles.detalhe}>{item.email}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {!ehMedico && (
-                <TouchableOpacity
-                  onPress={() => confirmarExclusao(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Excluir ${item.nome}`}
-                  hitSlop={AREA_DE_TOQUE}
-                >
-                  <Feather name="trash-2" size={18} color={colors.danger} />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {ehMedico
-                ? "Você ainda não tem pacientes com consulta marcada."
-                : "Nenhum paciente cadastrado."}
-            </Text>
-          }
-        />
-      )}
-    </SafeAreaView>
+    <TelaDeLista
+      titulo={ehMedico ? "Meus pacientes" : "Pacientes"}
+      subtitulo={
+        ehMedico ? "Quem tem consulta com você." : "Cadastro dos pacientes da clínica."
+      }
+      navigation={navigation}
+      abaAtual={comoAba ? "Pacientes" : null}
+      acaoNova={
+        ehMedico
+          ? null
+          : {
+              rotulo: "Cadastrar paciente",
+              onPress: () => navigation.navigate("CadastroPaciente"),
+            }
+      }
+      carregando={carregando}
+      erro={erro}
+      aoTentar={carregarPacientes}
+      dados={pacientes}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={renderItem}
+      vazio={
+        ehMedico
+          ? {
+              titulo: "Nenhum paciente ainda",
+              texto: "Quem marcar consulta com você aparece aqui.",
+            }
+          : {
+              titulo: "Nenhum paciente cadastrado",
+              texto: "Cadastre o primeiro para poder agendar.",
+              acao: {
+                titulo: "Cadastrar paciente",
+                onPress: () => navigation.navigate("CadastroPaciente"),
+              },
+            }
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  headerSpacer: {
-    width: 22,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  errorText: {
-    color: colors.muted,
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 14,
-  },
-  retryBtn: {
-    backgroundColor: colors.sage,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  retryText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  list: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  nome: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.ink,
-  },
-  cpf: {
-    fontSize: 13,
-    color: colors.sage,
-    marginTop: 2,
-  },
-  detalhe: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 6,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: colors.muted,
-    marginTop: 40,
-    paddingHorizontal: 20,
-  },
-});

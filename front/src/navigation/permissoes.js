@@ -2,6 +2,8 @@
 //
 // Fonte unica de quem ve o que no app: rotas por perfil, menu da Home,
 // rotulos e cores de cada perfil.
+
+import { paletas } from '../theme/cores';
 //
 // Esconder botao e experiencia de uso, nao seguranca. A protecao de
 // verdade e feita no servidor, que confere o perfil do token em toda
@@ -24,6 +26,8 @@ export const ROTAS_POR_PERFIL = {
   Medicos: ['recepcao'],
   CadastroMedico: ['recepcao'],
   Especialidades: ['recepcao'],
+  // Aba que agrupa Medicos, Horarios e Especialidades.
+  Cadastros: ['recepcao'],
   CadastroEspecialidade: ['recepcao'],
   Horarios: ['recepcao', 'medico'],
   CadastroHorario: ['recepcao', 'medico'],
@@ -37,7 +41,7 @@ export const MENU_POR_PERFIL = {
     { rotulo: 'Agendar', icone: 'calendar', rota: 'Agendar' },
     { rotulo: 'Consultas', icone: 'list', rota: 'Consultas' },
     { rotulo: 'Pacientes', icone: 'users', rota: 'Pacientes' },
-    { rotulo: 'Médicos', icone: 'briefcase', rota: 'Medicos' },
+    { rotulo: 'Profissionais', icone: 'briefcase', rota: 'Medicos' },
     { rotulo: 'Horários', icone: 'clock', rota: 'Horarios' },
     { rotulo: 'Especialidades', icone: 'award', rota: 'Especialidades' },
   ],
@@ -55,15 +59,17 @@ export const MENU_POR_PERFIL = {
 
 export const ROTULO_DO_PERFIL = {
   recepcao: 'Recepção',
-  medico: 'Médico',
+  medico: 'Profissional',
   paciente: 'Paciente',
 };
 
-// cor = texto e icone; fundo = selo. Mesma paleta das telas.
+// cor = texto e icone; fundo = selo. Valores do tema claro: tela que
+// acompanha o tema escuro usa useTema().coresDoPerfil.
+const claro = paletas.claro;
 export const CORES_DO_PERFIL = {
-  recepcao: { cor: '#4B7776', fundo: '#E3EEEA' },
-  medico: { cor: '#9A8BB6', fundo: '#EFE9F3' },
-  paciente: { cor: '#4A5560', fundo: '#ECEBE6' },
+  recepcao: { cor: claro.sobreSalviaSuave, fundo: claro.salviaSuave },
+  medico: { cor: claro.sobreLavandaSuave, fundo: claro.lavandaSuave },
+  paciente: { cor: claro.sobreNeutro, fundo: claro.neutroSuave },
 };
 
 export const TITULO_CONSULTAS = {
