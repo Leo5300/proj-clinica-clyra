@@ -1,0 +1,60 @@
+// src/theme/area.js
+//
+// Cor por area de atendimento, num lugar so. A area vem do campo "area"
+// do profissional ("Psicologia" ou "Psiquiatria"). Lavanda e Psicologia;
+// verde e Psiquiatria. Area vazia ou desconhecida cai no neutro, que e a
+// lavanda da marca: a tela nunca quebra por falta do dado.
+//
+// Todas recebem as cores do tema da vez (useTema().cores).
+
+export const AREAS = ['Psicologia', 'Psiquiatria'];
+
+export function ehPsiquiatria(area) {
+  return area === 'Psiquiatria';
+}
+
+// Ponto, barra lateral e avatar.
+export function corDaArea(area, cores) {
+  return ehPsiquiatria(area) ? cores.verde : cores.lavanda;
+}
+
+// Plano cheio (topo do Detalhe, faixa do bilhete). Sobre o verde o texto e
+// branco; sobre a lavanda, tinta.
+export function planoDaArea(area, cores) {
+  if (ehPsiquiatria(area)) {
+    return {
+      fundo: cores.planoVerde,
+      texto: cores.sobrePlanoVerde,
+      texto2: cores.sobrePlanoVerde2,
+      escuro: true,
+    };
+  }
+  return {
+    fundo: cores.destaque,
+    texto: cores.sobrePlano,
+    texto2: cores.sobrePlano2,
+    escuro: false,
+  };
+}
+
+// Topo do Inicio do profissional: lilas ou menta, texto tinta nos dois.
+export function topoDoProfissional(area, cores) {
+  return {
+    fundo: ehPsiquiatria(area) ? cores.menta : cores.lavandaClara,
+    texto: cores.sobrePlano,
+    texto2: cores.sobrePlano2,
+    escuro: false,
+  };
+}
+
+// Etiqueta escrita da area: fundo suave e texto forte da mesma familia.
+export function estiloDeEtiqueta(area, cores) {
+  if (ehPsiquiatria(area)) {
+    return { fundo: cores.verdeSuave, texto: cores.sobreVerdeSuave, ponto: cores.verde };
+  }
+  return {
+    fundo: cores.lavandaSuave,
+    texto: cores.sobreLavandaSuave,
+    ponto: cores.lavanda,
+  };
+}

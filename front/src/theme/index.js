@@ -5,6 +5,14 @@
 export { TemaProvider, useTema } from './TemaProvider';
 export { paletas, coresDoPerfil, comAlfa } from './cores';
 export {
+  AREAS,
+  ehPsiquiatria,
+  corDaArea,
+  planoDaArea,
+  topoDoProfissional,
+  estiloDeEtiqueta,
+} from './area';
+export {
   arquivosDeFonte,
   fontes,
   estilosDeTexto,
