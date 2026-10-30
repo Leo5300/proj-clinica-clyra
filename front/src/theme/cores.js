@@ -35,10 +35,6 @@ const claro = {
   selTexto: '#FFFFFF',
   link: '#4B2FA8',
 
-  // Sálvia: so ate a troca do sucesso por lavanda suave.
-  salviaSuave: '#E3EEEA',
-  sobreSalviaSuave: '#2F5553',
-
   lavanda: '#9B7DF2',
   lavandaClara: '#CBB8FF',
   lavandaMaisClara: '#E3D9FF',
@@ -123,9 +119,6 @@ const escuro = {
   selTexto: '#17122B',
   link: '#D6C9FF',
 
-  salviaSuave: '#1E3634',
-  sobreSalviaSuave: '#A9D2C8',
-
   lavanda: '#A68CF5',
   lavandaClara: '#B9A3FF',
   lavandaMaisClara: '#C9B8FF',
@@ -193,12 +186,12 @@ export function comAlfa(hex, alfa) {
   return `rgba(${r},${g},${b},${alfa})`;
 }
 
-// Cor de cada perfil. cor = texto e icone; fundo = selo. Recepcao e
-// salvia, medico e lavanda, paciente e neutro.
+// Cor de cada perfil. cor = texto e icone; fundo = selo. Paciente e
+// profissional sao lavanda; a recepcao e neutra.
 export function coresDoPerfil(cores) {
   return {
-    recepcao: { cor: cores.sobreSalviaSuave, fundo: cores.salviaSuave },
+    recepcao: { cor: cores.sobreNeutro, fundo: cores.neutroSuave },
     medico: { cor: cores.sobreLavandaSuave, fundo: cores.lavandaSuave },
-    paciente: { cor: cores.sobreNeutro, fundo: cores.neutroSuave },
+    paciente: { cor: cores.sobreLavandaSuave, fundo: cores.lavandaSuave },
   };
 }

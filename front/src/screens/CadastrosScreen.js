@@ -84,12 +84,12 @@ export default function CadastrosScreen({ navigation }) {
                         width: 40,
                         height: 40,
                         borderRadius: raio.campo,
-                        backgroundColor: cores.salviaSuave,
+                        backgroundColor: cores.lavandaSuave,
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      <Feather name={item.icone} size={20} color={cores.sobreSalviaSuave} />
+                      <Feather name={item.icone} size={20} color={cores.sobreLavandaSuave} />
                     </View>
                   }
                   seta

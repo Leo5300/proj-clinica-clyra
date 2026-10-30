@@ -477,7 +477,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
           <EtiquetaArea area={medico?.area} style={{ alignSelf: 'center' }} />
           <Selo
             texto={passou ? 'Anterior' : 'Agendada'}
-            tom={passou ? 'neutro' : 'salvia'}
+            tom={passou ? 'neutro' : 'lavanda'}
             icone={passou ? 'check' : 'calendar'}
             style={{ alignSelf: 'center', marginTop: 4 }}
           />

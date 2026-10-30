@@ -44,13 +44,13 @@ export default function SeloSucesso({ titulo, texto, style }) {
           width: TAMANHO,
           height: TAMANHO,
           borderRadius: TAMANHO / 2,
-          backgroundColor: cores.salviaSuave,
+          backgroundColor: cores.lavandaSuave,
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
         }}
       >
-        <Feather name="check" size={32} color={cores.sobreSalviaSuave} />
+        <Feather name="check" size={32} color={cores.sobreLavandaSuave} />
         <Animated.View
           style={[
             {
@@ -59,7 +59,7 @@ export default function SeloSucesso({ titulo, texto, style }) {
               bottom: 0,
               left: 0,
               width: TAMANHO,
-              backgroundColor: cores.salviaSuave,
+              backgroundColor: cores.lavandaSuave,
             },
             estiloCortina,
           ]}

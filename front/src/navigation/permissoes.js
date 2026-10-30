@@ -67,9 +67,9 @@ export const ROTULO_DO_PERFIL = {
 // acompanha o tema escuro usa useTema().coresDoPerfil.
 const claro = paletas.claro;
 export const CORES_DO_PERFIL = {
-  recepcao: { cor: claro.sobreSalviaSuave, fundo: claro.salviaSuave },
+  recepcao: { cor: claro.sobreNeutro, fundo: claro.neutroSuave },
   medico: { cor: claro.sobreLavandaSuave, fundo: claro.lavandaSuave },
-  paciente: { cor: claro.sobreNeutro, fundo: claro.neutroSuave },
+  paciente: { cor: claro.sobreLavandaSuave, fundo: claro.lavandaSuave },
 };
 
 export const TITULO_CONSULTAS = {

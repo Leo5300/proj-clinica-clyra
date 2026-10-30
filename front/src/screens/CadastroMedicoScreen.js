@@ -484,7 +484,7 @@ const criarEstilos = (cores) =>
       paddingHorizontal: 14,
     },
     opcaoSelecionada: {
-      backgroundColor: cores.salviaSuave,
+      backgroundColor: cores.lavandaSuave,
       borderColor: cores.acao,
     },
     opcaoTexto: { fontFamily: fontes.texto, fontSize: 14, color: cores.tinta },

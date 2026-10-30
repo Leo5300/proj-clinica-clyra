@@ -456,12 +456,12 @@ export default function SinaisVitaisScreen({ navigation, route }) {
               width: 44,
               height: 44,
               borderRadius: raio.campo,
-              backgroundColor: cores.salviaSuave,
+              backgroundColor: cores.lavandaSuave,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Feather name="bluetooth" size={20} color={cores.sobreSalviaSuave} />
+            <Feather name="bluetooth" size={20} color={cores.sobreLavandaSuave} />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Texto variante="corpoForte">Ler do monitor cardíaco</Texto>

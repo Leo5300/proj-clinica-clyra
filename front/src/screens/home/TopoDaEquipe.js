@@ -9,7 +9,7 @@ import { ROTULO_DO_PERFIL } from '../../navigation/permissoes';
 // (e, na recepcao, no filtro).
 export default function TopoDaEquipe({ usuario, navigation }) {
   const perfil = usuario?.perfil;
-  const tom = perfil === 'medico' ? 'lavanda' : 'salvia';
+  const tom = perfil === 'medico' ? 'lavanda' : 'neutro';
 
   const abrirPerfil = () =>
     perfil === 'medico'

@@ -55,8 +55,8 @@ const OPCOES_DE_TEMA = [
   { valor: 'automatico', rotulo: 'Automático' },
 ];
 
-// Recepcao e salvia, medico e lavanda, paciente e neutro.
-const TOM_DO_PERFIL = { recepcao: 'salvia', medico: 'lavanda', paciente: 'neutro' };
+// Paciente e profissional sao lavanda; a recepcao e neutra.
+const TOM_DO_PERFIL = { recepcao: 'neutro', medico: 'lavanda', paciente: 'lavanda' };
 
 function Grupo({ titulo, children }) {
   const { cores } = useTema();
@@ -256,7 +256,7 @@ export default function PerfilScreen({ navigation }) {
             </View>
           </Pressionavel>
         ) : (
-          <Avatar nome={usuario.nome} tamanho={96} tom="salvia" />
+          <Avatar nome={usuario.nome} tamanho={96} />
         )}
 
         <Texto variante="titulo" style={{ textAlign: 'center', marginTop: espaco.xs }}>
