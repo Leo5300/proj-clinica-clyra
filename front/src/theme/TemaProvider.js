@@ -20,9 +20,10 @@ import { AccessibilityInfo, Appearance, useColorScheme } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import * as SystemUI from 'expo-system-ui';
 
-import { paletas, coresDoPerfil } from './cores';
+import { paletas, coresDoPerfil, sobreposicaoDoPaciente } from './cores';
 import { sombras } from './medidas';
 import { lerPreferencias, salvarPreferencias } from '../services/preferencias';
+import { useUsuario } from '../services/sessao';
 
 const TemaContexto = createContext(null);
 
@@ -74,7 +75,14 @@ export function TemaProvider({ children }) {
 
   const escuro =
     modo === 'escuro' || (modo === 'automatico' && esquemaDoSistema === 'dark');
-  const cores = escuro ? paletas.escuro : paletas.claro;
+  // No perfil Paciente alguns tokens trocam (links e botao sobre a tinta):
+  // a troca fica aqui, nao espalhada nas telas.
+  const { usuario } = useUsuario();
+  const ehPaciente = usuario?.perfil === 'paciente';
+  const cores = useMemo(() => {
+    const base = escuro ? paletas.escuro : paletas.claro;
+    return ehPaciente ? { ...base, ...sobreposicaoDoPaciente(base) } : base;
+  }, [escuro, ehPaciente]);
 
   // Fundo da janela nativa igual ao papel: sem lampejo branco ao trocar de
   // tela no tema escuro.

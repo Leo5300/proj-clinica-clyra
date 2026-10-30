@@ -35,6 +35,9 @@ const claro = {
   selFundo: '#17122B',
   selTexto: '#FFFFFF',
   link: '#4B2FA8',
+  // Botao de acao dentro do cartao de tinta.
+  acaoSobreTinta: '#9B7DF2',
+  sobreAcaoSobreTinta: '#17122B',
 
   lavanda: '#9B7DF2',
   lavandaClara: '#CBB8FF',
@@ -131,6 +134,8 @@ const escuro = {
   selFundo: '#F1ECFF',
   selTexto: '#17122B',
   link: '#D6C9FF',
+  acaoSobreTinta: '#A68CF5',
+  sobreAcaoSobreTinta: '#17122B',
 
   lavanda: '#A68CF5',
   lavandaClara: '#B9A3FF',
@@ -199,6 +204,17 @@ const escuro = {
 };
 
 export const paletas = { claro, escuro };
+
+// Tokens que mudam no perfil Paciente: o verde e a cor principal dele, e a
+// lavanda fica so para a area Psicologia. Links em verde escuro (7,2:1 no
+// papel) e o botao sobre a tinta em menta com texto tinta (12:1).
+export function sobreposicaoDoPaciente(cores) {
+  return {
+    link: cores.sobreVerdeSuave,
+    acaoSobreTinta: cores.menta,
+    sobreAcaoSobreTinta: cores.sobrePlano,
+  };
+}
 
 // "#F4F1EA" + 0.5 -> "rgba(244,241,234,0.5)". Usado nos degrades de
 // borda, que precisam da mesma cor do papel indo a transparente.
