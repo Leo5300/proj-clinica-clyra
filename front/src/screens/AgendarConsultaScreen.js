@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BackHandler, ScrollView, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -49,7 +49,16 @@ import {
   Vidro,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque, corDaArea } from '../theme';
+import {
+  useTema,
+  espaco,
+  margemTela,
+  raio,
+  toque,
+  corDaArea,
+  duracao,
+  curva,
+} from '../theme';
 import { vibrarAviso } from '../services/haptica';
 import { especialidadeERegistro } from '../services/profissionais';
 
@@ -236,7 +245,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   const consulta = route.params?.consulta;
 
   const { usuario } = useUsuario();
-  const { cores } = useTema();
+  const { cores, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const { aoRolar, rolou } = useRolagem(60);
 
@@ -805,16 +814,36 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   const renderPasso3 = () => {
     const quando = dataDaConsulta({ data, hora });
 
+    // O bilhete entra de 94% a 100% em 320 ms, junto com o check. Com
+    // "reduzir movimento", aparece pronto.
     return (
       <>
-        <BilheteConsulta
-          dia={quando.getDate()}
-          mes={nomeDoMes(quando)}
-          diaDaSemana={nomeCurtoDoDia(quando)}
-          horario={formatarFaixa(quando)}
-          detalhe={`${DURACAO_CONSULTA_MIN} min`}
-          area={medico?.area}
-        />
+        <Animated.View
+          entering={
+            movimentoReduzido
+              ? undefined
+              : FadeIn.duration(duracao.sucesso).easing(curva.saida)
+          }
+        >
+          <Animated.View
+            entering={
+              movimentoReduzido
+                ? undefined
+                : ZoomIn.duration(duracao.sucesso)
+                    .easing(curva.saida)
+                    .withInitialValues({ scale: 0.94 })
+            }
+          >
+            <BilheteConsulta
+              dia={quando.getDate()}
+              mes={nomeDoMes(quando)}
+              diaDaSemana={nomeCurtoDoDia(quando)}
+              horario={formatarFaixa(quando)}
+              detalhe={`${DURACAO_CONSULTA_MIN} min`}
+              area={medico?.area}
+            />
+          </Animated.View>
+        </Animated.View>
         <SeloSucesso titulo={sucesso.titulo} texto={sucesso.texto} />
         <View style={{ gap: espaco.sm }}>
           <Botao
