@@ -39,14 +39,14 @@ import {
   ItemDeLista,
   Pressionavel,
   Segmentado,
-  Selo,
+  EtiquetaArea,
   SeloSucesso,
   Texto,
   useRolagem,
 } from '../components';
 import { useTema, espaco, margemTela, raio, toque } from '../theme';
 import { vibrarAviso } from '../services/haptica';
-import { especialidadeERegistro, tomDaArea } from '../services/profissionais';
+import { especialidadeERegistro } from '../services/profissionais';
 
 // Agenda uma consulta nova ou remarca uma existente (route.params.consulta).
 // Dois passos: 1) com quem (area e profissional); 2) dia e horario.
@@ -155,7 +155,7 @@ function CartaoProfissional({ medico, proximo, onPress }) {
       <View style={{ flex: 1, gap: 3 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco.xs }}>
           <Texto variante="corpoForte">{medico.nome}</Texto>
-          {medico.area ? <Selo texto={medico.area} tom={tomDaArea(medico.area)} /> : null}
+          <EtiquetaArea area={medico.area} />
         </View>
         {especialidadeERegistro(medico) ? (
           <Texto variante="legenda" cor="apoio">

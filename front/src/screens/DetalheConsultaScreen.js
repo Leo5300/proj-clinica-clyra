@@ -40,6 +40,7 @@ import {
   EstadoVazio,
   FolhaDecisao,
   ItemDeLista,
+  EtiquetaArea,
   Selo,
   SeloSucesso,
   Texto,
@@ -47,7 +48,7 @@ import {
 } from '../components';
 import { useTema, espaco, margemTela, raio, toque } from '../theme';
 import { vibrarImpacto } from '../services/haptica';
-import { especialidadeERegistro, tomDaArea } from '../services/profissionais';
+import { especialidadeERegistro } from '../services/profissionais';
 
 // Tela de destino do toque no lembrete. Recebe so o consultaId (o que
 // viaja em content.data) e busca o resto no servidor: a notificacao pode
@@ -473,13 +474,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
               {registro}
             </Texto>
           ) : null}
-          {medico?.area ? (
-            <Selo
-              texto={medico.area}
-              tom={tomDaArea(medico.area)}
-              style={{ alignSelf: 'center' }}
-            />
-          ) : null}
+          <EtiquetaArea area={medico?.area} style={{ alignSelf: 'center' }} />
           <Selo
             texto={passou ? 'Anterior' : 'Agendada'}
             tom={passou ? 'neutro' : 'salvia'}

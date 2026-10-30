@@ -18,9 +18,3 @@ export function especialidadeERegistro(profissional) {
     .filter(Boolean)
     .join(' · ');
 }
-
-// Tom da tag de area: lavanda acolhe a psiquiatria; psicologia fica neutra
-// (salvia e reservada para acao e status).
-export function tomDaArea(area) {
-  return area === 'Psiquiatria' ? 'lavanda' : 'neutro';
-}
