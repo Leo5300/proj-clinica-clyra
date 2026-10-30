@@ -67,6 +67,10 @@ const claro = {
   planoPaciente: '#0B7A6E',
   sobrePlanoPaciente: '#FFFFFF',
   sobrePlanoPaciente2: '#E6F6F2',
+  // Acento do perfil Paciente (o "+" flutuante): verde com sinal branco.
+  acentoPaciente: '#0B7A6E',
+  acentoPacienteVidro: 'rgba(11,122,110,0.94)',
+  sobreAcentoPaciente: '#FFFFFF',
 
   alerta: '#A4434E',
   alertaSuave: '#F7E6E8',
@@ -158,6 +162,10 @@ const escuro = {
   planoPaciente: '#0B7A6E',
   sobrePlanoPaciente: '#FFFFFF',
   sobrePlanoPaciente2: '#E6F6F2',
+  // Acento do perfil Paciente (o "+" flutuante): verde com sinal branco.
+  acentoPaciente: '#0B7A6E',
+  acentoPacienteVidro: 'rgba(11,122,110,0.94)',
+  sobreAcentoPaciente: '#FFFFFF',
 
   alerta: '#E58A94',
   alertaSuave: '#3A1F23',

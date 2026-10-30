@@ -10,6 +10,7 @@ export {
   corDaArea,
   planoDaArea,
   planoDoPaciente,
+  acentoDoPerfil,
   topoDoProfissional,
   estiloDeEtiqueta,
   tomDoAvatar,

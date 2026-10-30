@@ -1,4 +1,4 @@
-// Barra de abas flutuante em vidro, com o "+" em lavanda. navigation; atual (nome da rota aberta). As abas saem do perfil logado e de podeAcessar.
+// Barra de abas flutuante em vidro, com o "+" na cor de acento do perfil (verde no paciente, lavanda na equipe). navigation; atual (nome da rota aberta). As abas saem do perfil logado e de podeAcessar.
 //
 // Abas sao irmas: a pilha nunca passa de [Home, aba]. Inicio volta com
 // popTo; de Home para outra aba e push; entre abas e replace. Tudo com
@@ -11,7 +11,7 @@ import { Feather } from '@expo/vector-icons';
 import Pressionavel from './Pressionavel';
 import Vidro, { escalaDoVidro } from './Vidro';
 import Texto from './Texto';
-import { useTema, espaco, raio, fontes } from '../theme';
+import { useTema, espaco, raio, fontes, acentoDoPerfil } from '../theme';
 import { useUsuario } from '../services/sessao';
 import { podeAcessar } from '../navigation/permissoes';
 
@@ -64,6 +64,7 @@ export default function BarraAbas({ navigation, atual }) {
     podeAcessar(perfil, aba.rota),
   );
   const mais = MAIS_DO_PERFIL[perfil];
+  const acento = acentoDoPerfil(perfil, cores);
 
   if (abas.length === 0) return null;
 
@@ -150,9 +151,9 @@ export default function BarraAbas({ navigation, atual }) {
           accessibilityRole="button"
           accessibilityLabel={mais.rotulo}
         >
-          <Vidro espessura="tinta" interativo style={{ width: ALTURA, height: ALTURA }}>
+          <Vidro espessura="tinta" acento={acento} interativo style={{ width: ALTURA, height: ALTURA }}>
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="plus" size={26} color={cores.sobreVidroTinta} />
+              <Feather name="plus" size={26} color={acento.texto} />
             </View>
           </Vidro>
         </Pressionavel>
