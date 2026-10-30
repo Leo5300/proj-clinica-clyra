@@ -1,4 +1,4 @@
-// Barra de abas flutuante em vidro, com o "+" em tinta salvia. navigation; atual (nome da rota aberta). As abas saem do perfil logado e de podeAcessar.
+// Barra de abas flutuante em vidro, com o "+" em lavanda. navigation; atual (nome da rota aberta). As abas saem do perfil logado e de podeAcessar.
 //
 // Abas sao irmas: a pilha nunca passa de [Home, aba]. Inicio volta com
 // popTo; de Home para outra aba e push; entre abas e replace. Tudo com
@@ -150,7 +150,7 @@ export default function BarraAbas({ navigation, atual }) {
         >
           <Vidro espessura="tinta" interativo style={{ width: ALTURA, height: ALTURA }}>
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="plus" size={26} color={cores.sobreAcao} />
+              <Feather name="plus" size={26} color={cores.sobreVidroTinta} />
             </View>
           </Vidro>
         </Pressionavel>

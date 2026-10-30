@@ -4,37 +4,66 @@
 // de interface: as telas leem as cores por useTema(), nunca daqui direto,
 // para acompanhar o tema escolhido.
 //
-// Regra de ouro: salvia age, lavanda acolhe. Salvia e a unica cor de acao,
-// selecao e status; lavanda e para pessoas, avisos, o medico e o apoio.
-// Nunca texto branco sobre lavanda.
+// Lavanda e a marca e a Psicologia. Verde e a Psiquiatria e mais nada:
+// nunca botao, nunca sucesso. Confirmacao e lavanda suave. Nunca texto
+// branco sobre lavanda; sobre o verde cheio, o texto e sempre branco.
+// Um destaque manteiga por tela, no maximo.
 
 const claro = {
-  papel: '#F4F3EE',
+  papel: '#F4F1EA',
   superficie: '#FFFFFF',
-  superficie2: '#ECEBE6',
-  linha: '#E2E1DB',
-  linhaForte: '#D5D4CC',
-  tinta: '#1E2B2F',
-  tinta2: '#4A5560',
-  apoio: '#63686F',
-  desativado: '#8B909A',
-  marca: '#4C5C76',
+  superficie2: '#ECE8E0',
+  linha: '#E4DFEF',
+  linhaForte: '#D2CBE3',
+  tinta: '#17122B',
+  tinta2: '#51496B',
+  apoio: '#6B6485',
+  desativado: '#9A94AE',
+  marca: '#17122B',
 
-  acao: '#4B7776',
+  // Botao de acao: tinta com texto branco.
+  acao: '#17122B',
   sobreAcao: '#FFFFFF',
-  destaque: '#2F5553',
-  sobreDestaque: '#FFFFFF',
-  sobreDestaque2: '#CFE2DC',
-  dataDestaque: '#D9CFEA',
-  selFundo: '#2F5553',
+
+  // Plano de destaque (topo do Inicio do paciente): lavanda com tinta.
+  destaque: '#9B7DF2',
+  sobreDestaque: '#17122B',
+  sobreDestaque2: '#2A1F4D',
+  dataDestaque: '#17122B',
+
+  selFundo: '#17122B',
   selTexto: '#FFFFFF',
-  link: '#2F5553',
+  link: '#4B2FA8',
+
+  // Sálvia: so ate a troca do sucesso por lavanda suave.
   salviaSuave: '#E3EEEA',
   sobreSalviaSuave: '#2F5553',
 
-  lavanda: '#9A8BB6',
-  lavandaSuave: '#EFE9F3',
-  sobreLavandaSuave: '#6B5A8E',
+  lavanda: '#9B7DF2',
+  lavandaClara: '#CBB8FF',
+  lavandaMaisClara: '#E3D9FF',
+  lavandaSuave: '#EEE8FF',
+  sobreLavandaSuave: '#4B2FA8',
+  lavandaNumeral: '#B9A3FF',
+
+  verde: '#0B7A6E',
+  menta: '#8FE3CF',
+  verdeSuave: '#D4EEE8',
+  sobreVerdeSuave: '#0A5A51',
+
+  manteiga: '#F2DF6D',
+  sobreManteiga: '#17122B',
+
+  // Planos do topo. Sobre lavanda, lilas, menta e manteiga o texto e
+  // sempre esta tinta escura, nos dois temas.
+  sobrePlano: '#17122B',
+  sobrePlano2: '#2A1F4D',
+  planoTinta: '#17122B',
+  sobrePlanoTinta: '#F1ECFF',
+  sobrePlanoTinta2: '#C9C0E6',
+  planoVerde: '#0B7A6E',
+  sobrePlanoVerde: '#FFFFFF',
+  sobrePlanoVerde2: '#E6F6F2',
 
   alerta: '#A4434E',
   alertaSuave: '#F7E6E8',
@@ -42,58 +71,85 @@ const claro = {
   sobreAlerta: '#FFFFFF',
   atencao: '#8A5A12',
   atencaoSuave: '#F6EBD9',
-  neutroSuave: '#ECEBE6',
-  sobreNeutro: '#4A5560',
+  neutroSuave: '#ECE8F3',
+  sobreNeutro: '#51496B',
 
-  abaAtiva: 'rgba(75,119,118,0.16)',
-  sobreAbaAtiva: '#2F5553',
-  veu: 'rgba(30,43,47,0.34)',
-  sombra: 'rgba(30,43,47,0.16)',
+  abaAtiva: '#17122B',
+  sobreAbaAtiva: '#FFFFFF',
+  veu: 'rgba(23,18,43,0.34)',
+  sombra: 'rgba(23,18,43,0.14)',
 
-  // Esqueleto de carregamento: sobre o papel e sobre o bloco de destaque.
-  esqueleto: '#E4E3DD',
-  esqueletoDestaque: '#3B605E',
+  // Esqueleto de carregamento: sobre o papel e sobre o plano lavanda.
+  esqueleto: '#DDD0FB',
+  esqueletoDestaque: '#B8A1F6',
 
-  // Vidro: fundos por espessura e modo (ver components/Vidro).
-  vidroRegular: 'rgba(244,243,238,0.76)',
+  // Vidro: fundos por espessura e modo (ver components/Vidro). O "+" e
+  // lavanda com o icone em tinta.
+  vidroRegular: 'rgba(244,241,234,0.76)',
   vidroEspesso: 'rgba(255,255,255,0.9)',
   vidroBorda: 'rgba(255,255,255,0.6)',
-  vidroAntigo: 'rgba(250,249,246,0.94)',
-  vidroClaro: 'rgba(255,255,255,0.16)',
-  vidroClaroBorda: 'rgba(255,255,255,0.3)',
-  vidroClaroOpaco: '#3B605E',
-  vidroTinta: 'rgba(63,110,108,0.92)',
-  vidroTintaBorda: 'rgba(255,255,255,0.2)',
-  vidroTintaSolido: '#3F6E6C',
+  vidroAntigo: 'rgba(250,248,244,0.94)',
+  vidroClaro: 'rgba(255,255,255,0.24)',
+  vidroClaroBorda: 'rgba(255,255,255,0.45)',
+  vidroClaroOpaco: '#B49BF5',
+  vidroTinta: 'rgba(155,125,242,0.94)',
+  vidroTintaBorda: 'rgba(255,255,255,0.3)',
+  vidroTintaSolido: '#9B7DF2',
+  sobreVidroTinta: '#17122B',
 };
 
 const escuro = {
-  papel: '#111A1B',
-  superficie: '#1A2426',
-  superficie2: '#222E30',
-  linha: '#2C3A3C',
-  linhaForte: '#3A4A4C',
-  tinta: '#ECEFEC',
-  tinta2: '#C2CAC8',
-  apoio: '#9AA5A3',
-  desativado: '#6E7A79',
-  marca: '#DCE2EA',
+  papel: '#13101F',
+  superficie: '#1E1930',
+  superficie2: '#262040',
+  linha: '#2E2745',
+  linhaForte: '#3D3459',
+  tinta: '#F1ECFF',
+  tinta2: '#C9C0E6',
+  apoio: '#9A90BC',
+  desativado: '#6E6690',
+  marca: '#F1ECFF',
 
-  acao: '#4B7776',
-  sobreAcao: '#FFFFFF',
-  destaque: '#244543',
-  sobreDestaque: '#FFFFFF',
-  sobreDestaque2: '#B7D3CC',
-  dataDestaque: '#D9CFEA',
-  selFundo: '#A9D2C8',
-  selTexto: '#10201F',
-  link: '#A9D2C8',
+  // No escuro o botao de acao inverte: fundo claro, texto tinta.
+  acao: '#F1ECFF',
+  sobreAcao: '#17122B',
+
+  destaque: '#A68CF5',
+  sobreDestaque: '#17122B',
+  sobreDestaque2: '#2A1F4D',
+  dataDestaque: '#17122B',
+
+  selFundo: '#F1ECFF',
+  selTexto: '#17122B',
+  link: '#D6C9FF',
+
   salviaSuave: '#1E3634',
   sobreSalviaSuave: '#A9D2C8',
 
-  lavanda: '#9A8BB6',
-  lavandaSuave: '#2A2436',
-  sobreLavandaSuave: '#C9BDE3',
+  lavanda: '#A68CF5',
+  lavandaClara: '#B9A3FF',
+  lavandaMaisClara: '#C9B8FF',
+  lavandaSuave: '#2A2145',
+  sobreLavandaSuave: '#D6C9FF',
+  lavandaNumeral: '#B9A3FF',
+
+  verde: '#4DC4AE',
+  menta: '#7FD3BF',
+  verdeSuave: '#12332E',
+  sobreVerdeSuave: '#A8EBDD',
+
+  manteiga: '#F2DF6D',
+  sobreManteiga: '#17122B',
+
+  sobrePlano: '#17122B',
+  sobrePlano2: '#2A1F4D',
+  // Tinta pura some no papel escuro: o plano de tinta clareia um pouco.
+  planoTinta: '#2A2148',
+  sobrePlanoTinta: '#F1ECFF',
+  sobrePlanoTinta2: '#C9C0E6',
+  planoVerde: '#0B7A6E',
+  sobrePlanoVerde: '#FFFFFF',
+  sobrePlanoVerde2: '#E6F6F2',
 
   alerta: '#E58A94',
   alertaSuave: '#3A1F23',
@@ -101,32 +157,33 @@ const escuro = {
   sobreAlerta: '#2A1215',
   atencao: '#E0B36A',
   atencaoSuave: '#3A2E1A',
-  neutroSuave: '#263133',
-  sobreNeutro: '#C2CAC8',
+  neutroSuave: '#262040',
+  sobreNeutro: '#C9C0E6',
 
-  abaAtiva: 'rgba(169,210,200,0.16)',
-  sobreAbaAtiva: '#A9D2C8',
+  abaAtiva: '#F1ECFF',
+  sobreAbaAtiva: '#17122B',
   veu: 'rgba(0,0,0,0.5)',
   sombra: 'rgba(0,0,0,0.4)',
 
-  esqueleto: '#222E30',
-  esqueletoDestaque: '#2E5250',
+  esqueleto: '#2A2145',
+  esqueletoDestaque: '#9378E8',
 
-  vidroRegular: 'rgba(17,26,27,0.78)',
-  vidroEspesso: 'rgba(26,36,38,0.94)',
+  vidroRegular: 'rgba(19,16,31,0.78)',
+  vidroEspesso: 'rgba(30,25,48,0.94)',
   vidroBorda: 'rgba(255,255,255,0.12)',
-  vidroAntigo: 'rgba(24,33,35,0.96)',
-  vidroClaro: 'rgba(255,255,255,0.16)',
-  vidroClaroBorda: 'rgba(255,255,255,0.3)',
-  vidroClaroOpaco: '#2E5250',
-  vidroTinta: 'rgba(63,110,108,0.92)',
+  vidroAntigo: 'rgba(28,23,44,0.96)',
+  vidroClaro: 'rgba(255,255,255,0.24)',
+  vidroClaroBorda: 'rgba(255,255,255,0.4)',
+  vidroClaroOpaco: '#B6A0F7',
+  vidroTinta: 'rgba(166,140,245,0.94)',
   vidroTintaBorda: 'rgba(255,255,255,0.2)',
-  vidroTintaSolido: '#3F6E6C',
+  vidroTintaSolido: '#A68CF5',
+  sobreVidroTinta: '#17122B',
 };
 
 export const paletas = { claro, escuro };
 
-// "#F4F3EE" + 0.5 -> "rgba(244,243,238,0.5)". Usado nos degrades de
+// "#F4F1EA" + 0.5 -> "rgba(244,241,234,0.5)". Usado nos degrades de
 // borda, que precisam da mesma cor do papel indo a transparente.
 export function comAlfa(hex, alfa) {
   const valor = parseInt(hex.slice(1), 16);

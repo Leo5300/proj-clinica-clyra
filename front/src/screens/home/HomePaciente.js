@@ -421,13 +421,13 @@ export default function HomePaciente({
     );
   }
 
-  // O topo e escuro (destaque): barra de status clara so enquanto esta
-  // tela estiver na frente.
-  const barraClara = !escuro && !rolou && !carregando && Boolean(usuario);
+  // O topo e lavanda nos dois temas: icones escuros enquanto ele aparece;
+  // depois da rolagem a barra segue o tema.
+  const sobreOTopo = !rolou && !carregando && Boolean(usuario);
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
-      {focada ? <StatusBar style={barraClara || escuro ? 'light' : 'dark'} /> : null}
+      {focada ? <StatusBar style={sobreOTopo || !escuro ? 'dark' : 'light'} /> : null}
 
       <ComVidro
         conteudo={
