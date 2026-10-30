@@ -23,10 +23,13 @@ import {
   formatarDiaEMes,
   formatarDiaEHora,
   faixaDeMeses,
+  formatarFaixa,
+  nomeDoMes,
   DURACAO_CONSULTA_MIN,
 } from '../services/datas';
 import {
   Avatar,
+  BilheteConsulta,
   Botao,
   Cabecalho,
   Campo,
@@ -35,16 +38,18 @@ import {
   Esqueleto,
   EstadoErro,
   EstadoVazio,
+  FiltroArea,
   FolhaDecisao,
   ItemDeLista,
+  PlanoTopo,
   Pressionavel,
-  Segmentado,
   EtiquetaArea,
   SeloSucesso,
   Texto,
+  Vidro,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque } from '../theme';
+import { useTema, espaco, margemTela, raio, toque, corDaArea } from '../theme';
 import { vibrarAviso } from '../services/haptica';
 import { especialidadeERegistro } from '../services/profissionais';
 
@@ -60,6 +65,9 @@ import { especialidadeERegistro } from '../services/profissionais';
 const DIAS_DE_BUSCA = 21;
 
 const MAX_RESULTADOS_PACIENTE = 6;
+
+// Horarios por linha na grade do passo 2.
+const COLUNAS = 3;
 
 // Valor do filtro sem area escolhida.
 const TODAS = 'todas';
@@ -103,16 +111,47 @@ function mensagemDoLembrete(resultado) {
 }
 
 
-function Titulo({ texto, etapa }) {
+// Topo do fluxo: lavanda do comeco ao fim, porque e a cor da marca. A
+// area so colore etiquetas, barras e filtros.
+function TopoDoPasso({ etapa, titulo, subtitulo, children }) {
+  const { cores } = useTema();
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={{ gap: 4 }}>
-      <Texto variante="tituloGrande" accessibilityRole="header">
-        {texto}
+    <PlanoTopo
+      fundo={cores.destaque}
+      corTexto={cores.sobrePlano}
+      style={{
+        paddingTop: insets.top + espaco.xs,
+        paddingHorizontal: margemTela + 2,
+        paddingBottom: espaco.lg,
+        gap: 4,
+      }}
+    >
+      <View
+        style={{
+          minHeight: toque.minimo,
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          marginBottom: espaco.sm,
+        }}
+      >
+        {etapa ? (
+          <Texto variante="rotuloForte" cor="sobrePlano">
+            Passo {etapa} de 3
+          </Texto>
+        ) : null}
+      </View>
+      <Texto variante="tituloGrande" cor="sobrePlano" accessibilityRole="header">
+        {titulo}
       </Texto>
-      <Texto variante="rotulo" cor="apoio">
-        Etapa {etapa} de 2
-      </Texto>
-    </View>
+      {subtitulo ? (
+        <Texto variante="rotulo" cor="sobrePlano2">
+          {subtitulo}
+        </Texto>
+      ) : null}
+      {children}
+    </PlanoTopo>
   );
 }
 
@@ -144,13 +183,26 @@ function CartaoProfissional({ medico, proximo, onPress }) {
         alignItems: 'center',
         gap: 14,
         padding: espaco.md,
+        paddingLeft: espaco.md + 6,
         borderRadius: raio.cartao,
         borderCurve: 'continuous',
         backgroundColor: cores.superficie,
         borderWidth: 1,
         borderColor: cores.linha,
+        overflow: 'hidden',
       }}
     >
+      <View
+        style={{
+          position: 'absolute',
+          left: 10,
+          top: 14,
+          bottom: 14,
+          width: 4,
+          borderRadius: 2,
+          backgroundColor: corDaArea(medico.area, cores),
+        }}
+      />
       <Avatar nome={medico.nome} fotoUri={medico.fotoUri} tamanho={52} />
       <View style={{ flex: 1, gap: 3 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco.xs }}>
@@ -324,7 +376,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
 
   // Voltar do Android no passo 2 volta ao passo 1, nao sai da tela.
   useEffect(() => {
-    if (passo !== 2 || consulta) return undefined;
+    if (passo !== 2 || consulta || sucesso) return undefined;
 
     const inscricao = BackHandler.addEventListener('hardwareBackPress', () => {
       setPasso(1);
@@ -332,7 +384,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     });
 
     return () => inscricao.remove();
-  }, [passo, consulta]);
+  }, [passo, consulta, sucesso]);
 
   const escolherMedico = (id) => {
     setMedicoId(id);
@@ -348,7 +400,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   };
 
   const voltar = () => {
-    if (passo === 2 && !consulta) {
+    if (passo === 2 && !consulta && !sucesso) {
       setPasso(1);
       return;
     }
@@ -563,13 +615,10 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   };
 
   const renderPasso1 = () => {
-    const titulo = ehRecepcao ? 'Nova consulta' : 'Com quem você quer marcar?';
     const mostrarMedicos = !ehRecepcao || Boolean(pacienteId);
 
     return (
       <>
-        <Titulo texto={titulo} etapa={1} />
-
         {renderPaciente()}
 
         {mostrarMedicos && (
@@ -577,15 +626,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
             {ehRecepcao ? <Rotulo>Profissional</Rotulo> : null}
 
             {areas.length > 1 ? (
-              <Segmentado
-                rotuloDoGrupo="Área"
-                opcoes={[
-                  { valor: TODAS, rotulo: 'Todas' },
-                  ...areas.map((a) => ({ valor: a, rotulo: a })),
-                ]}
-                valor={area}
-                aoMudar={setArea}
-              />
+              <FiltroArea areas={areas} valor={area} aoMudar={setArea} />
             ) : null}
 
             {medicosDaArea.length === 0 ? (
@@ -645,25 +686,39 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     const manha = diaEscolhido?.horarios.filter((h) => h < '12:00') ?? [];
     const tarde = diaEscolhido?.horarios.filter((h) => h >= '12:00') ?? [];
 
-    const grade = (rotulo, lista) =>
-      lista.length > 0 ? (
+    // Tres por linha; a ultima linha completa com espacos vazios para os
+    // horarios nao esticarem.
+    const grade = (rotulo, lista) => {
+      if (lista.length === 0) return null;
+      const linhas = [];
+      for (let i = 0; i < lista.length; i += COLUNAS) {
+        linhas.push(lista.slice(i, i + COLUNAS));
+      }
+
+      return (
         <View style={{ gap: espaco.xs }}>
           <Texto variante="rotulo" cor="apoio">
             {rotulo}
           </Texto>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.xs }}>
-            {lista.map((h) => (
-              <Chip
-                key={h}
-                rotulo={h}
-                selecionado={h === hora}
-                onPress={() => setHora(h)}
-                style={{ minWidth: 76 }}
-              />
-            ))}
-          </View>
+          {linhas.map((linha) => (
+            <View key={linha[0]} style={{ flexDirection: 'row', gap: espaco.xs }}>
+              {linha.map((h) => (
+                <Chip
+                  key={h}
+                  rotulo={h}
+                  selecionado={h === hora}
+                  onPress={() => setHora(h)}
+                  style={{ flex: 1 }}
+                />
+              ))}
+              {Array.from({ length: COLUNAS - linha.length }, (_, i) => (
+                <View key={`vazio-${i}`} style={{ flex: 1 }} />
+              ))}
+            </View>
+          ))}
         </View>
-      ) : null;
+      );
+    };
 
     return (
       <>
@@ -713,7 +768,9 @@ export default function AgendarConsultaScreen({ navigation, route }) {
 
         {diaEscolhido ? (
           <View style={{ gap: espaco.md }}>
-            <Rotulo>Horários</Rotulo>
+            <Rotulo direita={`${DURACAO_CONSULTA_MIN} min cada`}>
+              {`Horários de ${nomeCurtoDoDia(dataDaConsulta({ data, hora: '00:00' }))}, ${dataDaConsulta({ data, hora: '00:00' }).getDate()}`}
+            </Rotulo>
             {grade('Manhã', manha)}
             {grade('Tarde', tarde)}
           </View>
@@ -728,36 +785,11 @@ export default function AgendarConsultaScreen({ navigation, route }) {
 
   const renderPasso2 = () => (
     <>
-      <Titulo texto={consulta ? 'Novo horário' : 'Escolha o horário'} etapa={2} />
-
       {ehRecepcao && pacienteEscolhido ? (
         <Texto variante="rotulo" cor="tinta2">
           Paciente: {pacienteEscolhido.nome}
         </Texto>
       ) : null}
-
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: espaco.sm,
-          padding: espaco.md,
-          borderRadius: raio.cartao,
-          borderCurve: 'continuous',
-          backgroundColor: cores.superficie,
-          borderWidth: 1,
-          borderColor: cores.linha,
-        }}
-      >
-        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Texto variante="corpoForte">{medico?.nome ?? 'Profissional'}</Texto>
-          <Texto variante="legenda" cor="apoio">
-            {[medico?.especialidade, `${DURACAO_CONSULTA_MIN} min`].filter(Boolean).join(' · ')}
-          </Texto>
-        </View>
-        <Botao variante="texto" compacto titulo="Trocar" onPress={() => setPasso(1)} />
-      </View>
 
       {renderHorarios()}
 
@@ -770,8 +802,97 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     </>
   );
 
+  const renderPasso3 = () => {
+    const quando = dataDaConsulta({ data, hora });
+
+    return (
+      <>
+        <BilheteConsulta
+          dia={quando.getDate()}
+          mes={nomeDoMes(quando)}
+          diaDaSemana={nomeCurtoDoDia(quando)}
+          horario={formatarFaixa(quando)}
+          detalhe={`${DURACAO_CONSULTA_MIN} min`}
+          area={medico?.area}
+        />
+        <SeloSucesso titulo={sucesso.titulo} texto={sucesso.texto} />
+        <View style={{ gap: espaco.sm }}>
+          <Botao
+            titulo="Ver detalhes"
+            onPress={() =>
+              navigation.replace('DetalheConsulta', { consultaId: sucesso.consultaId })
+            }
+          />
+          {consulta ? (
+            <Botao titulo="Voltar" variante="contorno" onPress={() => navigation.goBack()} />
+          ) : (
+            <Botao titulo="Agendar outra" variante="contorno" onPress={agendarOutra} />
+          )}
+        </View>
+      </>
+    );
+  };
+
+  // Topo de cada passo.
+  let topo;
+  if (sucesso) {
+    topo = (
+      <TopoDoPasso
+        etapa={consulta ? null : 3}
+        titulo={sucesso.titulo}
+        subtitulo={`Com ${medico?.nome ?? 'o profissional'}`}
+      />
+    );
+  } else if (passo === 1 || carregando || erroCarga) {
+    topo = (
+      <TopoDoPasso
+        etapa={1}
+        titulo={ehRecepcao ? 'Nova consulta' : 'Agendar consulta'}
+        subtitulo={ehRecepcao && !pacienteId ? 'Escolha o paciente' : 'Escolha o profissional'}
+      />
+    );
+  } else {
+    const registro = especialidadeERegistro(medico);
+    topo = (
+      <TopoDoPasso etapa={consulta ? null : 2} titulo={consulta ? 'Novo horário' : 'Dia e horário'}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm, marginTop: espaco.sm }}>
+          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom="vidro" />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Texto variante="corpoForte" cor="sobrePlano">
+              {medico?.nome ?? 'Profissional'}
+            </Texto>
+            {registro ? (
+              <Texto variante="legenda" cor="sobrePlano2">
+                {registro}
+              </Texto>
+            ) : null}
+            <EtiquetaArea area={medico?.area} style={{ marginTop: 2 }} />
+          </View>
+          {!consulta ? (
+            <Pressionavel
+              onPress={() => setPasso(1)}
+              accessibilityRole="button"
+              accessibilityLabel="Trocar profissional"
+              style={{ minHeight: toque.minimo, justifyContent: 'center' }}
+            >
+              <Texto
+                variante="rotuloForte"
+                cor="sobrePlano"
+                style={{ textDecorationLine: 'underline' }}
+              >
+                Trocar
+              </Texto>
+            </Pressionavel>
+          ) : null}
+        </View>
+      </TopoDoPasso>
+    );
+  }
+
   let corpo;
-  if (carregando) {
+  if (sucesso) {
+    corpo = renderPasso3();
+  } else if (carregando) {
     corpo = (
       <View style={{ gap: 10 }} accessibilityState={{ busy: true }}>
         <Esqueleto largura={240} altura={32} raio={8} />
@@ -787,27 +908,30 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     corpo = passo === 1 ? renderPasso1() : renderPasso2();
   }
 
-  const tituloDaCapsula =
-    passo === 1 ? 'Escolha o profissional' : 'Escolha o horário';
-  const comBarra = passo === 2 && !carregando && !erroCarga;
+  const tituloDaCapsula = sucesso
+    ? sucesso.titulo
+    : passo === 1
+      ? 'Escolha o profissional'
+      : 'Dia e horário';
+  const comBarra = passo === 2 && !carregando && !erroCarga && !sucesso;
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
       <ComVidro
         conteudo={
           <Animated.ScrollView
-            key={passo}
+            key={sucesso ? 3 : passo}
             onScroll={aoRolar}
             scrollEventThrottle={16}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
-              paddingTop: insets.top + espaco.xs + toque.minimo + espaco.lg,
-              paddingHorizontal: margemTela + 2,
-              paddingBottom: comBarra ? 140 + insets.bottom : insets.bottom + espaco.xl,
-              gap: 22,
+              paddingBottom: comBarra ? 170 + insets.bottom : insets.bottom + espaco.xl,
             }}
           >
-            {corpo}
+            {topo}
+            <View style={{ paddingTop: espaco.lg, paddingHorizontal: margemTela + 2, gap: 22 }}>
+              {corpo}
+            </View>
           </Animated.ScrollView>
         }
       >
@@ -819,27 +943,34 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         />
 
         {comBarra ? (
-          // Barra opaca: o resumo tem data e hora, e dado nao vai em vidro.
           <View
             style={{
               position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: cores.superficie,
-              borderTopWidth: 1,
-              borderTopColor: cores.linha,
-              paddingHorizontal: margemTela + 2,
-              paddingTop: espaco.sm,
-              paddingBottom: insets.bottom + espaco.sm,
-              gap: 6,
+              left: margemTela,
+              right: margemTela,
+              bottom: insets.bottom + espaco.sm,
+              gap: espaco.xs,
             }}
           >
-            <Texto variante="legenda" cor="apoio" tabular numberOfLines={2}>
-              {pronto
-                ? `${medico?.nome ?? ''} · ${formatarEscolha(data, hora)}`
-                : `${medico?.nome ?? ''} · ${DURACAO_CONSULTA_MIN} min`}
-            </Texto>
+            <Vidro espessura="espesso" raio={raio.cartaoGrande}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: espaco.sm,
+                  minHeight: toque.minimo,
+                  paddingHorizontal: espaco.md,
+                }}
+              >
+                <Texto variante="rotulo" cor="apoio">
+                  Selecionado
+                </Texto>
+                <Texto variante="rotuloForte" tabular numberOfLines={1} style={{ flexShrink: 1 }}>
+                  {pronto ? formatarEscolha(data, hora) : 'nenhum horário'}
+                </Texto>
+              </View>
+            </Vidro>
             <Botao
               titulo={
                 !hora
@@ -877,22 +1008,6 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         }
       />
 
-      <FolhaDecisao
-        visivel={Boolean(sucesso)}
-        aoFechar={() => navigation.goBack()}
-        acaoPrincipal={{
-          titulo: 'Ver detalhes',
-          onPress: () =>
-            navigation.replace('DetalheConsulta', { consultaId: sucesso?.consultaId }),
-        }}
-        acaoSecundaria={
-          consulta
-            ? { titulo: 'Voltar', onPress: () => navigation.goBack() }
-            : { titulo: 'Agendar outra', onPress: agendarOutra }
-        }
-      >
-        {sucesso ? <SeloSucesso titulo={sucesso.titulo} texto={sucesso.texto} /> : null}
-      </FolhaDecisao>
     </View>
   );
 }
