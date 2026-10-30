@@ -60,8 +60,8 @@ function BlocoDestaque({ children }) {
 
   return (
     <PlanoTopo
-      fundo={cores.destaque}
-      corTexto={cores.sobrePlano}
+      fundo={cores.planoPaciente}
+      corTexto={cores.sobrePlanoPaciente}
       style={{
         paddingTop: insets.top + espaco.xs,
         paddingHorizontal: margemTela + 2,
@@ -70,7 +70,7 @@ function BlocoDestaque({ children }) {
       }}
     >
       <View style={{ minHeight: toque.minimo, justifyContent: 'center' }}>
-        <Logotipo cor="sobrePlano" />
+        <Logotipo cor="sobrePlanoPaciente" />
       </View>
       {children}
     </PlanoTopo>
@@ -87,11 +87,11 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
   return (
     <View style={{ gap: 18 }}>
       <View style={{ gap: 2 }}>
-        <Texto variante="rotulo" cor="sobrePlano2">
+        <Texto variante="rotulo" cor="sobrePlanoPaciente2">
           {saudacaoPorHorario(new Date())}
           {primeiroNome ? `, ${primeiroNome}` : ''}
         </Texto>
-        <Texto variante="corpoForte" cor="sobrePlano" accessibilityRole="header">
+        <Texto variante="corpoForte" cor="sobrePlanoPaciente" accessibilityRole="header">
           Sua próxima consulta
         </Texto>
       </View>
@@ -101,12 +101,12 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
         accessibilityLabel={`Dia ${quando.getDate()} de ${nomeDoMes(quando)}, ${formatarFaixa(quando)}, ${quandoRelativo(quando)}`}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}
       >
-        <Numeral valor={quando.getDate()} tamanho="grande" cor="sobrePlano" />
+        <Numeral valor={quando.getDate()} tamanho="grande" cor="sobrePlanoPaciente" />
         <View style={{ flex: 1, gap: 4 }}>
-          <Texto variante="titulo" cor="sobrePlano">
+          <Texto variante="titulo" cor="sobrePlanoPaciente">
             {nomeDoMes(quando)} · {nomeCurtoDoDia(quando)}
           </Texto>
-          <Texto variante="corpo" cor="sobrePlano2" tabular>
+          <Texto variante="corpo" cor="sobrePlanoPaciente2" tabular>
             {formatarFaixa(quando)}
           </Texto>
           <View
@@ -126,13 +126,13 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
-        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom="vidro" />
+        <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Texto variante="corpoForte" cor="sobrePlano">
+          <Texto variante="corpoForte" cor="sobrePlanoPaciente">
             {medico?.nome ?? 'Profissional'}
           </Texto>
           {especialidadeERegistro(medico) ? (
-            <Texto variante="rotulo" cor="sobrePlano2">
+            <Texto variante="rotulo" cor="sobrePlanoPaciente2">
               {especialidadeERegistro(medico)}
             </Texto>
           ) : null}
@@ -164,10 +164,10 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
         <Feather
           name="clock"
           size={14}
-          color={cores.sobrePlano2}
+          color={cores.sobrePlanoPaciente2}
           style={{ marginTop: 2 }}
         />
-        <Texto variante="legenda" cor="sobrePlano2" style={{ flex: 1 }}>
+        <Texto variante="legenda" cor="sobrePlanoPaciente2" style={{ flex: 1 }}>
           {podeAlterar
             ? `Remarcação livre até ${formatarDiaEHora(limite)}`
             : 'Faltam menos de 24 h. Para remarcar, ligue para a recepção.'}
@@ -180,7 +180,7 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
 // Sem consulta: o topo so cumprimenta; a ilustracao fica abaixo dele.
 function SemConsulta({ primeiroNome }) {
   return (
-    <Texto variante="tituloGrande" cor="sobrePlano" accessibilityRole="header">
+    <Texto variante="tituloGrande" cor="sobrePlanoPaciente" accessibilityRole="header">
       Olá{primeiroNome ? `, ${primeiroNome}` : ''}
     </Texto>
   );
@@ -419,13 +419,13 @@ export default function HomePaciente({
     );
   }
 
-  // O topo e lavanda nos dois temas: icones escuros enquanto ele aparece;
+  // O topo e verde nos dois temas: icones claros enquanto ele aparece;
   // depois da rolagem a barra segue o tema.
   const sobreOTopo = !rolou && !carregando && Boolean(usuario);
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
-      {focada ? <StatusBar style={sobreOTopo || !escuro ? 'dark' : 'light'} /> : null}
+      {focada ? <StatusBar style={sobreOTopo || escuro ? 'light' : 'dark'} /> : null}
 
       <ComVidro
         conteudo={
@@ -471,7 +471,7 @@ export default function HomePaciente({
                   ) : (
                     <Texto
                       variante="rotuloForte"
-                      cor={rolou ? 'tinta' : 'sobreDestaque'}
+                      cor={rolou ? 'tinta' : 'sobrePlanoPaciente'}
                       maxFontSizeMultiplier={1.2}
                       style={estilosDeTexto.rotuloForte}
                     >

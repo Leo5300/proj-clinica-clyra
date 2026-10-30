@@ -1,4 +1,4 @@
-// Botao do app. variante: 'solido' | 'contorno' | 'vidro' | 'tinta' (lavanda do "+") | 'inverso' (tinta sobre o destaque) | 'contornoClaro' (sobre o destaque) | 'lavanda' (acao sobre tinta, texto tinta) | 'alerta' | 'contornoAlerta' (cancelar) | 'texto'; titulo; icone (Feather); carregando; desativado; compacto (44 em vez de 48); style.
+// Botao do app. variante: 'solido' | 'contorno' | 'vidro' | 'tinta' (lavanda do "+") | 'inverso' (tinta sobre o destaque) | 'contornoClaro' (sobre o topo verde do paciente) | 'lavanda' (acao sobre tinta, texto tinta) | 'alerta' | 'contornoAlerta' (cancelar) | 'texto'; titulo; icone (Feather); carregando; desativado; compacto (44 em vez de 48); style.
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -12,7 +12,7 @@ function aparencia(variante, cores) {
     case 'contorno':
       return { fundo: 'transparent', borda: cores.linhaForte, texto: cores.tinta };
     case 'contornoClaro':
-      return { fundo: 'transparent', borda: cores.sobreDestaque, texto: cores.sobreDestaque };
+      return { fundo: 'transparent', borda: cores.sobrePlanoPaciente, texto: cores.sobrePlanoPaciente };
     case 'inverso':
       return { fundo: cores.sobreDestaque, borda: cores.sobreDestaque, texto: cores.sobrePlanoTinta };
     case 'alerta':
