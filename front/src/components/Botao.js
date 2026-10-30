@@ -1,4 +1,4 @@
-// Botao do app. variante: 'solido' | 'contorno' | 'vidro' | 'tinta' (lavanda do "+") | 'inverso' (tinta sobre o destaque) | 'contornoClaro' (sobre o destaque) | 'alerta' | 'texto'; titulo; icone (Feather); carregando; desativado; compacto (44 em vez de 48); style.
+// Botao do app. variante: 'solido' | 'contorno' | 'vidro' | 'tinta' (lavanda do "+") | 'inverso' (tinta sobre o destaque) | 'contornoClaro' (sobre o destaque) | 'lavanda' (acao sobre tinta, texto tinta) | 'alerta' | 'contornoAlerta' (cancelar) | 'texto'; titulo; icone (Feather); carregando; desativado; compacto (44 em vez de 48); style.
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -17,6 +17,10 @@ function aparencia(variante, cores) {
       return { fundo: cores.sobreDestaque, borda: cores.sobreDestaque, texto: cores.sobrePlanoTinta };
     case 'alerta':
       return { fundo: cores.alerta, borda: cores.alerta, texto: cores.sobreAlerta };
+    case 'contornoAlerta':
+      return { fundo: 'transparent', borda: cores.alerta, texto: cores.alerta };
+    case 'lavanda':
+      return { fundo: cores.lavanda, borda: cores.lavanda, texto: cores.sobrePlano };
     case 'texto':
       return { fundo: 'transparent', borda: 'transparent', texto: cores.link };
     case 'vidro':
