@@ -1,4 +1,4 @@
-// Tela de lista de cadastro com os tres estados. titulo; subtitulo; navigation; abaAtual (rota, quando a tela e aba: mostra a barra e nao o voltar); acaoNova { rotulo, onPress } (o "+"); carregando; erro; aoTentar; dados; renderItem; keyExtractor; vazio { titulo, texto, acao }.
+// Tela de lista de cadastro com os tres estados. titulo; subtitulo; navigation; abaAtual (rota, quando a tela e aba: mostra a barra e nao o voltar); acaoNova { rotulo, onPress } (o "+"); topo (plano colorido de largura inteira no lugar do titulo); cabecalhoDaLista (no abaixo do topo: filtro, busca, "Equipe · Novo profissional"); carregando; erro; aoTentar; dados; renderItem; keyExtractor; vazio { titulo, texto, acao }.
 import React from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -33,6 +33,8 @@ export default function TelaDeLista({
   navigation,
   abaAtual,
   acaoNova,
+  topo,
+  cabecalhoDaLista,
   carregando,
   erro,
   aoTentar,
@@ -58,7 +60,14 @@ export default function TelaDeLista({
     />
   ) : null;
 
-  const cabecalho = (
+  const cabecalho = topo ? (
+    <View style={{ marginBottom: espaco.xs }}>
+      <View style={{ marginHorizontal: -(margemTela + 2) }}>{topo}</View>
+      {cabecalhoDaLista ? (
+        <View style={{ paddingTop: espaco.md, gap: espaco.md }}>{cabecalhoDaLista}</View>
+      ) : null}
+    </View>
+  ) : (
     <View
       style={{
         flexDirection: 'row',
@@ -99,8 +108,9 @@ export default function TelaDeLista({
             ListHeaderComponent={cabecalho}
             ListEmptyComponent={estado}
             contentContainerStyle={{
-              paddingTop:
-                insets.top + espaco.xs + (comoAba ? 0 : toque.minimo + espaco.xs) + espaco.md,
+              paddingTop: topo
+                ? 0
+                : insets.top + espaco.xs + (comoAba ? 0 : toque.minimo + espaco.xs) + espaco.md,
               paddingHorizontal: margemTela + 2,
               paddingBottom: comoAba ? espacoDaBarra : insets.bottom + espaco.xl,
             }}
@@ -115,7 +125,7 @@ export default function TelaDeLista({
             titulo={titulo}
             rolou={rolou}
             aoVoltar={() => navigation.goBack()}
-            direita={maisNovo}
+            direita={topo ? null : maisNovo}
           />
         )}
       </ComVidro>
