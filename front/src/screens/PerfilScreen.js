@@ -355,7 +355,7 @@ export default function PerfilScreen({ navigation }) {
               definirReduzirTransparencia(ligado);
             }}
             trackColor={{ true: cores.lavanda, false: cores.linhaForte }}
-            thumbColor="#FFFFFF"
+            thumbColor={cores.chave}
             ios_backgroundColor={cores.linhaForte}
             accessibilityLabel="Reduzir transparência"
           />

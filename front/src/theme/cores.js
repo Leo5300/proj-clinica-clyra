@@ -71,6 +71,8 @@ const claro = {
   neutroSuave: '#ECE8F3',
   sobreNeutro: '#51496B',
 
+  // Bolinha do interruptor: branca nos dois temas.
+  chave: '#FFFFFF',
   abaAtiva: '#17122B',
   sobreAbaAtiva: '#FFFFFF',
   veu: 'rgba(23,18,43,0.34)',
@@ -155,6 +157,7 @@ const escuro = {
   neutroSuave: '#262040',
   sobreNeutro: '#C9C0E6',
 
+  chave: '#FFFFFF',
   abaAtiva: '#F1ECFF',
   sobreAbaAtiva: '#17122B',
   veu: 'rgba(0,0,0,0.5)',
