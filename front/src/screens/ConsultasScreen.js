@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, {
   FadeIn,
+  FadeOut,
+  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
@@ -47,7 +49,7 @@ import {
   useEspacoDaBarra,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque, duracao } from '../theme';
+import { useTema, espaco, margemTela, raio, toque, duracao, curva } from '../theme';
 
 // Lista de consultas. O servidor ja devolve so as que o perfil pode ver:
 // recepcao ve todas, medico a propria agenda, paciente as proprias.
@@ -65,6 +67,9 @@ const ABAS = [
 const ALTURA_SEGMENTO = 52;
 
 const TROCA_DE_LISTA = FadeIn.duration(duracao.lista);
+
+const SAI_DA_LISTA = (reduzido) =>
+  FadeOut.duration(reduzido ? duracao.reduzido : duracao.sair);
 
 function mesmoDia(a, b) {
   return (
@@ -170,7 +175,7 @@ function CarregandoLista() {
 
 export default function ConsultasScreen({ navigation, route }) {
   const { usuario } = useUsuario();
-  const { cores } = useTema();
+  const { cores, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
 
@@ -380,7 +385,9 @@ export default function ConsultasScreen({ navigation, route }) {
   };
 
   const renderItem = ({ item, index }) => (
-    <Animated.View entering={entrada(index)}>{renderLinha({ item, index })}</Animated.View>
+    <Animated.View entering={entrada(index)} exiting={SAI_DA_LISTA(movimentoReduzido)}>
+      {renderLinha({ item, index })}
+    </Animated.View>
   );
 
   const renderLinha = ({ item, index }) =>
@@ -410,6 +417,13 @@ export default function ConsultasScreen({ navigation, route }) {
               data={carregando || erro ? [] : dados}
               keyExtractor={(item) => String(item.id)}
               renderItem={renderItem}
+              // Consulta cancelada: a linha sai e as de baixo fecham o espaco,
+              // sem pulo. Com "reduzir movimento", so o fade curto.
+              itemLayoutAnimation={
+                movimentoReduzido
+                  ? undefined
+                  : LinearTransition.duration(duracao.sair).easing(curva.saida)
+              }
               onScroll={aoRolar}
               scrollEventThrottle={16}
               ItemSeparatorComponent={
