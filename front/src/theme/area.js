@@ -47,6 +47,11 @@ export function topoDoProfissional(area, cores) {
   };
 }
 
+// Ponto sobre o plano de tinta: o verde escuro some ali, a menta nao.
+export function pontoSobreTinta(area, cores) {
+  return ehPsiquiatria(area) ? cores.menta : cores.lavanda;
+}
+
 // Tom do avatar na cor cheia da area (components/Avatar).
 export function tomDoAvatar(area) {
   return ehPsiquiatria(area) ? 'psiquiatria' : 'psicologia';

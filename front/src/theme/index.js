@@ -12,6 +12,7 @@ export {
   topoDoProfissional,
   estiloDeEtiqueta,
   tomDoAvatar,
+  pontoSobreTinta,
 } from './area';
 export {
   arquivosDeFonte,
