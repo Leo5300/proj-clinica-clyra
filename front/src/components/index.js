@@ -14,6 +14,7 @@ export { default as EstadoVazio } from './EstadoVazio';
 export { default as FolhaDecisao } from './FolhaDecisao';
 export { default as ItemDeLista } from './ItemDeLista';
 export { default as Logotipo } from './Logotipo';
+export { default as Numeral, medidasDoNumeral } from './Numeral';
 export { default as Pressionavel } from './Pressionavel';
 export { default as Segmentado } from './Segmentado';
 export { default as Selo } from './Selo';

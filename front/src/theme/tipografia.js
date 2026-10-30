@@ -4,11 +4,13 @@
 // por isso o peso vai no fontFamily e nunca em fontWeight (senao o
 // sistema "engorda" a letra ou troca pela fonte padrao).
 //
-// Bricolage Grotesque 600: titulos e datas. Figtree: todo o resto.
+// Bricolage Grotesque 600: titulos. Bricolage 800: o numeral grande
+// (components/Numeral). Figtree: todo o resto.
 // Montserrat: so o logotipo. Cada peso e importado pelo caminho proprio
 // para o app levar so os arquivos que usa.
 
 import { BricolageGrotesque_600SemiBold } from '@expo-google-fonts/bricolage-grotesque/600SemiBold';
+import { BricolageGrotesque_800ExtraBold } from '@expo-google-fonts/bricolage-grotesque/800ExtraBold';
 import { Figtree_400Regular } from '@expo-google-fonts/figtree/400Regular';
 import { Figtree_500Medium } from '@expo-google-fonts/figtree/500Medium';
 import { Figtree_600SemiBold } from '@expo-google-fonts/figtree/600SemiBold';
@@ -19,6 +21,7 @@ import { Montserrat_600SemiBold } from '@expo-google-fonts/montserrat/600SemiBol
 // Mapa entregue ao useFonts no AppNavigator.
 export const arquivosDeFonte = {
   BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_800ExtraBold,
   Figtree_400Regular,
   Figtree_500Medium,
   Figtree_600SemiBold,
@@ -29,6 +32,7 @@ export const arquivosDeFonte = {
 
 export const fontes = {
   titulo: 'BricolageGrotesque_600SemiBold',
+  numeral: 'BricolageGrotesque_800ExtraBold',
   texto: 'Figtree_400Regular',
   textoMedio: 'Figtree_500Medium',
   textoSemi: 'Figtree_600SemiBold',
