@@ -16,24 +16,27 @@ import {
   ErroDaApi,
 } from '../services/api';
 import {
+  ANTECEDENCIA_MINUTOS,
   cancelarLembrete,
   dataDaConsulta,
   formatarHora,
 } from '../services/lembretes';
 import { useUsuario } from '../services/sessao';
 import {
-  formatarDataPorExtenso,
   formatarDiaEHora,
   formatarDiaEMes,
   formatarFaixa,
+  nomeCurtoDoDia,
+  nomeDoMes,
   nomeLongoDoDia,
   DURACAO_CONSULTA_MIN,
 } from '../services/datas';
 import { CLINICA } from '../services/localizacao';
 import {
-  Avatar,
+  BilheteConsulta,
   Botao,
   Cabecalho,
+  CartaoTinta,
   ComVidro,
   Esqueleto,
   EstadoErro,
@@ -41,12 +44,13 @@ import {
   FolhaDecisao,
   ItemDeLista,
   EtiquetaArea,
+  PlanoTopo,
   Selo,
   SeloSucesso,
   Texto,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque } from '../theme';
+import { useTema, espaco, margemTela, raio, toque, planoDaArea } from '../theme';
 import { vibrarImpacto } from '../services/haptica';
 import { especialidadeERegistro } from '../services/profissionais';
 
@@ -59,6 +63,11 @@ import { especialidadeERegistro } from '../services/profissionais';
 const ANTECEDENCIA_MINIMA_MS = 24 * 60 * 60 * 1000;
 
 const MAX_HISTORICO = 4;
+
+// Quanto o bilhete invade o topo colorido.
+const SOBREPOSICAO = 64;
+
+const minuscula = (texto) => `${texto[0].toLowerCase()}${texto.slice(1)}`;
 
 // "registrado em 05/10 às 08:12"
 function formatarRegistro(texto) {
@@ -341,30 +350,17 @@ export default function DetalheConsultaScreen({ navigation, route }) {
     // caminho que funciona.
     if (perfil === 'paciente' && faltaMs < ANTECEDENCIA_MINIMA_MS) {
       return (
-        <View style={{ gap: espaco.sm }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              gap: espaco.xs,
-              backgroundColor: cores.atencaoSuave,
-              borderRadius: raio.campo,
-              padding: espaco.sm,
-            }}
-          >
-            <Feather name="clock" size={16} color={cores.atencao} style={{ marginTop: 2 }} />
-            <Texto variante="legenda" cor="atencao" style={{ flex: 1 }}>
-              Faltam menos de 24 horas. Para remarcar ou cancelar agora, fale
-              com a recepção.
-            </Texto>
-          </View>
-          <Cartao>
-            <Texto variante="corpoForte">Recepção da clínica</Texto>
-            <Texto variante="rotulo" cor="tinta2" tabular selectable>
-              {CLINICA.telefone}
-            </Texto>
-            <Botao titulo="Ligar para a recepção" icone="phone" onPress={ligarParaRecepcao} />
-          </Cartao>
-        </View>
+        <CartaoTinta
+          titulo="Remarcar ou cancelar"
+          texto={`Faltam menos de 24 horas. Agora, só pela recepção: ${CLINICA.telefone}.`}
+        >
+          <Botao
+            titulo="Ligar para a recepção"
+            icone="phone"
+            variante="lavanda"
+            onPress={ligarParaRecepcao}
+          />
+        </CartaoTinta>
       );
     }
 
@@ -373,25 +369,25 @@ export default function DetalheConsultaScreen({ navigation, route }) {
     return (
       <View style={{ gap: espaco.sm }}>
         {perfil === 'paciente' ? (
-          <Texto variante="legenda" cor="apoio">
-            Remarque ou cancele pelo app até {formatarDiaEHora(limite)}. Depois
-            disso, fale com a recepção.
-          </Texto>
+          <CartaoTinta
+            titulo="Remarcar ou cancelar"
+            texto={`Até 24 horas antes, ou seja, até ${minuscula(formatarDiaEHora(limite))}.`}
+          />
         ) : null}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Botao
+            titulo="Remarcar"
+            style={{ flex: 1 }}
+            onPress={() => navigation.navigate('Agendar', { consulta })}
+          />
+          <Botao
             titulo="Cancelar"
-            variante="contorno"
+            variante="contornoAlerta"
             style={{ flex: 1 }}
             onPress={() => {
               setErroCancelar(null);
               setConfirmando(true);
             }}
-          />
-          <Botao
-            titulo="Remarcar"
-            style={{ flex: 1 }}
-            onPress={() => navigation.navigate('Agendar', { consulta })}
           />
         </View>
       </View>
@@ -403,13 +399,26 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const renderConteudo = () => {
     if (carregando) {
       return (
-        <View style={{ paddingTop: topo, paddingHorizontal: margemTela + 2, gap: espaco.md }}>
-          <View style={{ alignItems: 'center', gap: espaco.sm }}>
-            <Esqueleto largura={88} altura={88} raio={44} />
-            <Esqueleto largura={200} altura={22} raio={6} />
+        <View accessibilityState={{ busy: true }} accessibilityLabel="Carregando a consulta">
+          <PlanoTopo
+            fundo={cores.destaque}
+            corTexto={cores.sobrePlano}
+            style={{
+              paddingTop: topo,
+              paddingHorizontal: margemTela + 2,
+              paddingBottom: SOBREPOSICAO + espaco.lg,
+              gap: espaco.sm,
+            }}
+          >
+            <Esqueleto sobreDestaque largura={110} altura={14} raio={5} />
+            <Esqueleto sobreDestaque largura={230} altura={30} raio={8} />
+            <Esqueleto sobreDestaque largura={180} altura={14} raio={5} />
+          </PlanoTopo>
+          <View style={{ paddingHorizontal: margemTela + 2, marginTop: -SOBREPOSICAO, gap: espaco.md }}>
+            <Esqueleto altura={128} raio={22} />
+            <Esqueleto altura={72} raio={20} />
+            <Esqueleto altura={48} raio={raio.botao} />
           </View>
-          <Esqueleto altura={140} raio={raio.cartaoGrande} />
-          <Esqueleto altura={48} raio={raio.botao} />
         </View>
       );
     }
@@ -449,63 +458,87 @@ export default function DetalheConsultaScreen({ navigation, route }) {
     const faltaMs = quando - new Date();
     const passou = faltaMs <= 0;
     const registro = especialidadeERegistro(medico);
+    const plano = planoDaArea(medico?.area, cores);
+    const lembrete =
+      ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
 
     return (
       <>
-        <View
+        <PlanoTopo
+          fundo={plano.fundo}
+          corTexto={plano.texto}
           style={{
-            backgroundColor: cores.superficie2,
-            borderBottomLeftRadius: raio.destaque,
-            borderBottomRightRadius: raio.destaque,
-            borderCurve: 'continuous',
-            paddingTop: topo,
-            paddingBottom: espaco.lg,
+            paddingTop: insets.top + espaco.xs,
             paddingHorizontal: margemTela + 2,
-            alignItems: 'center',
-            gap: espaco.xs,
+            paddingBottom: SOBREPOSICAO + espaco.lg,
+            gap: 2,
           }}
         >
-          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tamanho={88} />
-          <Texto variante="titulo" style={{ textAlign: 'center', marginTop: espaco.xs }}>
+          <View
+            style={{
+              minHeight: toque.minimo,
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              marginBottom: espaco.md,
+            }}
+          >
+            <Selo
+              texto={passou ? 'Anterior' : 'Agendada'}
+              tom={passou ? 'neutro' : 'lavanda'}
+              icone={passou ? 'check' : 'calendar'}
+            />
+          </View>
+          <Texto variante="rotulo" cor={plano.texto2}>
+            Consulta com
+          </Texto>
+          <Texto variante="tituloGrande" cor={plano.texto} accessibilityRole="header">
             {medico?.nome ?? 'Profissional'}
           </Texto>
           {registro ? (
-            <Texto variante="rotulo" cor="tinta2" style={{ textAlign: 'center' }} selectable>
+            <Texto variante="rotulo" cor={plano.texto2} selectable>
               {registro}
             </Texto>
           ) : null}
-          <EtiquetaArea area={medico?.area} style={{ alignSelf: 'center' }} />
-          <Selo
-            texto={passou ? 'Anterior' : 'Agendada'}
-            tom={passou ? 'neutro' : 'lavanda'}
-            icone={passou ? 'check' : 'calendar'}
-            style={{ alignSelf: 'center', marginTop: 4 }}
+        </PlanoTopo>
+
+        <View
+          style={{
+            paddingHorizontal: margemTela + 2,
+            paddingBottom: insets.bottom + espaco.xl,
+            marginTop: -SOBREPOSICAO,
+            gap: espaco.md,
+          }}
+        >
+          <BilheteConsulta
+            dia={quando.getDate()}
+            mes={nomeDoMes(quando)}
+            diaDaSemana={nomeCurtoDoDia(quando)}
+            horario={formatarFaixa(quando)}
+            detalhe={`${DURACAO_CONSULTA_MIN} min`}
+            area={medico?.area}
+            aoComoChegar={
+              perfil === 'paciente' && !passou
+                ? () => navigation.navigate('ComoChegar')
+                : undefined
+            }
           />
-        </View>
 
-        <View style={{ padding: margemTela + 2, gap: espaco.md, paddingBottom: insets.bottom + espaco.xl }}>
-          <Cartao>
-            <View style={{ gap: 2 }}>
-              <Texto variante="tituloMedio">{formatarDataPorExtenso(quando)}</Texto>
-              <Texto variante="rotulo" cor="tinta2" tabular>
-                {formatarFaixa(quando)} · {DURACAO_CONSULTA_MIN} min
-              </Texto>
+          {medico?.area || (perfil === 'paciente' && !passou) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco.xs }}>
+              <EtiquetaArea area={medico?.area} />
+              {perfil === 'paciente' && !passou ? (
+                <Texto variante="legenda" cor="tinta2" style={{ flexShrink: 1 }}>
+                  Avisamos {lembrete} antes, neste aparelho.
+                </Texto>
+              ) : null}
             </View>
+          ) : null}
 
-            {perfil !== 'paciente' ? (
+          {perfil !== 'paciente' ? (
+            <Cartao>
               <Linha icone="user" rotulo="Paciente" valor={paciente?.nome ?? '—'} />
-            ) : null}
-            {perfil === 'paciente' ? (
-              <Linha icone="map-pin" rotulo="Local" valor={CLINICA.endereco} />
-            ) : null}
-            {perfil === 'paciente' && !passou ? (
-              <Linha
-                icone="bell"
-                rotulo="Lembrete"
-                valor="Uma hora antes, neste aparelho"
-              />
-            ) : null}
-          </Cartao>
+            </Cartao>
+          ) : null}
 
           {renderSinaisVitais(passou)}
 
