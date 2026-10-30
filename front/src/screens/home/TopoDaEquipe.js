@@ -4,12 +4,12 @@ import { Avatar, Logotipo, Pressionavel, Texto } from '../../components';
 import { espaco, toque } from '../../theme';
 import { ROTULO_DO_PERFIL } from '../../navigation/permissoes';
 
-// Topo do Inicio da recepcao e do medico: logotipo, perfil e o atalho
-// para o Perfil. Sem vidro: a tela ja usa o limite de desfoque na barra
-// (e, na recepcao, no filtro).
-export default function TopoDaEquipe({ usuario, navigation }) {
+// Primeira linha do topo colorido da recepcao e do profissional: logotipo,
+// quem esta logado e o atalho para o Perfil. corTexto acompanha o plano
+// (tinta sobre lilas e menta, claro sobre a tinta); rotulo troca o nome
+// do perfil ("Profissional · Psicologia"); tomDoAvatar casa com o plano.
+export default function TopoDaEquipe({ usuario, navigation, corTexto, rotulo, tomDoAvatar = 'vidro' }) {
   const perfil = usuario?.perfil;
-  const tom = perfil === 'medico' ? 'lavanda' : 'neutro';
 
   const abrirPerfil = () =>
     perfil === 'medico'
@@ -25,17 +25,22 @@ export default function TopoDaEquipe({ usuario, navigation }) {
         minHeight: toque.minimo,
       }}
     >
-      <Logotipo />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
-        <Texto variante="rotulo" cor="apoio">
-          {ROTULO_DO_PERFIL[perfil]}
+      <Logotipo cor={corTexto} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm, flexShrink: 1 }}>
+        <Texto variante="rotuloForte" cor={corTexto} numberOfLines={1} style={{ flexShrink: 1 }}>
+          {rotulo ?? ROTULO_DO_PERFIL[perfil]}
         </Texto>
         <Pressionavel
           onPress={abrirPerfil}
           accessibilityRole="button"
           accessibilityLabel="Abrir perfil"
         >
-          <Avatar nome={usuario?.nome} fotoUri={usuario?.fotoUri} tom={tom} tamanho={toque.minimo} />
+          <Avatar
+            nome={usuario?.nome}
+            fotoUri={usuario?.fotoUri}
+            tom={tomDoAvatar}
+            tamanho={toque.minimo}
+          />
         </Pressionavel>
       </View>
     </View>

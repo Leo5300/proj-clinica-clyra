@@ -44,9 +44,11 @@ export default function HomeScreen({ navigation }) {
 
       await atualizarUsuario(me);
 
-      // A recepcao tambem ve nomes de medicos e pacientes na agenda.
+      // A recepcao tambem ve nomes de medicos e pacientes na agenda. O
+      // medico busca a lista para achar o proprio cadastro: a area dele
+      // define a cor do topo (o /me nao traz a area).
       const [listaMedicos, listaPacientes] = await Promise.all([
-        me.perfil === 'medico' ? [] : buscarMedicos(),
+        buscarMedicos(),
         me.perfil === 'paciente' ? [] : buscarPacientes(),
       ]);
 
