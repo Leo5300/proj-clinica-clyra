@@ -25,6 +25,7 @@ export { default as Pressionavel } from './Pressionavel';
 export { default as Segmentado } from './Segmentado';
 export { default as Selo } from './Selo';
 export { default as SeloSucesso } from './SeloSucesso';
+export { useEntradaDeLista } from './useEntradaDeLista';
 export { useRolagem } from './useRolagem';
 export { default as Tela } from './Tela';
 export { default as TelaDeLista } from './TelaDeLista';

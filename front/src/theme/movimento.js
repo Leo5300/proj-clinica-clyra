@@ -15,6 +15,15 @@ export const duracao = {
   folha: 300,
   sucesso: 320,
   esqueleto: 1200,
+  // Movimentos do acabamento final.
+  odometro: 420,
+  entradaLista: 220,
+  intervaloLista: 40,
+  conteudo: 200,
+  corDaAba: 220,
+  sair: 220,
+  // Teto de qualquer movimento com "reduzir movimento": so opacidade.
+  reduzido: 120,
 };
 
 // Mesmas curvas nos dois formatos do Reanimated: Easing para withTiming e
