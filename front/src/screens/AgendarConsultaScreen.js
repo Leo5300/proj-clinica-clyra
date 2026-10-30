@@ -844,6 +844,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
               horario={formatarFaixa(quando)}
               detalhe={`${DURACAO_CONSULTA_MIN} min`}
               area={medico?.area}
+              plano={ehRecepcao ? undefined : planoDoTopo}
             />
           </Animated.View>
         </Animated.View>
