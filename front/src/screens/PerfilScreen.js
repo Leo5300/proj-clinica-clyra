@@ -30,7 +30,9 @@ import { ROTULO_DO_PERFIL } from '../navigation/permissoes';
 import {
   Avatar,
   BarraAbas,
+  Botao,
   Cabecalho,
+  CartaoTinta,
   ComVidro,
   FolhaDecisao,
   ItemDeLista,
@@ -352,7 +354,9 @@ export default function PerfilScreen({ navigation }) {
               vibrarSelecao();
               definirReduzirTransparencia(ligado);
             }}
-            trackColor={{ true: cores.acao, false: cores.linhaForte }}
+            trackColor={{ true: cores.lavanda, false: cores.linhaForte }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor={cores.linhaForte}
             accessibilityLabel="Reduzir transparência"
           />
         </View>
@@ -370,41 +374,18 @@ export default function PerfilScreen({ navigation }) {
           <Texto variante="secao" accessibilityRole="header">
             Apoio
           </Texto>
-          <Pressionavel
-            onPress={ligarParaCvv}
-            accessibilityRole="button"
-            accessibilityLabel="Ligar para o CVV, 188"
-            style={{
-              backgroundColor: cores.lavandaSuave,
-              borderRadius: raio.cartao,
-              borderCurve: 'continuous',
-              padding: espaco.md,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 14,
-            }}
+          <CartaoTinta
+            titulo="Precisa conversar agora?"
+            texto="O CVV atende 24 horas, por telefone e de graça. Ligue 188."
           >
-            <View
-              style={{
-                width: toque.minimo,
-                height: toque.minimo,
-                borderRadius: raio.capsula,
-                backgroundColor: cores.superficie,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Feather name="phone" size={20} color={cores.sobreLavandaSuave} />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Texto variante="corpoForte" cor="sobreLavandaSuave">
-                Precisa conversar agora?
-              </Texto>
-              <Texto variante="legenda" cor="sobreLavandaSuave">
-                CVV · ligue 188, 24 horas, gratuito
-              </Texto>
-            </View>
-          </Pressionavel>
+            <Botao
+              titulo="Ligar para o 188"
+              icone="phone"
+              variante="lavanda"
+              accessibilityLabel="Ligar para o CVV, 188"
+              onPress={ligarParaCvv}
+            />
+          </CartaoTinta>
         </View>
       ) : null}
 
