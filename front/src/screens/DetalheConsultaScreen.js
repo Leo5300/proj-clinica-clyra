@@ -1,13 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Linking, View } from 'react-native';
-import Animated, {
-  FadeIn,
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -65,9 +58,7 @@ import {
   raio,
   toque,
   planoDaArea,
-  ehPsiquiatria,
   duracao,
-  curva,
   planoDoPaciente,
 } from '../theme';
 import { vibrarImpacto } from '../services/haptica';
@@ -160,19 +151,6 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const chegada = FadeIn.duration(
     movimentoReduzido ? duracao.reduzido : duracao.conteudo,
   );
-
-  // O topo nasce lavanda e, se a consulta for de Psiquiatria, vai a verde
-  // no mesmo tempo do crossfade (200 ms). Com "reduzir movimento", troca na
-  // hora.
-  const paraVerde = useSharedValue(0);
-  // O texto do topo so fica branco quando o verde ja chegou: nunca branco
-  // sobre lavanda, nem de passagem.
-  const [topoVerde, setTopoVerde] = useState(false);
-  const corDoPlano = cores.destaque;
-  const corVerde = cores.planoVerde;
-  const estiloDoTopo = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(paraVerde.get(), [0, 1], [corDoPlano, corVerde]),
-  }));
 
   const perfil = usuario?.perfil;
 
@@ -281,21 +259,6 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       if (!cancelada) carregar();
     }, [carregar, cancelada]),
   );
-
-  const areaDoMedico = medico?.area;
-  useEffect(() => {
-    const alvo = ehPsiquiatria(areaDoMedico) ? 1 : 0;
-    if (movimentoReduzido || alvo === 0) {
-      paraVerde.set(alvo);
-      setTopoVerde(alvo === 1);
-      return;
-    }
-    paraVerde.set(
-      withTiming(alvo, { duration: duracao.conteudo, easing: curva.saida }, (terminou) => {
-        if (terminou) scheduleOnRN(setTopoVerde, true);
-      }),
-    );
-  }, [areaDoMedico, movimentoReduzido]);
 
   const cancelarConsulta = async () => {
     vibrarImpacto();
@@ -514,7 +477,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
     const faltaMs = quando - new Date();
     const passou = faltaMs <= 0;
     const registro = especialidadeERegistro(medico);
-    const plano = planoDoTopo(topoVerde ? medico?.area : null);
+    const plano = planoDoTopo(medico?.area);
     const lembrete =
       ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
 
@@ -523,7 +486,6 @@ export default function DetalheConsultaScreen({ navigation, route }) {
         <PlanoTopo
           fundo={plano.fundo}
           corTexto={plano.texto}
-          estiloAnimado={estiloDoTopo}
           style={{
             paddingTop: insets.top + espaco.xs,
             paddingHorizontal: margemTela + 2,
@@ -629,7 +591,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
-      <BarraDoTopo clara={rolou ? escuro : topoVerde} />
+      <BarraDoTopo clara={rolou ? escuro : planoDoTopo(medico?.area).escuro} />
       <ComVidro
         conteudo={
           <Animated.ScrollView onScroll={aoRolar} scrollEventThrottle={16}>
