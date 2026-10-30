@@ -11,6 +11,7 @@ export {
   planoDaArea,
   topoDoProfissional,
   estiloDeEtiqueta,
+  tomDoAvatar,
 } from './area';
 export {
   arquivosDeFonte,

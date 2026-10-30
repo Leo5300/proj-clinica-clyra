@@ -47,6 +47,11 @@ export function topoDoProfissional(area, cores) {
   };
 }
 
+// Tom do avatar na cor cheia da area (components/Avatar).
+export function tomDoAvatar(area) {
+  return ehPsiquiatria(area) ? 'psiquiatria' : 'psicologia';
+}
+
 // Etiqueta escrita da area: fundo suave e texto forte da mesma familia.
 export function estiloDeEtiqueta(area, cores) {
   if (ehPsiquiatria(area)) {

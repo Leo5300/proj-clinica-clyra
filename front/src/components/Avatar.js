@@ -1,4 +1,4 @@
-// Foto ou iniciais de uma pessoa. nome; fotoUri; tamanho (padrao 44); tom: 'lavanda' (padrao) | 'neutro' | 'vidro' (sobre o destaque); style.
+// Foto ou iniciais de uma pessoa. nome; fotoUri; tamanho (padrao 44); tom: 'lavanda' (padrao) | 'neutro' | 'vidro' (sobre o destaque) | 'psicologia' | 'psiquiatria' (cor cheia da area); style.
 import React from 'react';
 import { Image, View } from 'react-native';
 import Texto from './Texto';
@@ -20,6 +20,8 @@ export function iniciais(nome) {
 function coresDoTom(tom, cores) {
   if (tom === 'neutro') return { fundo: cores.neutroSuave, texto: cores.sobreNeutro };
   if (tom === 'vidro') return { fundo: cores.vidroClaro, texto: cores.sobreDestaque };
+  if (tom === 'psicologia') return { fundo: cores.lavanda, texto: cores.sobrePlano };
+  if (tom === 'psiquiatria') return { fundo: cores.planoVerde, texto: cores.sobrePlanoVerde };
   return { fundo: cores.lavandaSuave, texto: cores.sobreLavandaSuave };
 }
 
