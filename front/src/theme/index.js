@@ -9,6 +9,7 @@ export {
   ehPsiquiatria,
   corDaArea,
   planoDaArea,
+  planoDoPaciente,
   topoDoProfissional,
   estiloDeEtiqueta,
   tomDoAvatar,
