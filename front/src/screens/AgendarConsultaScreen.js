@@ -49,7 +49,16 @@ import {
   Vidro,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque, corDaArea } from '../theme';
+import {
+  useTema,
+  espaco,
+  margemTela,
+  raio,
+  toque,
+  corDaArea,
+  planoDaArea,
+  planoDoPaciente,
+} from '../theme';
 import { vibrarAviso } from '../services/haptica';
 import { especialidadeERegistro } from '../services/profissionais';
 
@@ -111,16 +120,15 @@ function mensagemDoLembrete(resultado) {
 }
 
 
-// Topo do fluxo: lavanda do comeco ao fim, porque e a cor da marca. A
-// area so colore etiquetas, barras e filtros.
-function TopoDoPasso({ etapa, titulo, subtitulo, children }) {
-  const { cores } = useTema();
+// Topo do fluxo: a mesma cor do comeco ao fim (verde para o paciente,
+// lavanda para a recepcao). A area so colore etiquetas, barras e filtros.
+function TopoDoPasso({ etapa, titulo, subtitulo, plano, children }) {
   const insets = useSafeAreaInsets();
 
   return (
     <PlanoTopo
-      fundo={cores.destaque}
-      corTexto={cores.sobrePlano}
+      fundo={plano.fundo}
+      corTexto={plano.texto}
       style={{
         paddingTop: insets.top + espaco.xs,
         paddingHorizontal: margemTela + 2,
@@ -137,16 +145,16 @@ function TopoDoPasso({ etapa, titulo, subtitulo, children }) {
         }}
       >
         {etapa ? (
-          <Texto variante="rotuloForte" cor="sobrePlano">
+          <Texto variante="rotuloForte" cor={plano.texto}>
             Passo {etapa} de 3
           </Texto>
         ) : null}
       </View>
-      <Texto variante="tituloGrande" cor="sobrePlano" accessibilityRole="header">
+      <Texto variante="tituloGrande" cor={plano.texto} accessibilityRole="header">
         {titulo}
       </Texto>
       {subtitulo ? (
-        <Texto variante="rotulo" cor="sobrePlano2">
+        <Texto variante="rotulo" cor={plano.texto2}>
           {subtitulo}
         </Texto>
       ) : null}
@@ -833,11 +841,13 @@ export default function AgendarConsultaScreen({ navigation, route }) {
     );
   };
 
-  // Topo de cada passo.
+  // Topo de cada passo: verde para o paciente, lavanda para a recepcao.
+  const planoDoTopo = ehRecepcao ? planoDaArea(null, cores) : planoDoPaciente(cores);
   let topo;
   if (sucesso) {
     topo = (
       <TopoDoPasso
+        plano={planoDoTopo}
         etapa={consulta ? null : 3}
         titulo={sucesso.titulo}
         subtitulo={`Com ${medico?.nome ?? 'o profissional'}`}
@@ -846,6 +856,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   } else if (passo === 1 || carregando || erroCarga) {
     topo = (
       <TopoDoPasso
+        plano={planoDoTopo}
         etapa={1}
         titulo={ehRecepcao ? 'Nova consulta' : 'Agendar consulta'}
         subtitulo={ehRecepcao && !pacienteId ? 'Escolha o paciente' : 'Escolha o profissional'}
@@ -854,15 +865,15 @@ export default function AgendarConsultaScreen({ navigation, route }) {
   } else {
     const registro = especialidadeERegistro(medico);
     topo = (
-      <TopoDoPasso etapa={consulta ? null : 2} titulo={consulta ? 'Novo horário' : 'Dia e horário'}>
+      <TopoDoPasso plano={planoDoTopo} etapa={consulta ? null : 2} titulo={consulta ? 'Novo horário' : 'Dia e horário'}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm, marginTop: espaco.sm }}>
-          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom="vidro" />
+          <Avatar nome={medico?.nome} fotoUri={medico?.fotoUri} tom={ehRecepcao ? 'vidro' : 'lavanda'} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Texto variante="corpoForte" cor="sobrePlano">
+            <Texto variante="corpoForte" cor={planoDoTopo.texto}>
               {medico?.nome ?? 'Profissional'}
             </Texto>
             {registro ? (
-              <Texto variante="legenda" cor="sobrePlano2">
+              <Texto variante="legenda" cor={planoDoTopo.texto2}>
                 {registro}
               </Texto>
             ) : null}
@@ -877,7 +888,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
             >
               <Texto
                 variante="rotuloForte"
-                cor="sobrePlano"
+                cor={planoDoTopo.texto}
                 style={{ textDecorationLine: 'underline' }}
               >
                 Trocar
