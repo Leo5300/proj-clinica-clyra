@@ -23,8 +23,8 @@ const ABAS_DO_PERFIL = {
   ],
   recepcao: [
     { rota: 'Home', rotulo: 'Agenda', icone: 'calendar' },
+    { rota: 'Medicos', rotulo: 'Profissionais', icone: 'briefcase' },
     { rota: 'Pacientes', rotulo: 'Pacientes', icone: 'users' },
-    { rota: 'Cadastros', rotulo: 'Cadastros', icone: 'grid' },
   ],
   medico: [
     { rota: 'Home', rotulo: 'Agenda', icone: 'calendar' },
@@ -33,10 +33,12 @@ const ABAS_DO_PERFIL = {
   ],
 };
 
-// O "+" agenda. O medico nao marca consultas: sem "+".
-const ROTULO_DO_MAIS = {
-  paciente: 'Agendar consulta',
-  recepcao: 'Nova consulta',
+// O "+" do paciente agenda; o da recepcao abre os cadastros (nova
+// consulta, paciente, profissional, horarios e especialidades). O medico
+// nao marca consultas: sem "+".
+const MAIS_DO_PERFIL = {
+  paciente: { rota: 'Agendar', rotulo: 'Agendar consulta' },
+  recepcao: { rota: 'Cadastros', rotulo: 'Novo cadastro ou consulta' },
 };
 
 const ALTURA = 64;
@@ -61,7 +63,7 @@ export default function BarraAbas({ navigation, atual }) {
   const abas = (ABAS_DO_PERFIL[perfil] ?? []).filter((aba) =>
     podeAcessar(perfil, aba.rota),
   );
-  const rotuloDoMais = ROTULO_DO_MAIS[perfil];
+  const mais = MAIS_DO_PERFIL[perfil];
 
   if (abas.length === 0) return null;
 
@@ -141,12 +143,12 @@ export default function BarraAbas({ navigation, atual }) {
         </View>
       </Vidro>
 
-      {rotuloDoMais && podeAcessar(perfil, 'Agendar') ? (
+      {mais && podeAcessar(perfil, mais.rota) ? (
         <Pressionavel
           escala={escalaDoVidro}
-          onPress={() => navigation.navigate('Agendar')}
+          onPress={() => navigation.navigate(mais.rota)}
           accessibilityRole="button"
-          accessibilityLabel={rotuloDoMais}
+          accessibilityLabel={mais.rotulo}
         >
           <Vidro espessura="tinta" interativo style={{ width: ALTURA, height: ALTURA }}>
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

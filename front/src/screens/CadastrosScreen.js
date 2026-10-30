@@ -4,25 +4,40 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
-  BarraAbas,
+  Cabecalho,
   ComVidro,
   ItemDeLista,
   Texto,
-  useEspacoDaBarra,
+  useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio } from '../theme';
+import { useTema, espaco, margemTela, raio, toque } from '../theme';
 
-// Aba Cadastros da recepcao: junta o que a clinica mantem e muda pouco
-// (medicos, horarios de atendimento e especialidades). So abre caminho;
-// cada lista continua na propria rota.
+// Aberta pelo "+" da recepcao: os atalhos para criar (consulta, paciente,
+// profissional) e o que a clinica mantem e muda pouco (horarios e
+// especialidades). So abre caminho; cada cadastro continua na propria rota.
 
-const CADASTROS = [
+const NOVOS = [
   {
-    rota: 'Medicos',
-    titulo: 'Profissionais',
-    texto: 'Profissionais, especialidade e acesso ao app',
+    rota: 'Agendar',
+    titulo: 'Nova consulta',
+    texto: 'Escolha o paciente, o profissional e o horário',
+    icone: 'calendar',
+  },
+  {
+    rota: 'CadastroPaciente',
+    titulo: 'Novo paciente',
+    texto: 'Dados pessoais e acesso ao app',
+    icone: 'user-plus',
+  },
+  {
+    rota: 'CadastroMedico',
+    titulo: 'Novo profissional',
+    texto: 'Especialidade, registro e acesso ao app',
     icone: 'briefcase',
   },
+];
+
+const CADASTROS = [
   {
     rota: 'Horarios',
     titulo: 'Horários de atendimento',
@@ -37,20 +52,69 @@ const CADASTROS = [
   },
 ];
 
+function Grupo({ titulo, itens, navigation }) {
+  const { cores } = useTema();
+
+  return (
+    <View style={{ gap: espaco.xs }}>
+      <Texto variante="secao" accessibilityRole="header">
+        {titulo}
+      </Texto>
+      <View
+        style={{
+          backgroundColor: cores.superficie,
+          borderColor: cores.linha,
+          borderWidth: 1,
+          borderRadius: raio.cartao,
+          borderCurve: 'continuous',
+          paddingHorizontal: espaco.md,
+        }}
+      >
+        {itens.map((item, indice) => (
+          <ItemDeLista
+            key={item.rota}
+            titulo={item.titulo}
+            subtitulo={item.texto}
+            esquerda={
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: raio.campo,
+                  backgroundColor: cores.lavandaSuave,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Feather name={item.icone} size={20} color={cores.sobreLavandaSuave} />
+              </View>
+            }
+            seta
+            divisor={indice < itens.length - 1}
+            onPress={() => navigation.navigate(item.rota)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function CadastrosScreen({ navigation }) {
   const { cores } = useTema();
   const insets = useSafeAreaInsets();
-  const espacoDaBarra = useEspacoDaBarra();
+  const { aoRolar, rolou } = useRolagem(50);
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
       <ComVidro
         conteudo={
           <Animated.ScrollView
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
             contentContainerStyle={{
-              paddingTop: insets.top + espaco.xs + espaco.md,
+              paddingTop: insets.top + espaco.xs + toque.minimo + espaco.lg,
               paddingHorizontal: margemTela + 2,
-              paddingBottom: espacoDaBarra,
+              paddingBottom: insets.bottom + espaco.xl,
               gap: espaco.lg,
             }}
           >
@@ -59,49 +123,21 @@ export default function CadastrosScreen({ navigation }) {
                 Cadastros
               </Texto>
               <Texto variante="rotulo" cor="apoio">
-                O que a clínica mantém e muda pouco.
+                Crie uma consulta ou um cadastro novo.
               </Texto>
             </View>
 
-            <View
-              style={{
-                backgroundColor: cores.superficie,
-                borderColor: cores.linha,
-                borderWidth: 1,
-                borderRadius: raio.cartao,
-                borderCurve: 'continuous',
-                paddingHorizontal: espaco.md,
-              }}
-            >
-              {CADASTROS.map((item, indice) => (
-                <ItemDeLista
-                  key={item.rota}
-                  titulo={item.titulo}
-                  subtitulo={item.texto}
-                  esquerda={
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: raio.campo,
-                        backgroundColor: cores.lavandaSuave,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Feather name={item.icone} size={20} color={cores.sobreLavandaSuave} />
-                    </View>
-                  }
-                  seta
-                  divisor={indice < CADASTROS.length - 1}
-                  onPress={() => navigation.navigate(item.rota)}
-                />
-              ))}
-            </View>
+            <Grupo titulo="Novo" itens={NOVOS} navigation={navigation} />
+            <Grupo titulo="Da clínica" itens={CADASTROS} navigation={navigation} />
           </Animated.ScrollView>
         }
       >
-        <BarraAbas navigation={navigation} atual="Cadastros" />
+        <Cabecalho
+          flutuante
+          titulo="Cadastros"
+          rolou={rolou}
+          aoVoltar={() => navigation.goBack()}
+        />
       </ComVidro>
     </View>
   );

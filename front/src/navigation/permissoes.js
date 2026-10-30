@@ -26,7 +26,7 @@ export const ROTAS_POR_PERFIL = {
   Medicos: ['recepcao'],
   CadastroMedico: ['recepcao'],
   Especialidades: ['recepcao'],
-  // Aba que agrupa Medicos, Horarios e Especialidades.
+  // Aberta pelo "+" da recepcao: nova consulta e os cadastros.
   Cadastros: ['recepcao'],
   CadastroEspecialidade: ['recepcao'],
   Horarios: ['recepcao', 'medico'],
