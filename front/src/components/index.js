@@ -15,6 +15,7 @@ export { default as EstadoErro } from './EstadoErro';
 export { default as EstadoVazio } from './EstadoVazio';
 export { default as EtiquetaArea } from './EtiquetaArea';
 export { default as FolhaDecisao } from './FolhaDecisao';
+export { default as IlustracaoVazio } from './IlustracaoVazio';
 export { default as ItemDeLista } from './ItemDeLista';
 export { default as Logotipo } from './Logotipo';
 export { default as Numeral, medidasDoNumeral } from './Numeral';
