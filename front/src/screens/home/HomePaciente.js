@@ -219,13 +219,15 @@ function AvisoDeLembretes({ consultas }) {
         direita={
           <View
             style={{
-              backgroundColor: cores.lavanda,
+              backgroundColor: cores.papel,
+              borderWidth: 1,
+              borderColor: cores.linha,
               borderRadius: raio.capsula,
               paddingHorizontal: espaco.sm,
               paddingVertical: 4,
             }}
           >
-            <Texto variante="pequeno" cor="sobrePlano">
+            <Texto variante="pequeno" cor="tinta">
               Ativos
             </Texto>
           </View>

@@ -69,7 +69,7 @@ const claro = paletas.claro;
 export const CORES_DO_PERFIL = {
   recepcao: { cor: claro.sobreNeutro, fundo: claro.neutroSuave },
   medico: { cor: claro.sobreLavandaSuave, fundo: claro.lavandaSuave },
-  paciente: { cor: claro.sobreLavandaSuave, fundo: claro.lavandaSuave },
+  paciente: { cor: claro.tinta, fundo: claro.papel },
 };
 
 export const TITULO_CONSULTAS = {

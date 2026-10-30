@@ -57,8 +57,9 @@ const OPCOES_DE_TEMA = [
   { valor: 'automatico', rotulo: 'Automático' },
 ];
 
-// Paciente e profissional sao lavanda; a recepcao e neutra.
-const TOM_DO_PERFIL = { recepcao: 'neutro', medico: 'lavanda', paciente: 'lavanda' };
+// Profissional e lavanda; a recepcao e neutra; o paciente usa o selo de
+// papel com texto tinta (no perfil dele, a lavanda so diz Psicologia).
+const TOM_DO_PERFIL = { recepcao: 'neutro', medico: 'lavanda', paciente: 'papel' };
 
 function Grupo({ titulo, children }) {
   const { cores } = useTema();

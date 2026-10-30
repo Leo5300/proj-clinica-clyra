@@ -97,7 +97,7 @@ function separar(consultas) {
 
 const maiuscula = (texto) => `${texto[0].toUpperCase()}${texto.slice(1)}`;
 
-function CartaoProxima({ consulta, primeira, linha, onPress }) {
+function CartaoProxima({ consulta, primeira, linha, tomDoSelo, onPress }) {
   const { cores } = useTema();
   const quando = dataDaConsulta(consulta);
   const hoje = mesmoDia(quando, new Date());
@@ -149,7 +149,7 @@ function CartaoProxima({ consulta, primeira, linha, onPress }) {
         <Texto variante="legenda" cor="apoio">
           {linha}
         </Texto>
-        <Selo texto="Agendada" icone="calendar" style={{ marginTop: 3 }} />
+        <Selo texto="Agendada" tom={tomDoSelo} icone="calendar" style={{ marginTop: 3 }} />
       </View>
 
       <Feather name="chevron-right" size={20} color={cores.apoio} />
@@ -383,6 +383,7 @@ export default function ConsultasScreen({ navigation, route }) {
         consulta={item}
         primeira={index === 0}
         linha={linhaDe(item)}
+        tomDoSelo={ehPaciente ? 'papel' : 'lavanda'}
         onPress={() => abrir(item)}
       />
     ) : (

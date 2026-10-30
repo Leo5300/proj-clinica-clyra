@@ -497,7 +497,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
           >
             <Selo
               texto={passou ? 'Anterior' : 'Agendada'}
-              tom={passou ? 'neutro' : 'lavanda'}
+              tom={perfil === 'paciente' ? 'papel' : passou ? 'neutro' : 'lavanda'}
               icone={passou ? 'check' : 'calendar'}
             />
           </View>
