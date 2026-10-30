@@ -21,7 +21,9 @@ export default function Segmentado({
   rotuloDoGrupo,
   style,
 }) {
-  const { cores } = useTema();
+  const { cores, movimentoReduzido } = useTema();
+  // Com "reduzir movimento", a cor troca direto.
+  const transicao = movimentoReduzido ? null : transicaoDeCor;
   const deVidro = variante === 'vidro';
 
   const botoes = opcoes.map((opcao) => {
@@ -57,7 +59,7 @@ export default function Segmentado({
               paddingHorizontal: 8,
               backgroundColor: fundo,
             },
-            transicaoDeCor,
+            transicao,
           ]}
         >
           <Animated.Text
@@ -65,7 +67,7 @@ export default function Segmentado({
             style={[
               selecionada ? estilosDeTexto.rotuloForte : estilosDeTexto.rotulo,
               { color: texto, textAlign: 'center' },
-              transicaoDeCor,
+              transicao,
             ]}
           >
             {opcao.rotulo}
