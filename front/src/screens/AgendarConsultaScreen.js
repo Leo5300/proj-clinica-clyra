@@ -823,6 +823,7 @@ export default function AgendarConsultaScreen({ navigation, route }) {
           horario={formatarFaixa(quando)}
           detalhe={`${DURACAO_CONSULTA_MIN} min`}
           area={medico?.area}
+          plano={ehRecepcao ? undefined : planoDoTopo}
         />
         <SeloSucesso titulo={sucesso.titulo} texto={sucesso.texto} />
         <View style={{ gap: espaco.sm }}>

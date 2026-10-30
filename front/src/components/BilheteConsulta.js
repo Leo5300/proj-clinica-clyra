@@ -1,4 +1,4 @@
-// Bilhete da consulta: a data em destaque, que se sobrepoe a borda do topo no Detalhe. dia; mes ("nov"); diaDaSemana ("ter"); horario ("14:30 – 15:00"); detalhe ("30 min · presencial"); area; aoComoChegar (mostra o link); style.
+// Bilhete da consulta: a data em destaque, que se sobrepoe a borda do topo no Detalhe. dia; mes ("nov"); diaDaSemana ("ter"); horario ("14:30 – 15:00"); detalhe ("30 min · presencial"); area; plano (opcional: faixa na cor do perfil, como o verde do paciente; sem ele, a cor da area); aoComoChegar (mostra o link); style.
 //
 // Faixa de 112 na cor da area com o numeral, picote tracejado com dois
 // entalhes na cor do papel e, a direita, horario e detalhes.
@@ -21,11 +21,12 @@ export default function BilheteConsulta({
   horario,
   detalhe,
   area,
+  plano: planoDoPerfil,
   aoComoChegar,
   style,
 }) {
   const { cores, sombras } = useTema();
-  const plano = planoDaArea(area, cores);
+  const plano = planoDoPerfil ?? planoDaArea(area, cores);
 
   const entalhe = {
     position: 'absolute',

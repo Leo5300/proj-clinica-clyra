@@ -532,6 +532,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
             horario={formatarFaixa(quando)}
             detalhe={`${DURACAO_CONSULTA_MIN} min`}
             area={medico?.area}
+            plano={perfil === 'paciente' ? planoDoPaciente(cores) : undefined}
             aoComoChegar={
               perfil === 'paciente' && !passou
                 ? () => navigation.navigate('ComoChegar')
