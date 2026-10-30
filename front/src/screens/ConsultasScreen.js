@@ -350,6 +350,7 @@ export default function ConsultasScreen({ navigation, route }) {
     if (aba === 'anteriores') {
       return (
         <EstadoVazio
+          ilustracao
           titulo="Nada por aqui ainda"
           texto="Seu histórico aparece aqui depois da primeira consulta."
         />
@@ -364,6 +365,7 @@ export default function ConsultasScreen({ navigation, route }) {
 
     return (
       <EstadoVazio
+        ilustracao
         titulo="Nenhuma consulta marcada"
         texto={textos[perfil] ?? textos.recepcao}
         acao={

@@ -13,6 +13,7 @@ import {
   ComVidro,
   Esqueleto,
   EstadoErro,
+  EstadoVazio,
   ItemDeLista,
   Logotipo,
   Numeral,
@@ -176,27 +177,12 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
   );
 }
 
-function SemConsulta({ primeiroNome, navigation }) {
+// Sem consulta: o topo so cumprimenta; a ilustracao fica abaixo dele.
+function SemConsulta({ primeiroNome }) {
   return (
-    <View style={{ gap: 18 }}>
-      <View style={{ gap: 4 }}>
-        <Texto variante="rotulo" cor="sobreDestaque2">
-          {saudacaoPorHorario(new Date())}
-          {primeiroNome ? `, ${primeiroNome}` : ''}
-        </Texto>
-        <Texto variante="titulo" cor="sobreDestaque" accessibilityRole="header">
-          Nenhuma consulta marcada
-        </Texto>
-      </View>
-      <Texto variante="corpo" cor="sobreDestaque2">
-        Quando você agendar, ela aparece aqui com data, profissional e lembrete.
-      </Texto>
-      <Botao
-        titulo="Agendar uma consulta"
-        variante="inverso"
-        onPress={() => navigation.navigate('Agendar')}
-      />
-    </View>
+    <Texto variante="tituloGrande" cor="sobrePlano" accessibilityRole="header">
+      Olá{primeiroNome ? `, ${primeiroNome}` : ''}
+    </Texto>
   );
 }
 
@@ -366,7 +352,7 @@ export default function HomePaciente({
               navigation={navigation}
             />
           ) : (
-            <SemConsulta primeiroNome={primeiroNome} navigation={navigation} />
+            <SemConsulta primeiroNome={primeiroNome} />
           )}
         </BlocoDestaque>
 
@@ -378,6 +364,16 @@ export default function HomePaciente({
             gap: 22,
           }}
         >
+          {!proxima ? (
+            <EstadoVazio
+              ilustracao
+              titulo="Nenhuma consulta marcada"
+              texto="Quando você agendar, a próxima aparece aqui, com a data bem grande."
+              acao={{ titulo: 'Agendar consulta', onPress: () => navigation.navigate('Agendar') }}
+              style={{ paddingVertical: espaco.md }}
+            />
+          ) : null}
+
           <AvisoDeLembretes consultas={consultas} />
 
           <View style={{ gap: 4 }}>
