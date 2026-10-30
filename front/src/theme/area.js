@@ -37,6 +37,16 @@ export function planoDaArea(area, cores) {
   };
 }
 
+// Topo das telas do perfil Paciente: sempre o verde, texto branco.
+export function planoDoPaciente(cores) {
+  return {
+    fundo: cores.planoPaciente,
+    texto: cores.sobrePlanoPaciente,
+    texto2: cores.sobrePlanoPaciente2,
+    escuro: true,
+  };
+}
+
 // Topo do Inicio do profissional: lilas ou menta, texto tinta nos dois.
 export function topoDoProfissional(area, cores) {
   return {

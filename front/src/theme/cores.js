@@ -4,9 +4,10 @@
 // de interface: as telas leem as cores por useTema(), nunca daqui direto,
 // para acompanhar o tema escolhido.
 //
-// Lavanda e a marca e a Psicologia. Verde e a Psiquiatria e mais nada:
-// nunca botao, nunca sucesso. Confirmacao e lavanda suave. Nunca texto
-// branco sobre lavanda; sobre o verde cheio, o texto e sempre branco.
+// Lavanda e a marca e a Psicologia. Verde e a cor do perfil Paciente e a
+// da area Psiquiatria (o nome da area vai sempre por extenso): nunca
+// botao, nunca sucesso. Confirmacao e lavanda suave. Nunca texto branco
+// sobre lavanda; sobre o verde cheio, o texto e sempre branco.
 // Um destaque manteiga por tela, no maximo.
 
 const claro = {
@@ -61,6 +62,11 @@ const claro = {
   planoVerde: '#0B7A6E',
   sobrePlanoVerde: '#FFFFFF',
   sobrePlanoVerde2: '#E6F6F2',
+  // Plano do perfil Paciente: o verde, com texto branco (5,2:1), nos dois
+  // temas. A marca d'agua do topo sai branca a 9%.
+  planoPaciente: '#0B7A6E',
+  sobrePlanoPaciente: '#FFFFFF',
+  sobrePlanoPaciente2: '#E6F6F2',
 
   alerta: '#A4434E',
   alertaSuave: '#F7E6E8',
@@ -147,6 +153,11 @@ const escuro = {
   planoVerde: '#0B7A6E',
   sobrePlanoVerde: '#FFFFFF',
   sobrePlanoVerde2: '#E6F6F2',
+  // Plano do perfil Paciente: o verde, com texto branco (5,2:1), nos dois
+  // temas. A marca d'agua do topo sai branca a 9%.
+  planoPaciente: '#0B7A6E',
+  sobrePlanoPaciente: '#FFFFFF',
+  sobrePlanoPaciente2: '#E6F6F2',
 
   alerta: '#E58A94',
   alertaSuave: '#3A1F23',
