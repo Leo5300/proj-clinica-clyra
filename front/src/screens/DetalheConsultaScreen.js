@@ -50,7 +50,15 @@ import {
   Texto,
   useRolagem,
 } from '../components';
-import { useTema, espaco, margemTela, raio, toque, planoDaArea } from '../theme';
+import {
+  useTema,
+  espaco,
+  margemTela,
+  raio,
+  toque,
+  planoDaArea,
+  planoDoPaciente,
+} from '../theme';
 import { vibrarImpacto } from '../services/haptica';
 import { especialidadeERegistro } from '../services/profissionais';
 
@@ -139,6 +147,11 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const { aoRolar, rolou } = useRolagem(120);
 
   const perfil = usuario?.perfil;
+
+  // Topo: sempre verde para o paciente (a area aparece no bilhete, na
+  // etiqueta e nas barras). Para quem atende, a cor da area da consulta.
+  const planoDoTopo = (area) =>
+    perfil === 'paciente' ? planoDoPaciente(cores) : planoDaArea(area, cores);
 
   const [consulta, setConsulta] = useState(null);
   const [paciente, setPaciente] = useState(null);
@@ -401,8 +414,8 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       return (
         <View accessibilityState={{ busy: true }} accessibilityLabel="Carregando a consulta">
           <PlanoTopo
-            fundo={cores.destaque}
-            corTexto={cores.sobrePlano}
+            fundo={planoDoTopo(null).fundo}
+            corTexto={planoDoTopo(null).texto}
             style={{
               paddingTop: topo,
               paddingHorizontal: margemTela + 2,
@@ -458,7 +471,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
     const faltaMs = quando - new Date();
     const passou = faltaMs <= 0;
     const registro = especialidadeERegistro(medico);
-    const plano = planoDaArea(medico?.area, cores);
+    const plano = planoDoTopo(medico?.area);
     const lembrete =
       ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
 
