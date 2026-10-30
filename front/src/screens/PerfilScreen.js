@@ -313,7 +313,7 @@ export default function PerfilScreen({ navigation }) {
             }
             esquerda={<IconeDeLinha nome={lembretes ? 'bell' : 'bell-off'} />}
             direita={
-              lembretes ? <Selo texto="Ativos" /> : null
+              lembretes ? <Selo texto="Ativos" tom="papel" /> : null
             }
             onPress={lembretes ? undefined : ativarLembretes}
           />
