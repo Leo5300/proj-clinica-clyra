@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TouchableOpacity,
@@ -8,7 +7,9 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import {
   obterToken,
@@ -16,16 +17,9 @@ import {
   limparSessao,
 } from '../services/sessao';
 
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-};
-
 export default function LoginBiometricoScreen({ navigation }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   const [temHardware, setTemHardware] = useState(false);
   const [temBiometriaCadastrada, setTemBiometriaCadastrada] =
     useState(false);
@@ -150,7 +144,7 @@ export default function LoginBiometricoScreen({ navigation }) {
         <View style={styles.loading}>
           <ActivityIndicator
             size="large"
-            color={colors.sage}
+            color={cores.link}
           />
           <Text style={styles.loadingText}>
             Verificando biometria...
@@ -195,10 +189,10 @@ export default function LoginBiometricoScreen({ navigation }) {
             onPress={autenticar}
             disabled={autenticando}
           >
-            <Feather
+            <MaterialCommunityIcons
               name="fingerprint"
               size={24}
-              color="#fff"
+              color={cores.sobreAcao}
             />
 
             <Text style={styles.biometriaText}>
@@ -228,88 +222,92 @@ export default function LoginBiometricoScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: cores.papel,
+    },
 
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
 
-  logo: {
-    width: 180,
-    height: 100,
-    marginBottom: 20,
-  },
+    logo: {
+      width: 180,
+      height: 100,
+      marginBottom: 20,
+    },
 
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: 8,
-  },
+    title: {
+      fontSize: 22,
+      fontFamily: fontes.textoForte,
+      color: cores.tinta,
+      marginBottom: 8,
+    },
 
-  subtitle: {
-    fontSize: 14,
-    color: colors.muted,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 28,
-  },
+    subtitle: {
+      fontFamily: fontes.texto,
+      fontSize: 14,
+      color: cores.apoio,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 28,
+    },
 
-  biometriaBtn: {
-    width: '100%',
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
+    biometriaBtn: {
+      width: '100%',
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+    },
 
-  btnDisabled: {
-    opacity: 0.6,
-  },
+    btnDisabled: {
+      opacity: 0.6,
+    },
 
-  biometriaText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+    biometriaText: {
+      color: cores.sobreAcao,
+      fontSize: 14,
+      fontFamily: fontes.textoForte,
+    },
 
-  aviso: {
-    color: '#A65B5B',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 16,
-  },
+    aviso: {
+      fontFamily: fontes.texto,
+      color: cores.alerta,
+      fontSize: 12,
+      textAlign: 'center',
+      marginTop: 16,
+    },
 
-  senhaBtn: {
-    marginTop: 24,
-    padding: 10,
-  },
+    senhaBtn: {
+      marginTop: 24,
+      padding: 10,
+    },
 
-  senhaText: {
-    color: colors.sage,
-    fontSize: 13,
-    fontWeight: '600',
-  },
+    senhaText: {
+      color: cores.link,
+      fontSize: 13,
+      fontFamily: fontes.textoSemi,
+    },
 
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    loading: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  loadingText: {
-    marginTop: 12,
-    color: colors.muted,
-    fontSize: 13,
-  },
-});
+    loadingText: {
+      fontFamily: fontes.texto,
+      marginTop: 12,
+      color: cores.apoio,
+      fontSize: 13,
+    },
+  });

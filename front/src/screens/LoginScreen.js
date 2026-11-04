@@ -1,39 +1,15 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   View,
-  Text,
   TextInput,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  StyleSheet,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { autenticar } from '../services/api';
 import { salvarSessao } from '../services/sessao';
-// npx expo install expo-secure-store
-
-// TODO: quando tivermos mais telas, mover para front/src/theme.js
-// Paleta extraída direto do logo da Clyra — nada de cor genérica.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  surfaceAlt: '#ECEBE6',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  sageSoft: '#E3EEEA',
-  lavender: '#9A8BB6',
-  lavenderSoft: '#EFE9F3',
-  danger: '#B0555F',
-};
-
-const logo = require('../../assets/imgs/logo-CLYRA.jpeg');
+import { Tela, Texto, Botao, Logotipo, Pressionavel } from '../components';
+import { useTema, estilosDeTexto, espaco, margemTela, raio, toque } from '../theme';
 
 // Atalhos de teste: os logins didaticos do mock (os mesmos que a API
 // imprime ao subir). So existem em desenvolvimento -- __DEV__ e false no
@@ -41,12 +17,42 @@ const logo = require('../../assets/imgs/logo-CLYRA.jpeg');
 const ACESSOS_DE_TESTE = __DEV__
   ? [
       { rotulo: 'Recepção', email: 'recepcao@clinica.com', senha: 'clinica123' },
-      { rotulo: 'Médico', email: 'joao@clinica.com', senha: 'medico123' },
+      { rotulo: 'Profissional', email: 'joao@clinica.com', senha: 'medico123' },
       { rotulo: 'Paciente', email: 'lucas@exemplo.com', senha: 'paciente123' },
     ]
   : [];
 
+function Campo({ rotulo, ...props }) {
+  const { cores } = useTema();
+
+  return (
+    <View style={{ gap: 6 }}>
+      <Texto variante="rotulo" cor="tinta2">
+        {rotulo}
+      </Texto>
+      <TextInput
+        placeholderTextColor={cores.desativado}
+        style={[
+          estilosDeTexto.corpo,
+          {
+            color: cores.tinta,
+            backgroundColor: cores.superficie,
+            borderWidth: 1,
+            borderColor: cores.linha,
+            borderRadius: raio.botao,
+            borderCurve: 'continuous',
+            paddingHorizontal: espaco.md,
+            minHeight: toque.botao + 4,
+          },
+        ]}
+        {...props}
+      />
+    </View>
+  );
+}
+
 export default function LoginScreen({ navigation }) {
+  const { cores } = useTema();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [entrando, setEntrando] = useState(false);
@@ -99,172 +105,139 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Tela bordas={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.brandBlock}>
-            <Image source={logo} style={styles.logo} resizeMode="contain" />
-          </View>
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            paddingHorizontal: margemTela + 6,
+            paddingVertical: espaco.lg,
+            gap: espaco.md,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Logotipo
+            tamanho="grande"
+            assinatura
+            style={{ marginBottom: espaco.lg }}
+          />
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+          {error && (
+            <View
+              accessibilityRole="alert"
+              style={{
+                backgroundColor: cores.alertaSuave,
+                borderColor: cores.alertaBorda,
+                borderWidth: 1,
+                borderRadius: raio.campo,
+                padding: espaco.sm,
+              }}
+            >
+              <Texto variante="rotulo" cor="alerta" selectable>
+                {error}
+              </Texto>
+            </View>
+          )}
 
-          <View style={styles.field}>
-            <Text style={styles.label}>E-mail</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="voce@clinica.com"
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
+          <Campo
+            rotulo="E-mail"
+            placeholder="voce@clinica.com"
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Senha</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor={colors.muted}
-              // secureTextEntry esconde a senha de quem olha a tela. Ele NAO
-              // protege o que trafega na rede -- isso e papel do HTTPS.
-              secureTextEntry
-              autoCapitalize="none"
-              value={senha}
-              onChangeText={setSenha}
-            />
-          </View>
+          <Campo
+            rotulo="Senha"
+            placeholder="••••••••"
+            // secureTextEntry esconde a senha de quem olha a tela. Ele NAO
+            // protege o que trafega na rede -- isso e papel do HTTPS.
+            secureTextEntry
+            autoCapitalize="none"
+            autoComplete="current-password"
+            value={senha}
+            onChangeText={setSenha}
+          />
 
-          <TouchableOpacity
-            style={[styles.btnPrimary, entrando && styles.btnPrimaryDisabled]}
+          <Botao
+            titulo="Entrar"
             onPress={() => entrar()}
-            disabled={entrando}
-          >
-            {entrando ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnPrimaryText}>Entrar</Text>
-            )}
-          </TouchableOpacity>
+            carregando={entrando}
+            style={{ marginTop: espaco.xs }}
+          />
 
-          <View style={styles.footRow}>
-            <Text style={styles.footText}>Primeira vez aqui? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('CriarConta')}>
-              <Text style={styles.footLink}>Criar conta de paciente</Text>
-            </TouchableOpacity>
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: espaco.xs,
+            }}
+          >
+            <Texto variante="rotulo" cor="apoio">
+              Primeira vez aqui?{' '}
+            </Texto>
+            <Botao
+              variante="texto"
+              compacto
+              titulo="Criar conta de paciente"
+              onPress={() => navigation.navigate('CriarConta')}
+            />
           </View>
 
           {/* Conta de equipe nao se cria pelo app: quem cria e a clinica. */}
-          <Text style={styles.footNota}>
-            Médicos e recepção entram com o acesso fornecido pela clínica.
-          </Text>
+          <Texto variante="legenda" cor="apoio" style={{ textAlign: 'center' }}>
+            Profissionais e recepção entram com o acesso fornecido pela clínica.
+          </Texto>
 
           {ACESSOS_DE_TESTE.length > 0 && (
-            <View style={styles.testeBloco}>
-              <Text style={styles.testeTitulo}>
+            <View
+              style={{
+                marginTop: espaco.md,
+                paddingTop: espaco.md,
+                borderTopWidth: 1,
+                borderTopColor: cores.linha,
+                gap: 10,
+              }}
+            >
+              <Texto variante="legenda" cor="apoio" style={{ textAlign: 'center' }}>
                 Acesso rápido (só em desenvolvimento)
-              </Text>
-              <View style={styles.testeLinha}>
+              </Texto>
+              <View style={{ flexDirection: 'row', gap: espaco.xs }}>
                 {ACESSOS_DE_TESTE.map((acesso) => (
-                  <TouchableOpacity
+                  <Pressionavel
                     key={acesso.email}
-                    style={styles.testeBotao}
                     onPress={() => entrar(acesso.email, acesso.senha)}
                     disabled={entrando}
                     accessibilityRole="button"
                     accessibilityLabel={`Entrar como ${acesso.rotulo}`}
+                    style={{
+                      flex: 1,
+                      minHeight: toque.minimo,
+                      backgroundColor: cores.lavandaSuave,
+                      borderRadius: raio.campo,
+                      borderCurve: 'continuous',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
                   >
-                    <Text style={styles.testeBotaoTexto}>{acesso.rotulo}</Text>
-                  </TouchableOpacity>
+                    <Texto variante="legendaForte" cor="sobreLavandaSuave">
+                      {acesso.rotulo}
+                    </Texto>
+                  </Pressionavel>
                 ))}
               </View>
             </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Tela>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  content: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-
-  brandBlock: { alignItems: 'center', marginBottom: 36 },
-  logo: { width: 200, height: 130 },
-
-  errorText: {
-    color: colors.danger,
-    fontSize: 12.5,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-
-  field: { marginBottom: 16 },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: colors.muted,
-    marginBottom: 7,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 14.5,
-    color: colors.ink,
-  },
-
-  btnPrimary: {
-    backgroundColor: colors.sage,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  btnPrimaryDisabled: { opacity: 0.6 },
-  btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 14.5 },
-
-  footRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 26 },
-  footText: { color: colors.muted, fontSize: 12.5 },
-  footLink: { color: colors.sage, fontWeight: '600', fontSize: 12.5 },
-  footNota: {
-    color: colors.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 10,
-  },
-
-  testeBloco: {
-    marginTop: 28,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  testeTitulo: {
-    color: colors.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  testeLinha: { flexDirection: 'row', gap: 8 },
-  testeBotao: {
-    flex: 1,
-    minHeight: 44,
-    backgroundColor: colors.lavenderSoft,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  testeBotaoTexto: { color: colors.ink, fontWeight: '600', fontSize: 13 },
-});

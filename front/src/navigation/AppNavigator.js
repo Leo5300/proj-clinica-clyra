@@ -3,8 +3,11 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import {
   NavigationContainer,
   createNavigationContainerRef,
+  DefaultTheme,
+  DarkTheme,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useFonts } from "expo-font";
 
 import LoginScreen from "../screens/LoginScreen";
 import LoginBiometricoScreen from "../screens/LoginBiometricoScreen";
@@ -25,9 +28,12 @@ import EspecialidadesScreen from "../screens/EspecialidadesScreen";
 import CadastroEspecialidadeScreen from "../screens/CadastroEspecialidadeScreen";
 import ComoChegarScreen from "../screens/ComoChegarScreen";
 import SinaisVitaisScreen from "../screens/SinaisVitaisScreen";
+import CadastrosScreen from "../screens/CadastrosScreen";
 import SemAcessoScreen from "../screens/SemAcessoScreen";
 
 import { estaLogado, useUsuario } from "../services/sessao";
+import { useTema, arquivosDeFonte } from "../theme";
+import AvisoDeSessao from "../components/AvisoDeSessao";
 import { podeAcessar } from "./permissoes";
 import {
   ouvirToqueEmLembrete,
@@ -49,16 +55,22 @@ const ROTAS_DE_ENTRADA = ["Login", "LoginBiometrico", "CriarConta", "TrocarSenha
 // Fica fora do componente de proposito -- criado dentro do AppNavigator,
 // seria um componente novo a cada render e a tela seria desmontada.
 // Esconder a tela e experiencia de uso; quem protege os dados e o servidor.
+function Carregando() {
+  const { cores } = useTema();
+
+  return (
+    <View style={[styles.center, { backgroundColor: cores.papel }]}>
+      <ActivityIndicator size="large" color={cores.acao} />
+    </View>
+  );
+}
+
 function protegida(Componente, nomeDaRota) {
   function TelaProtegida(props) {
     const { usuario, carregando } = useUsuario();
 
     if (carregando) {
-      return (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4B7776" />
-        </View>
-      );
+      return <Carregando />;
     }
 
     if (!podeAcessar(usuario?.perfil, nomeDaRota)) {
@@ -91,12 +103,19 @@ const TELAS = {
   ),
   ComoChegar: protegida(ComoChegarScreen, "ComoChegar"),
   SinaisVitais: protegida(SinaisVitaisScreen, "SinaisVitais"),
+  Cadastros: protegida(CadastrosScreen, "Cadastros"),
 };
 
 export default function AppNavigator() {
   // null = ainda verificando o cofre. Sem esse estado o app pisca a tela de
   // Login para quem ja estava autenticado.
   const [logado, setLogado] = useState(null);
+
+  // Fontes carregadas antes da primeira tela, no mesmo indicador do
+  // cofre: sem lampejo de letra trocada. Falha ao carregar nao trava o
+  // app -- ele segue com a fonte do sistema.
+  const [fontesProntas, erroDasFontes] = useFonts(arquivosDeFonte);
+  const { cores, escuro } = useTema();
 
   // Consulta a abrir, vinda do toque num lembrete.
   const destinoPendenteRef = useRef(null);
@@ -145,60 +164,80 @@ export default function AppNavigator() {
     verificar();
   }, []);
 
-  if (logado === null) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4B7776" />
-      </View>
-    );
+  if (logado === null || (!fontesProntas && !erroDasFontes)) {
+    return <Carregando />;
   }
 
+  // Fundo do navegador igual ao papel: sem lampejo branco entre telas.
+  const base = escuro ? DarkTheme : DefaultTheme;
+  const temaDaNavegacao = {
+    ...base,
+    colors: { ...base.colors, background: cores.papel, card: cores.papel },
+  };
+
+  // Sessao expirada: a tela aberta ja volta ao Login; a folha explica o
+  // porque e garante a ida, caso a tela nao tenha ido.
+  const irParaLogin = () => {
+    if (!navigationRef.isReady()) return;
+    if (navigationRef.getCurrentRoute()?.name === "Login") return;
+    navigationRef.reset({ index: 0, routes: [{ name: "Login" }] });
+  };
+
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      onReady={aoFicarPronto}
-      onStateChange={irParaDestino}
-    >
-      <Stack.Navigator
-        initialRouteName={logado ? "LoginBiometrico" : "Login"}
-        screenOptions={{ headerShown: false }}
+    <>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={temaDaNavegacao}
+        onReady={aoFicarPronto}
+        onStateChange={irParaDestino}
       >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen
-          name="LoginBiometrico"
-          component={LoginBiometricoScreen}
-        />
-        <Stack.Screen name="CriarConta" component={CriarContaScreen} />
-        <Stack.Screen name="TrocarSenha" component={TELAS.TrocarSenha} />
-        <Stack.Screen name="Home" component={TELAS.Home} />
-        <Stack.Screen name="Perfil" component={TELAS.Perfil} />
-        <Stack.Screen name="Medicos" component={TELAS.Medicos} />
-        <Stack.Screen name="CadastroMedico" component={TELAS.CadastroMedico} />
-        <Stack.Screen name="Pacientes" component={TELAS.Pacientes} />
-        <Stack.Screen
-          name="CadastroPaciente"
-          component={TELAS.CadastroPaciente}
-        />
-        <Stack.Screen name="Horarios" component={TELAS.Horarios} />
-        <Stack.Screen
-          name="CadastroHorario"
-          component={TELAS.CadastroHorario}
-        />
-        <Stack.Screen name="Consultas" component={TELAS.Consultas} />
-        <Stack.Screen name="Agendar" component={TELAS.Agendar} />
-        <Stack.Screen
-          name="DetalheConsulta"
-          component={TELAS.DetalheConsulta}
-        />
-        <Stack.Screen name="Especialidades" component={TELAS.Especialidades} />
-        <Stack.Screen
-          name="CadastroEspecialidade"
-          component={TELAS.CadastroEspecialidade}
-        />
-        <Stack.Screen name="ComoChegar" component={TELAS.ComoChegar} />
-        <Stack.Screen name="SinaisVitais" component={TELAS.SinaisVitais} />
-      </Stack.Navigator>
-    </NavigationContainer>
+        <Stack.Navigator
+          initialRouteName={logado ? "LoginBiometrico" : "Login"}
+          // Abas sao irmas: trocar de aba (viaAba) nunca anima.
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            animation: route.params?.viaAba ? "none" : "default",
+          })}
+        >
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen
+            name="LoginBiometrico"
+            component={LoginBiometricoScreen}
+          />
+          <Stack.Screen name="CriarConta" component={CriarContaScreen} />
+          <Stack.Screen name="TrocarSenha" component={TELAS.TrocarSenha} />
+          <Stack.Screen name="Home" component={TELAS.Home} />
+          <Stack.Screen name="Perfil" component={TELAS.Perfil} />
+          <Stack.Screen name="Medicos" component={TELAS.Medicos} />
+          <Stack.Screen name="CadastroMedico" component={TELAS.CadastroMedico} />
+          <Stack.Screen name="Pacientes" component={TELAS.Pacientes} />
+          <Stack.Screen
+            name="CadastroPaciente"
+            component={TELAS.CadastroPaciente}
+          />
+          <Stack.Screen name="Horarios" component={TELAS.Horarios} />
+          <Stack.Screen
+            name="CadastroHorario"
+            component={TELAS.CadastroHorario}
+          />
+          <Stack.Screen name="Consultas" component={TELAS.Consultas} />
+          <Stack.Screen name="Agendar" component={TELAS.Agendar} />
+          <Stack.Screen
+            name="DetalheConsulta"
+            component={TELAS.DetalheConsulta}
+          />
+          <Stack.Screen name="Especialidades" component={TELAS.Especialidades} />
+          <Stack.Screen
+            name="CadastroEspecialidade"
+            component={TELAS.CadastroEspecialidade}
+          />
+          <Stack.Screen name="ComoChegar" component={TELAS.ComoChegar} />
+          <Stack.Screen name="SinaisVitais" component={TELAS.SinaisVitais} />
+          <Stack.Screen name="Cadastros" component={TELAS.Cadastros} />
+        </Stack.Navigator>
+      </NavigationContainer>
+      <AvisoDeSessao aoEntrar={irParaLogin} />
+    </>
   );
 }
 
@@ -207,6 +246,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F5F2",
   },
 });

@@ -1,46 +1,24 @@
 import React, { useState, useCallback } from 'react';
-import {
-  SafeAreaView,
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons';
 import {
-  buscarHorarios, buscarMedicos, excluirHorario,
-  SessaoExpirada, SemPermissao,
+  buscarHorarios,
+  buscarMedicos,
+  excluirHorario,
+  SessaoExpirada,
+  SemPermissao,
+  ErroDaApi,
 } from '../services/api';
 import { useUsuario } from '../services/sessao';
+import { BotaoExcluir, ItemDeLista, TelaDeLista } from '../components';
 
-
-
-
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-// Mantemos a mesma paleta das telas ja existentes para evitar estilos
-// diferentes entre os modulos.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-};
+// Horarios de atendimento. A recepcao ve e edita os de todos; o medico ve
+// e edita so a propria agenda -- o servidor ja devolve so os dele.
 
 export default function HorariosScreen({ navigation }) {
-  // O medico ve e edita so a propria agenda: o servidor ja devolve so os
-  // horarios dele.
   const { usuario } = useUsuario();
   const ehMedico = usuario?.perfil === 'medico';
 
-  // Cada estado representa uma informacao diferente da tela, permitindo
-  // tratar carregamento e erro sem esconder uma lista que ja foi carregada.
   const [horarios, setHorarios] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -49,7 +27,6 @@ export default function HorariosScreen({ navigation }) {
   const carregarHorarios = useCallback(async () => {
     try {
       setErro(null);
-      setCarregando(true);
 
       const [dadosHorarios, dadosMedicos] = await Promise.all([
         buscarHorarios(),
@@ -69,44 +46,48 @@ export default function HorariosScreen({ navigation }) {
         return;
       }
 
-      console.error(e);
-      setErro('Nao foi possivel carregar os horarios agora.');
+      setErro('Não foi possível carregar os horários agora.');
     } finally {
       setCarregando(false);
     }
   }, [navigation]);
 
-  // Recarrega ao voltar para a tela para que alteracoes feitas no cadastro
-  // ou edicao sejam refletidas sem depender de atualizacao manual.
+  // Ao voltar do cadastro, a lista vem de novo do servidor.
   useFocusEffect(
     useCallback(() => {
       carregarHorarios();
     }, [carregarHorarios]),
   );
 
-  const confirmarExclusao = (horario) => {
-    console.log('Botão excluir clicado:', horario);
+  const excluir = async (id) => {
+    try {
+      await excluirHorario(id);
 
-    if (Platform.OS === 'web') {
-      const confirmou = window.confirm(
-        `Deseja excluir o horário de ${horario.diaSemana}?`,
+      setHorarios((atuais) =>
+        atuais.filter((horario) => String(horario.id) !== String(id)),
       );
-
-      if (confirmou) {
-        excluir(horario.id);
+    } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        return;
       }
 
-      return;
+      Alert.alert(
+        'Não foi possível excluir',
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível excluir o horário agora.',
+      );
     }
+  };
 
+  // Alert nativo, nunca window.confirm/alert: nao existem no aparelho.
+  const confirmarExclusao = (horario) => {
     Alert.alert(
       'Excluir horário',
-      `Deseja excluir o horário de ${horario.diaSemana}?`,
+      `Deseja excluir o horário de ${horario.diaSemana}, das ${horario.horaInicio} às ${horario.horaFim}?`,
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Excluir',
           style: 'destructive',
@@ -116,266 +97,44 @@ export default function HorariosScreen({ navigation }) {
     );
   };
 
-  const excluir = async (id) => {
-    try {
-      console.log('Tentando excluir horário ID:', id);
+  const nomeDoMedico = (medicoId) =>
+    medicos.find((medico) => String(medico.id) === String(medicoId))?.nome;
 
-      await excluirHorario(id);
-
-      console.log('Horário excluído com sucesso');
-
-      setHorarios((horariosAtuais) =>
-        horariosAtuais.filter(
-          (horario) => String(horario.id) !== String(id),
-        ),
-      );
-
-      if (Platform.OS === 'web') {
-        window.alert('Horário excluído com sucesso.');
-      } else {
-        Alert.alert(
-          'Sucesso',
-          'Horário excluído com sucesso.',
-        );
-      }
-    } catch (e) {
-      if (e instanceof SessaoExpirada) {
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        return;
-      }
-
-      if (e instanceof SemPermissao) {
-        Alert.alert(
-          'Sem permissão',
-          e.mensagem ?? 'Você não tem permissão para isso.',
-        );
-        return;
-      }
-
-      console.error('Erro ao excluir horário:', e);
-
-      if (Platform.OS === 'web') {
-        window.alert('Não foi possível excluir o horário.');
-      } else {
-        Alert.alert(
-          'Erro',
-          'Não foi possível excluir o horário agora.',
-        );
-      }
-    }
-  };
-
-  const encontrarMedico = (medicoId) => {
-    return medicos.find(
-      (medico) => String(medico.id) === String(medicoId),
-    );
-  };
-
+  const novo = () => navigation.navigate('CadastroHorario');
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>
-          {ehMedico ? 'Meus horários' : 'Horarios'}
-        </Text>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('CadastroHorario')}
-        >
-          <Feather name="plus" size={22} color={colors.ink} />
-        </TouchableOpacity>
-      </View>
-
-      {carregando ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.sage} size="large" />
-        </View>
-      ) : erro ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{erro}</Text>
-
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={carregarHorarios}
-          >
-            <Text style={styles.retryText}>Tentar novamente</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={horarios}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardInfo}
-                onPress={() =>
-                  navigation.navigate('CadastroHorario', {
-                    horario: item,
-                  })
-                }
-              >
-                <Text style={styles.dia}>{item.diaSemana}</Text>
-
-                <View style={styles.horarioLinha}>
-                  <Feather
-                    name="clock"
-                    size={15}
-                    color={colors.sage}
-                  />
-
-                  <Text style={styles.horario}>
-                    {item.horaInicio} - {item.horaFim}
-                  </Text>
-                </View>
-
-                <Text style={styles.detalhe}>
-                  {(() => {
-                    const medico = encontrarMedico(item.medicoId);
-
-                    return medico
-                      ? `Médico: ${medico.nome} (ID: ${medico.id})`
-                      : `Médico ID: ${item.medicoId}`;
-                  })()}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => {
-                  console.log('CLICOU NA LIXEIRA');
-                  confirmarExclusao(item);
-                }}
-              >
-                <Feather
-                  name="trash-2"
-                  size={20}
-                  color="#C0392B"
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {ehMedico
-                ? 'Você ainda não cadastrou horários de atendimento.'
-                : 'Nenhum horario cadastrado.'}
-            </Text>
+    <TelaDeLista
+      titulo={ehMedico ? 'Meus horários' : 'Horários'}
+      subtitulo="Dias e faixas de atendimento."
+      navigation={navigation}
+      acaoNova={{ rotulo: 'Cadastrar horário', onPress: novo }}
+      carregando={carregando}
+      erro={erro}
+      aoTentar={carregarHorarios}
+      dados={horarios}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={({ item }) => (
+        <ItemDeLista
+          titulo={item.diaSemana}
+          detalhe={`${item.horaInicio} – ${item.horaFim}`}
+          subtitulo={ehMedico ? null : nomeDoMedico(item.medicoId) ?? 'Profissional'}
+          accessibilityLabel={`Editar horário de ${item.diaSemana}`}
+          onPress={() => navigation.navigate('CadastroHorario', { horario: item })}
+          direita={
+            <BotaoExcluir
+              rotulo={`Excluir horário de ${item.diaSemana}`}
+              onPress={() => confirmarExclusao(item)}
+            />
           }
         />
       )}
-    </SafeAreaView>
+      vazio={{
+        titulo: 'Nenhum horário cadastrado',
+        texto: ehMedico
+          ? 'Você ainda não cadastrou horários de atendimento.'
+          : 'Sem horários, ninguém consegue agendar com o profissional.',
+        acao: { titulo: 'Cadastrar horário', onPress: novo },
+      }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-
-  errorText: {
-    color: colors.muted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-
-  retryBtn: {
-    backgroundColor: colors.sage,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-
-  list: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-  },
-
-  cardInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-
-  dia: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-
-  horarioLinha: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-
-  horario: {
-    fontSize: 14,
-    color: colors.sage,
-    marginLeft: 7,
-    fontWeight: '600',
-  },
-
-  detalhe: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 7,
-  },
-
-  emptyText: {
-    textAlign: 'center',
-    color: colors.muted,
-    marginTop: 40,
-  },
-
-deleteButton: {
-  padding: 12,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-});

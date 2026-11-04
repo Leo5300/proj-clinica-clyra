@@ -1,6 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
@@ -9,29 +8,20 @@ import {
   Linking,
   StyleSheet,
 } from 'react-native';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   CLINICA,
-  PermissaoNegada,
   obterPosicaoAtual,
   distanciaKm,
   formatarDistancia,
   estimarMinutos,
 } from '../services/localizacao';
 
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-// Mesma paleta das outras telas.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  danger: '#B0555F',
-};
-
 export default function ComoChegarScreen({ navigation }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   // Estados separados, mesmo padrao das listas da Aula 3: carregando,
   // erro e dados sao dimensoes independentes. Aqui ha um quarto caso --
   // permissao negada -- que NAO e erro: e resposta do usuario, e merece
@@ -74,7 +64,7 @@ export default function ComoChegarScreen({ navigation }) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={22} color={colors.ink} />
+          <Feather name="chevron-left" size={26} color={cores.tinta} />
         </TouchableOpacity>
 
         <Text style={styles.title}>Como chegar</Text>
@@ -109,7 +99,7 @@ export default function ComoChegarScreen({ navigation }) {
           <View style={styles.card}>
             {/* A primeira leitura demora: o aparelho precisa fixar
                 posicao. Sem indicador, parece que o app travou. */}
-            <ActivityIndicator color={colors.sage} />
+            <ActivityIndicator color={cores.link} />
 
             <Text style={styles.loadingText}>
               Localizando você...
@@ -228,110 +218,116 @@ export default function ComoChegarScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: cores.papel,
+    },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
 
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.ink,
-  },
+    title: {
+      fontSize: 17,
+      fontFamily: fontes.textoForte,
+      color: cores.tinta,
+    },
 
-  headerSpacer: {
-    width: 22,
-  },
+    headerSpacer: {
+      width: 22,
+    },
 
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
+    content: {
+      padding: 20,
+      paddingBottom: 40,
+    },
 
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-  },
+    card: {
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 16,
+    },
 
-  cardEyebrow: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-  },
+    cardEyebrow: {
+      fontSize: 12,
+      fontFamily: fontes.textoSemi,
+      color: cores.apoio,
+      marginBottom: 6,
+    },
 
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: 4,
-  },
+    cardTitle: {
+      fontSize: 16,
+      fontFamily: fontes.textoForte,
+      color: cores.tinta,
+      marginBottom: 4,
+    },
 
-  cardText: {
-    fontSize: 14,
-    color: colors.ink,
-    marginBottom: 4,
-    lineHeight: 20,
-  },
+    cardText: {
+      fontFamily: fontes.texto,
+      fontSize: 14,
+      color: cores.tinta,
+      marginBottom: 4,
+      lineHeight: 20,
+    },
 
-  cardMuted: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 6,
-  },
+    cardMuted: {
+      fontFamily: fontes.texto,
+      fontSize: 12,
+      color: cores.apoio,
+      marginTop: 6,
+    },
 
-  destaque: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.sage,
-    marginBottom: 2,
-  },
+    destaque: {
+      fontSize: 28,
+      fontFamily: fontes.textoForte,
+      color: cores.link,
+      marginBottom: 2,
+    },
 
-  aviso: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 10,
-    fontStyle: 'italic',
-    lineHeight: 17,
-  },
+    aviso: {
+      fontFamily: fontes.texto,
+      fontSize: 12,
+      color: cores.apoio,
+      marginTop: 10,
+      fontStyle: 'italic',
+      lineHeight: 17,
+    },
 
-  loadingText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 8,
-  },
+    loadingText: {
+      fontFamily: fontes.texto,
+      fontSize: 13,
+      color: cores.apoio,
+      textAlign: 'center',
+      marginTop: 8,
+    },
 
-  erroTexto: {
-    fontSize: 14,
-    color: colors.danger,
-    marginBottom: 10,
-  },
+    erroTexto: {
+      fontFamily: fontes.texto,
+      fontSize: 14,
+      color: cores.alerta,
+      marginBottom: 10,
+    },
 
-  botao: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
+    botao: {
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
 
-  botaoTexto: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-});
+    botaoTexto: {
+      color: cores.sobreAcao,
+      fontFamily: fontes.textoForte,
+      fontSize: 14,
+    },
+  });

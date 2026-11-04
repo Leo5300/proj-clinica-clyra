@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -11,6 +10,9 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { TopoDeTela } from '../components';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -31,21 +33,6 @@ import { brParaIso } from '../services/datas';
 //   modo: 'meusDados' (paciente) -> contato e endereco editaveis; nome,
 //                                 CPF e nascimento so pela recepcao.
 
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  surfaceAlt: '#ECEBE6',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  lavender: '#9A8BB6',
-  lavenderSoft: '#EFE9F3',
-  danger: '#B0555F',
-};
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
-
 // "1990-04-12" -> "12/04/1990". O servidor guarda AAAA-MM-DD; a pessoa
 // le e digita dd/mm/aaaa.
 function isoParaBr(iso) {
@@ -62,12 +49,14 @@ function mascararData(texto) {
 }
 
 function Campo({ label, erro, travado, ...inputProps }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   return (
     <View style={styles.campo}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         style={[styles.input, travado && styles.inputTravado]}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={cores.desativado}
         editable={!travado}
         {...inputProps}
       />
@@ -77,6 +66,8 @@ function Campo({ label, erro, travado, ...inputProps }) {
 }
 
 export default function CadastroPacienteScreen({ navigation, route }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   const somenteLeitura = route.params?.somenteLeitura === true;
   const meusDados = route.params?.modo === 'meusDados';
 
@@ -189,9 +180,6 @@ export default function CadastroPacienteScreen({ navigation, route }) {
       setAvisoCep(
         `${e.message} Você pode preencher o endereço manualmente.`,
       );
-
-      // O console recebe apenas o erro técnico, sem dados do paciente.
-      console.log('Falha na consulta de CEP:', e.message);
     } finally {
       setBuscandoCep(false);
     }
@@ -318,7 +306,7 @@ export default function CadastroPacienteScreen({ navigation, route }) {
             <Image source={{ uri: fotoUri }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarVazio]}>
-              <Feather name="user" size={26} color={colors.muted} />
+              <Feather name="user" size={26} color={cores.apoio} />
             </View>
           )}
         </View>
@@ -343,7 +331,7 @@ export default function CadastroPacienteScreen({ navigation, route }) {
               <Feather
                 name="camera"
                 size={26}
-                color={colors.muted}
+                color={cores.apoio}
               />
             </View>
           )}
@@ -441,7 +429,7 @@ export default function CadastroPacienteScreen({ navigation, route }) {
         <View style={styles.cepLinha}>
           <TextInput
             style={[styles.input, styles.cepInput]}
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={cores.desativado}
             value={cep}
             onChangeText={setCep}
             onBlur={buscarEnderecoPorCep}
@@ -452,7 +440,7 @@ export default function CadastroPacienteScreen({ navigation, route }) {
 
           {buscandoCep && (
             <ActivityIndicator
-              color={colors.sage}
+              color={cores.link}
               style={styles.cepSpinner}
             />
           )}
@@ -464,7 +452,7 @@ export default function CadastroPacienteScreen({ navigation, route }) {
           <Feather
             name="info"
             size={14}
-            color={colors.lavender}
+            color={cores.lavanda}
           />
           <Text style={styles.avisoTexto}>{avisoCep}</Text>
         </View>
@@ -517,7 +505,7 @@ export default function CadastroPacienteScreen({ navigation, route }) {
 
   const renderConteudo = () => {
     if (carregando) {
-      return <ActivityIndicator color={colors.sage} style={styles.indicador} />;
+      return <ActivityIndicator color={cores.link} style={styles.indicador} />;
     }
 
     if (erroCarga) {
@@ -535,21 +523,8 @@ export default function CadastroPacienteScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>{titulo}</Text>
-
-        <View style={styles.headerSpacer} />
-      </View>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+      <TopoDeTela titulo={titulo} aoVoltar={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.form}>
         {renderConteudo()}
@@ -558,134 +533,139 @@ export default function CadastroPacienteScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  headerSpacer: {
-    width: 22,
-  },
-  form: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  indicador: { marginTop: 40 },
-  erroTexto: { fontSize: 14, color: colors.danger, marginBottom: 6 },
-  fotoBloco: { alignItems: 'center', marginBottom: 24 },
-  avatarWrap: { marginBottom: 8 },
-  avatar: { width: 110, height: 110, borderRadius: 55 },
-  avatarVazio: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fotoLink: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.sage,
-    marginBottom: 4,
-  },
-  fotoRemover: { fontSize: 12, color: colors.muted, marginBottom: 4 },
-  fotoOpcional: { fontSize: 11, color: colors.muted },
-  campo: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  inputTravado: {
-    backgroundColor: colors.surfaceAlt,
-    color: colors.muted,
-  },
-  erroCampo: { fontSize: 12, color: colors.danger, marginTop: 6 },
-  notaTravada: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: -6,
-    marginBottom: 16,
-  },
-  secao: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: colors.muted,
-    marginTop: 8,
-    marginBottom: 14,
-  },
-  cepLinha: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cepInput: {
-    flex: 1,
-  },
-  cepSpinner: {
-    marginLeft: 12,
-  },
-  aviso: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.lavenderSoft,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-    marginTop: -4,
-  },
-  avisoTexto: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.ink,
-    lineHeight: 17,
-  },
-  salvarBtn: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  salvarBtnDisabled: {
-    opacity: 0.6,
-  },
-  salvarText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  creditos: {
-    fontSize: 10,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 16,
-  },
-});
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: cores.papel,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    title: {
+      fontSize: 17,
+      fontFamily: fontes.textoForte,
+      color: cores.tinta,
+    },
+    headerSpacer: {
+      width: 22,
+    },
+    form: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+    indicador: { marginTop: 40 },
+    erroTexto: { fontFamily: fontes.texto, fontSize: 14, color: cores.alerta, marginBottom: 6 },
+    fotoBloco: { alignItems: 'center', marginBottom: 24 },
+    avatarWrap: { marginBottom: 8 },
+    avatar: { width: 110, height: 110, borderRadius: 55 },
+    avatarVazio: {
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fotoLink: {
+      fontSize: 13,
+      fontFamily: fontes.textoSemi,
+      color: cores.link,
+      marginBottom: 4,
+    },
+    fotoRemover: { fontFamily: fontes.texto, fontSize: 12, color: cores.apoio, marginBottom: 4 },
+    fotoOpcional: { fontFamily: fontes.texto, fontSize: 11, color: cores.apoio },
+    campo: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 12,
+      fontFamily: fontes.textoSemi,
+      color: cores.apoio,
+      marginBottom: 6,
+    },
+    input: {
+      fontFamily: fontes.texto,
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: cores.tinta,
+    },
+    inputTravado: {
+      backgroundColor: cores.superficie2,
+      color: cores.apoio,
+    },
+    erroCampo: { fontFamily: fontes.texto, fontSize: 12, color: cores.alerta, marginTop: 6 },
+    notaTravada: {
+      fontFamily: fontes.texto,
+      fontSize: 12,
+      color: cores.apoio,
+      marginTop: -6,
+      marginBottom: 16,
+    },
+    secao: {
+      fontSize: 12,
+      fontFamily: fontes.textoForte,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      color: cores.apoio,
+      marginTop: 8,
+      marginBottom: 14,
+    },
+    cepLinha: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    cepInput: {
+      flex: 1,
+    },
+    cepSpinner: {
+      marginLeft: 12,
+    },
+    aviso: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: cores.lavandaSuave,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 16,
+      marginTop: -4,
+    },
+    avisoTexto: {
+      fontFamily: fontes.texto,
+      flex: 1,
+      fontSize: 12,
+      color: cores.tinta,
+      lineHeight: 17,
+    },
+    salvarBtn: {
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    salvarBtnDisabled: {
+      opacity: 0.6,
+    },
+    salvarText: {
+      color: cores.sobreAcao,
+      fontFamily: fontes.textoForte,
+      fontSize: 14,
+    },
+    creditos: {
+      fontFamily: fontes.texto,
+      fontSize: 10,
+      color: cores.apoio,
+      textAlign: 'center',
+      marginTop: 16,
+    },
+  });

@@ -608,23 +608,40 @@ async function excluirPaciente({ params }) {
 // O medico guarda so o especialidadeId; o nome vem da colecao de
 // especialidades. Assim nao ha dois textos para a mesma especialidade, e
 // renomear uma especialidade vale para todos os medicos dela.
-function nomeDaEspecialidade(medico, especialidades) {
+
+// Areas da clinica e o conselho que registra cada uma. O numero do
+// registro continua no campo crm; o conselho diz como le-lo.
+const AREAS = ['Psicologia', 'Psiquiatria'];
+const CONSELHO_DA_AREA = { Psicologia: 'CRP', Psiquiatria: 'CRM' };
+
+// Nome, area e conselho vem da especialidade.
+function dadosDaEspecialidadeDoMedico(medico, especialidades) {
   const especialidade = especialidades.find((e) =>
     mesmoId(e.id, medico.especialidadeId),
   );
+  const area = especialidade?.area ?? null;
 
-  return especialidade?.nome ?? null;
+  return {
+    especialidade: especialidade?.nome ?? null,
+    area,
+    conselho: CONSELHO_DA_AREA[area] ?? null,
+  };
 }
 
 // Paciente e medico veem so o necessario para escolher e reconhecer o
 // profissional. Contato e endereco ficam com a recepcao.
 function medicoParaPerfil(medico, perfil, usuarios, especialidades) {
-  const especialidade = nomeDaEspecialidade(medico, especialidades);
+  const { especialidade, area, conselho } = dadosDaEspecialidadeDoMedico(
+    medico,
+    especialidades,
+  );
 
   if (perfil === 'recepcao') {
     return {
       ...medico,
       especialidade,
+      area,
+      conselho,
       temAcesso: usuarios.some(
         (u) => u.perfil === 'medico' && mesmoId(u.vinculoId, medico.id),
       ),
@@ -632,12 +649,13 @@ function medicoParaPerfil(medico, perfil, usuarios, especialidades) {
   }
 
   const { id, nome, especialidadeId, crm, fotoUri } = medico;
-  return { id, nome, especialidadeId, especialidade, crm, fotoUri };
+  return { id, nome, especialidadeId, especialidade, area, conselho, crm, fotoUri };
 }
 
-// temAcesso e o nome da especialidade sao calculados; nao sao gravados.
+// temAcesso, nome da especialidade, area e conselho sao calculados; nao
+// sao gravados.
 function camposDoMedico(corpo) {
-  const { temAcesso, especialidade, ...campos } = semId(corpo);
+  const { temAcesso, especialidade, area, conselho, ...campos } = semId(corpo);
   return { ...campos, especialidadeId: idOuNulo(campos.especialidadeId) };
 }
 
@@ -713,7 +731,7 @@ async function criarMedico({ corpo }) {
   return criado({
     medico: {
       ...medico,
-      especialidade: nomeDaEspecialidade(medico, await listar('especialidades')),
+      ...dadosDaEspecialidadeDoMedico(medico, await listar('especialidades')),
       temAcesso: true,
     },
     acesso: { email, senhaTemporaria },
@@ -763,7 +781,7 @@ async function atualizarMedico({ params, corpo }) {
 
   return ok({
     ...medico,
-    especialidade: nomeDaEspecialidade(medico, await listar('especialidades')),
+    ...dadosDaEspecialidadeDoMedico(medico, await listar('especialidades')),
     temAcesso: Boolean(usuarioDoMedico),
   });
 }
@@ -857,7 +875,14 @@ function dadosDaEspecialidade(corpo) {
     throw new ErroHttp(400, 'Informe o nome da especialidade.');
   }
 
-  return { ...semId(corpo), nome: corpo.nome.trim() };
+  if (!AREAS.includes(corpo.area)) {
+    throw new ErroHttp(
+      400,
+      'Escolha a área da especialidade: Psicologia ou Psiquiatria.',
+    );
+  }
+
+  return { ...semId(corpo), nome: corpo.nome.trim(), area: corpo.area };
 }
 
 async function especialidadeExistente(id) {

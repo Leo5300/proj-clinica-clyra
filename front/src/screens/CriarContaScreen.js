@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,6 +9,8 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { useTema, fontes } from '../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { registrarPaciente, ErroDaApi } from '../services/api';
 import { salvarSessao } from '../services/sessao';
@@ -18,18 +19,6 @@ import { brParaIso } from '../services/datas';
 // Autocadastro: so cria conta de PACIENTE. Medico e recepcao recebem o
 // acesso da clinica. As validacoes daqui sao as mesmas do servidor, para a
 // pessoa corrigir antes de enviar -- mas quem decide e o servidor.
-
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  sageSoft: '#E3EEEA',
-  danger: '#B0555F',
-};
 
 const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
 
@@ -77,6 +66,8 @@ function cpfValido(cpf) {
 }
 
 function Campo({ label, erro, children }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   return (
     <View style={styles.campo}>
       <Text style={styles.label}>{label}</Text>
@@ -87,6 +78,8 @@ function Campo({ label, erro, children }) {
 }
 
 export default function CriarContaScreen({ navigation }) {
+  const { cores } = useTema();
+  const styles = useMemo(() => criarEstilos(cores), [cores]);
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [nascimento, setNascimento] = useState('');
@@ -199,7 +192,7 @@ export default function CriarContaScreen({ navigation }) {
           accessibilityLabel="Voltar"
           hitSlop={AREA_DE_TOQUE}
         >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
+          <Feather name="chevron-left" size={26} color={cores.tinta} />
         </TouchableOpacity>
         <Text style={styles.title}>Criar conta</Text>
         <View style={styles.headerSpacer} />
@@ -215,7 +208,7 @@ export default function CriarContaScreen({ navigation }) {
         >
           {erroServidor && (
             <View style={styles.erroTopo}>
-              <Feather name="alert-circle" size={14} color={colors.danger} />
+              <Feather name="alert-circle" size={14} color={cores.alerta} />
               <Text style={styles.erroTopoTexto}>{erroServidor}</Text>
             </View>
           )}
@@ -236,7 +229,7 @@ export default function CriarContaScreen({ navigation }) {
               onChangeText={alterar('cpf', (v) => setCpf(mascararCpf(v)))}
               keyboardType="numeric"
               placeholder="000.000.000-00"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={cores.desativado}
               maxLength={14}
             />
           </Campo>
@@ -250,7 +243,7 @@ export default function CriarContaScreen({ navigation }) {
               )}
               keyboardType="numeric"
               placeholder="dd/mm/aaaa"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={cores.desativado}
               maxLength={10}
             />
           </Campo>
@@ -263,7 +256,7 @@ export default function CriarContaScreen({ navigation }) {
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="voce@exemplo.com"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={cores.desativado}
             />
           </Campo>
 
@@ -276,7 +269,7 @@ export default function CriarContaScreen({ navigation }) {
                 secureTextEntry={!mostrarSenha}
                 autoCapitalize="none"
                 placeholder="Pelo menos 8 caracteres"
-                placeholderTextColor={colors.muted}
+                placeholderTextColor={cores.desativado}
               />
               <TouchableOpacity
                 style={styles.olho}
@@ -288,7 +281,7 @@ export default function CriarContaScreen({ navigation }) {
                 <Feather
                   name={mostrarSenha ? 'eye-off' : 'eye'}
                   size={18}
-                  color={colors.muted}
+                  color={cores.apoio}
                 />
               </TouchableOpacity>
             </View>
@@ -313,7 +306,7 @@ export default function CriarContaScreen({ navigation }) {
             <Feather
               name={aceite ? 'check-square' : 'square'}
               size={20}
-              color={aceite ? colors.sage : colors.muted}
+              color={aceite ? cores.acao : cores.apoio}
             />
             <Text style={styles.aceiteTexto}>
               Concordo com o uso dos meus dados para o atendimento na clínica,
@@ -346,77 +339,79 @@ export default function CriarContaScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
+const criarEstilos = (cores) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: cores.papel },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    title: { fontSize: 17, fontFamily: fontes.textoForte, color: cores.tinta },
+    headerSpacer: { width: 22 },
 
-  form: { padding: 20, paddingBottom: 40 },
+    form: { padding: 20, paddingBottom: 40 },
 
-  erroTopo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  erroTopoTexto: { flex: 1, fontSize: 13, color: colors.danger, lineHeight: 18 },
+    erroTopo: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.alerta,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
+    erroTopoTexto: { fontFamily: fontes.texto, flex: 1, fontSize: 13, color: cores.alerta, lineHeight: 18 },
 
-  campo: { marginBottom: 16 },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  erroCampo: { fontSize: 12, color: colors.danger, marginTop: 6 },
+    campo: { marginBottom: 16 },
+    label: {
+      fontSize: 12,
+      fontFamily: fontes.textoSemi,
+      color: cores.apoio,
+      marginBottom: 6,
+    },
+    input: {
+      fontFamily: fontes.texto,
+      backgroundColor: cores.superficie,
+      borderWidth: 1,
+      borderColor: cores.linha,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: cores.tinta,
+    },
+    erroCampo: { fontFamily: fontes.texto, fontSize: 12, color: cores.alerta, marginTop: 6 },
 
-  senhaLinha: { flexDirection: 'row', alignItems: 'center' },
-  senhaInput: { flex: 1, paddingRight: 44 },
-  olho: { position: 'absolute', right: 14 },
+    senhaLinha: { flexDirection: 'row', alignItems: 'center' },
+    senhaInput: { flex: 1, paddingRight: 44 },
+    olho: { position: 'absolute', right: 14 },
 
-  aceite: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginTop: 4,
-    marginBottom: 8,
-    paddingVertical: 6,
-  },
-  aceiteTexto: { flex: 1, fontSize: 13, color: colors.ink, lineHeight: 19 },
+    aceite: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      marginTop: 4,
+      marginBottom: 8,
+      paddingVertical: 6,
+    },
+    aceiteTexto: { fontFamily: fontes.texto, flex: 1, fontSize: 13, color: cores.tinta, lineHeight: 19 },
 
-  botao: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
+    botao: {
+      backgroundColor: cores.acao,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    botaoDesabilitado: { opacity: 0.6 },
+    botaoTexto: { color: cores.sobreAcao, fontFamily: fontes.textoForte, fontSize: 14 },
 
-  rodape: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
-  rodapeTexto: { color: colors.muted, fontSize: 13 },
-  rodapeLink: { color: colors.sage, fontWeight: '600', fontSize: 13 },
-});
+    rodape: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
+    rodapeTexto: { fontFamily: fontes.texto, color: cores.apoio, fontSize: 13 },
+    rodapeLink: { color: cores.link, fontFamily: fontes.textoSemi, fontSize: 13 },
+  });

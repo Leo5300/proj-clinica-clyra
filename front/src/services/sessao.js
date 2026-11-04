@@ -126,6 +126,20 @@ async function limparSessao() {
   avisarOuvintes();
 }
 
+// Sessao expirada (401): quem quiser explicar isso na tela se inscreve
+// aqui. O api.js avisa; a tela que estava aberta continua decidindo para
+// onde ir.
+const ouvintesDeExpiracao = new Set();
+
+function aoExpirarSessao(ouvinte) {
+  ouvintesDeExpiracao.add(ouvinte);
+  return () => ouvintesDeExpiracao.delete(ouvinte);
+}
+
+function avisarSessaoExpirada() {
+  ouvintesDeExpiracao.forEach((ouvinte) => ouvinte());
+}
+
 // Atalho mantido: limpar o token e limpar a sessao inteira.
 const limparToken = limparSessao;
 
@@ -171,4 +185,6 @@ export {
   limparToken,
   estaLogado,
   useUsuario,
+  aoExpirarSessao,
+  avisarSessaoExpirada,
 };

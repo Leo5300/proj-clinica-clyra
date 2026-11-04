@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { criarServicoBle, MODO_SIMULADO } from '../services/bluetooth';
 import {
@@ -19,45 +16,106 @@ import {
   ErroDaApi,
 } from '../services/api';
 import { useUsuario } from '../services/sessao';
+import {
+  Botao,
+  TopoDeTela,
+  Campo,
+  ItemDeLista,
+  Selo,
+  SeloSucesso,
+  Tela,
+  Texto,
+} from '../components';
+import { useTema, espaco, margemTela, raio, curva } from '../theme';
+import { vibrarSucesso } from '../services/haptica';
 
-// Esta tela NAO conhece a biblioteca de Bluetooth, nem identificadores de
-// servico, nem o formato em que o aparelho manda o valor. Ela so conhece
-// o service de bluetooth.js -- por isso roda igual nos modos simulado e
-// real.
+// Registro de sinais vitais: procurar o monitor, conectar, acompanhar o
+// bpm ao vivo e importar a media para o prontuario -- ou digitar o valor.
+// Quem pode registrar e para quem e decidido pelo servidor.
+//
+// Leituras ficam so na memoria da tela: dado de saude nao e gravado no
+// aparelho nem impresso em log.
 
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  danger: '#B0555F',
-};
-
-// Escanear gasta bateria dos dois lados: a busca precisa ter fim.
+// Quanto tempo a busca fica ativa antes de parar sozinha.
 const DURACAO_BUSCA_MS = 8000;
 
-// O monitor manda uma leitura a cada 1 a 2 segundos. Passar disso sem
-// nada novo significa que a conexao provavelmente caiu.
+// Sem leitura por mais que isso, a tela avisa que o sinal caiu.
 const LIMITE_SEM_LEITURA_MS = 5000;
 
-// Guarda so as ultimas leituras: suficiente para a media, sem crescer
-// sem limite se a tela ficar aberta muito tempo.
+// Janela de leituras usada na media.
 const MAX_LEITURAS = 30;
 
-// Faixa plausivel para digitacao manual. Fora disso e quase certo erro de
-// digitacao, e registro medico errado e pior que registro nenhum.
-const BPM_MINIMO = 20;
-const BPM_MAXIMO = 250;
+// Faixa aceita na digitacao manual (o servidor aceita de 20 a 250).
+const BPM_MINIMO = 30;
+const BPM_MAXIMO = 220;
+
+function Cartao({ children, style }) {
+  const { cores } = useTema();
+
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: cores.superficie,
+          borderColor: cores.linha,
+          borderWidth: 1,
+          borderRadius: raio.cartaoGrande,
+          borderCurve: 'continuous',
+          padding: espaco.md + 2,
+          gap: espaco.sm,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+// Numero ao vivo com um pulso discreto a cada leitura nova. Com "reduzir
+// movimento", so o numero muda.
+function BpmAoVivo({ valor, leituras, apagado }) {
+  const { movimentoReduzido } = useTema();
+  const escala = useSharedValue(1);
+
+  useEffect(() => {
+    if (movimentoReduzido || leituras === 0) return;
+    escala.set(
+      withSequence(
+        withTiming(1.05, { duration: 120, easing: curva.saida }),
+        withTiming(1, { duration: 240, easing: curva.saida }),
+      ),
+    );
+  }, [leituras]);
+
+  const estilo = useAnimatedStyle(() => ({ transform: [{ scale: escala.get() }] }));
+
+  return (
+    <View style={{ alignItems: 'center' }} accessibilityLiveRegion="polite">
+      <Animated.View style={estilo}>
+        <Texto
+          variante="dataGrande"
+          cor={apagado ? 'desativado' : 'tinta'}
+          tabular
+          maxFontSizeMultiplier={1.2}
+        >
+          {valor ?? '--'}
+        </Texto>
+      </Animated.View>
+      <Texto variante="rotuloForte" cor="apoio">
+        bpm
+      </Texto>
+    </View>
+  );
+}
 
 export default function SinaisVitaisScreen({ navigation, route }) {
   const paciente = route.params?.paciente;
-  // A consulta em que o registro foi feito, quando vem do detalhe dela.
   const consultaId = route.params?.consultaId ?? null;
 
   const { usuario } = useUsuario();
+  const { cores } = useTema();
+  const insets = useSafeAreaInsets();
   const ehPaciente = usuario?.perfil === 'paciente';
 
   const servicoRef = useRef(null);
@@ -75,14 +133,14 @@ export default function SinaisVitaisScreen({ navigation, route }) {
   const [importando, setImportando] = useState(false);
   const [modoManual, setModoManual] = useState(false);
   const [bpmManual, setBpmManual] = useState('');
+  const [erroManual, setErroManual] = useState(null);
+  // { bpm, quantidade } depois de salvar.
+  const [salvo, setSalvo] = useState(null);
 
   useEffect(() => {
-    // O service nasce com a tela e morre com ela. useRef porque ele nao
-    // e estado de tela: trocar de service nao deve redesenhar nada.
     servicoRef.current = criarServicoBle();
 
-    // Sair da tela PRECISA liberar o aparelho. Deixar conectado gasta
-    // bateria dos dois lados e impede outro celular de conectar.
+    // Sair da tela nunca deixa busca rodando nem aparelho conectado.
     return () => {
       clearTimeout(timerBuscaRef.current);
       servicoRef.current?.pararBusca();
@@ -90,9 +148,8 @@ export default function SinaisVitaisScreen({ navigation, route }) {
     };
   }, []);
 
+  // Relogio de 1 s enquanto conectado: e o que percebe o sinal caindo.
   useEffect(() => {
-    // Relogio de 1 segundo, so enquanto conectado: e ele que permite
-    // perceber que as leituras pararam de chegar.
     if (!conectado) return undefined;
 
     const id = setInterval(() => setAgora(Date.now()), 1000);
@@ -115,8 +172,6 @@ export default function SinaisVitaisScreen({ navigation, route }) {
     try {
       await servicoRef.current.procurar(
         (aparelho) => {
-          // O mesmo aparelho e anunciado varias vezes por segundo. Sem
-          // esta checagem a lista enche de repetidos.
           setAparelhos((atuais) =>
             atuais.some((a) => a.id === aparelho.id)
               ? atuais
@@ -134,10 +189,8 @@ export default function SinaisVitaisScreen({ navigation, route }) {
       setProcurando(false);
 
       if (e.name === 'PermissaoBluetoothNegada') {
-        // Permissao negada e resposta do usuario, nao bug. Avisar em vez
-        // de falhar em silencio -- e sempre deixar a saida manual.
         setErro(
-          'Sem permissão de Bluetooth o app não consegue procurar o monitor. Libere a permissão nos ajustes do aparelho ou digite os valores manualmente.',
+          'Sem permissão de Bluetooth o app não consegue procurar o monitor. Libere a permissão nos ajustes do aparelho ou digite o valor manualmente.',
         );
       } else {
         setErro(
@@ -151,7 +204,6 @@ export default function SinaisVitaisScreen({ navigation, route }) {
   };
 
   const conectar = async (aparelho) => {
-    // Conectar com a busca ainda rodando disputa o radio do celular.
     clearTimeout(timerBuscaRef.current);
     servicoRef.current.pararBusca();
     setProcurando(false);
@@ -163,8 +215,6 @@ export default function SinaisVitaisScreen({ navigation, route }) {
       await servicoRef.current.conectar(aparelho.id);
 
       setLeituras([]);
-      // Comeca a contar a partir da conexao: se nenhuma leitura chegar,
-      // a tela tambem percebe.
       setUltimaLeituraEm(Date.now());
       setAgora(Date.now());
       setConectado(aparelho);
@@ -177,9 +227,8 @@ export default function SinaisVitaisScreen({ navigation, route }) {
         setUltimaLeituraEm(Date.now());
       });
     } catch (e) {
-      // Mensagem que diz O QUE FAZER, nao so "erro".
       setErro(
-        `Não foi possível conectar ao ${aparelho.nome}. Confira se ele está ligado e perto do celular e tente de novo — ou digite os valores manualmente.`,
+        `Não foi possível conectar ao ${aparelho.nome}. Confira se ele está ligado e perto do celular e tente de novo — ou digite o valor manualmente.`,
       );
     } finally {
       setConectando(null);
@@ -195,38 +244,31 @@ export default function SinaisVitaisScreen({ navigation, route }) {
 
   const salvar = async (registro) => {
     setImportando(true);
+    setErro(null);
 
     try {
-      // So existe para a clinica o que chega ao servidor. Enquanto o
-      // valor esta so na memoria desta tela, ele nao e registro medico:
-      // fechar o app apaga tudo.
       await registrarSinaisVitais(registro);
 
       await servicoRef.current?.desconectar();
+      setConectado(null);
 
-      Alert.alert(
-        'Registrado',
-        'Sinais vitais registrados no prontuário.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      vibrarSucesso();
+      setSalvo({
+        bpm: registro.frequenciaCardiaca,
+        quantidade: registro.quantidadeLeituras,
+      });
     } catch (e) {
       if (e instanceof SessaoExpirada) {
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         return;
       }
 
-      // 403 (perfil) ou 404 (paciente ou consulta que nao e de quem
-      // registra): a mensagem do servidor diz o que aconteceu.
       if (e instanceof SemPermissao || (e instanceof ErroDaApi && e.mensagem)) {
-        Alert.alert(
-          'Não foi possível registrar',
-          e.mensagem ?? 'Você não tem permissão para isso.',
-        );
+        setErro(e.mensagem ?? 'Você não tem permissão para isso.');
         return;
       }
 
-      Alert.alert(
-        'Erro',
+      setErro(
         'Não foi possível registrar no prontuário agora. Os valores continuam na tela — tente de novo.',
       );
     } finally {
@@ -254,9 +296,6 @@ export default function SinaisVitaisScreen({ navigation, route }) {
     agora - ultimaLeituraEm > LIMITE_SEM_LEITURA_MS;
 
   const importarLeituras = () => {
-    // Uma leitura isolada de batimento vale pouco: vai a MEDIA, junto com
-    // quantas leituras a formaram e quando. Sem isso, quem ler o
-    // prontuario depois nao sabe o quanto confiar no numero.
     salvar({
       pacienteId: paciente.id,
       consultaId,
@@ -272,13 +311,13 @@ export default function SinaisVitaisScreen({ navigation, route }) {
     const valor = Number(bpmManual.replace(',', '.'));
 
     if (!Number.isInteger(valor) || valor < BPM_MINIMO || valor > BPM_MAXIMO) {
-      Alert.alert(
-        'Valor inválido',
+      setErroManual(
         `Informe a frequência cardíaca em bpm, entre ${BPM_MINIMO} e ${BPM_MAXIMO}.`,
       );
       return;
     }
 
+    setErroManual(null);
     salvar({
       pacienteId: paciente.id,
       consultaId,
@@ -290,339 +329,274 @@ export default function SinaisVitaisScreen({ navigation, route }) {
     });
   };
 
+  const irParaManual = () => {
+    clearTimeout(timerBuscaRef.current);
+    servicoRef.current?.pararBusca();
+    setProcurando(false);
+    setModoManual(true);
+  };
+
   const renderConteudo = () => {
+    if (salvo) {
+      return (
+        <Cartao style={{ alignItems: 'center', paddingVertical: espaco.xl }}>
+          <SeloSucesso
+            titulo="Salvo no prontuário"
+            texto={
+              salvo.quantidade > 1
+                ? `${salvo.bpm} bpm, média de ${salvo.quantidade} leituras.`
+                : `${salvo.bpm} bpm.`
+            }
+          />
+          <Botao
+            titulo="Voltar"
+            onPress={() => navigation.goBack()}
+            style={{ alignSelf: 'stretch', marginTop: espaco.xs }}
+          />
+        </Cartao>
+      );
+    }
+
     if (modoManual) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.cardEyebrow}>Digitação manual</Text>
-
-          <Text style={styles.label}>Frequência cardíaca (bpm)</Text>
-          <TextInput
-            style={styles.input}
+        <Cartao>
+          <Texto variante="secao">Digitar o valor</Texto>
+          <Campo
+            rotulo="Frequência cardíaca (bpm)"
             value={bpmManual}
-            onChangeText={setBpmManual}
-            keyboardType="numeric"
+            onChangeText={(texto) => {
+              setBpmManual(texto);
+              setErroManual(null);
+            }}
+            keyboardType="number-pad"
             placeholder="Ex.: 72"
-            placeholderTextColor={colors.muted}
             maxLength={3}
+            erro={erroManual}
+            nota={`Entre ${BPM_MINIMO} e ${BPM_MAXIMO}.`}
+            style={{ alignSelf: 'stretch' }}
           />
-
-          <TouchableOpacity
-            style={[styles.botao, importando && styles.botaoDesabilitado]}
+          <Botao
+            titulo="Registrar no prontuário"
+            carregando={importando}
             onPress={importarManual}
-            disabled={importando}
-          >
-            <Text style={styles.botaoTexto}>
-              {importando ? 'Registrando...' : 'Registrar no prontuário'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setModoManual(false)}>
-            <Text style={styles.link}>Voltar para o Bluetooth</Text>
-          </TouchableOpacity>
-        </View>
+          />
+          <Botao
+            variante="texto"
+            compacto
+            titulo="Voltar para o monitor"
+            onPress={() => setModoManual(false)}
+          />
+        </Cartao>
       );
     }
 
     if (conectando) {
       return (
-        <View style={styles.card}>
-          <ActivityIndicator color={colors.sage} />
-          <Text style={styles.nota}>
-            Conectando a {conectando.nome}... isso leva alguns segundos.
-          </Text>
-        </View>
+        <Cartao style={{ alignItems: 'center' }}>
+          <ActivityIndicator color={cores.acao} />
+          <Texto variante="rotulo" cor="tinta2" style={{ textAlign: 'center' }}>
+            Conectando a {conectando.nome}… isso leva alguns segundos.
+          </Texto>
+        </Cartao>
       );
     }
 
     if (conectado) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.cardEyebrow}>Conectado a {conectado.nome}</Text>
+        <Cartao style={{ alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.xs, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Texto variante="rotuloForte">Conectado ao {conectado.nome}</Texto>
+            {!sinalPerdido ? <Selo texto="ao vivo" icone="activity" /> : null}
+          </View>
+
+          {/* Nao mostrar o ultimo valor como se fosse atual: um numero
+              velho na tela engana quem esta atendendo. */}
+          <BpmAoVivo
+            valor={sinalPerdido ? null : ultimaLeitura}
+            leituras={leituras.length}
+            apagado={sinalPerdido}
+          />
 
           {sinalPerdido ? (
-            <>
-              {/* Nao mostrar o ultimo valor como se fosse atual: um numero
-                  velho na tela engana quem esta atendendo. */}
-              <Text style={[styles.bpm, styles.bpmApagado]}>--</Text>
-              <Text style={styles.aviso}>
-                Sem leitura há {segundosSemLeitura} s. A conexão pode ter
-                caído — aproxime o aparelho ou desconecte e procure de novo.
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.bpm}>{ultimaLeitura ?? '--'}</Text>
-          )}
+            <Texto variante="legenda" cor="atencao" style={{ textAlign: 'center' }}>
+              Sem leitura há {segundosSemLeitura} s. A conexão pode ter caído —
+              aproxime o aparelho ou desconecte e procure de novo.
+            </Texto>
+          ) : null}
 
-          <Text style={styles.unidade}>bpm</Text>
-
-          <Text style={styles.nota}>
+          <Texto variante="legenda" cor="apoio" tabular style={{ textAlign: 'center' }}>
             {leituras.length}{' '}
             {leituras.length === 1 ? 'leitura recebida' : 'leituras recebidas'}
-          </Text>
+            {media !== null ? ` · média ${media} bpm` : ''}
+          </Texto>
 
-          {media !== null && (
-            <Text style={styles.nota}>Média: {media} bpm</Text>
-          )}
-
-          <TouchableOpacity
-            style={[
-              styles.botao,
-              (leituras.length === 0 || importando) && styles.botaoDesabilitado,
-            ]}
+          <Botao
+            titulo="Importar a média para o prontuário"
+            desativado={leituras.length === 0}
+            carregando={importando}
             onPress={importarLeituras}
-            disabled={leituras.length === 0 || importando}
-          >
-            <Text style={styles.botaoTexto}>
-              {importando ? 'Importando...' : 'Importar para o prontuário'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.botao, styles.botaoSecundario]}
+            style={{ alignSelf: 'stretch' }}
+          />
+          <Botao
+            titulo="Desconectar"
+            variante="contorno"
+            desativado={importando}
             onPress={desconectar}
-            disabled={importando}
-          >
-            <Text style={styles.botaoSecundarioTexto}>Desconectar</Text>
-          </TouchableOpacity>
-        </View>
+            style={{ alignSelf: 'stretch' }}
+          />
+        </Cartao>
       );
     }
 
     return (
-      <>
-        <TouchableOpacity
-          style={[styles.botao, procurando && styles.botaoDesabilitado]}
-          onPress={procurar}
-          disabled={procurando}
-        >
-          <Text style={styles.botaoTexto}>
-            {procurando ? 'Procurando...' : 'Procurar aparelhos'}
-          </Text>
-        </TouchableOpacity>
-
-        {procurando && (
-          <ActivityIndicator color={colors.sage} style={styles.indicador} />
-        )}
-
-        {aparelhos.map((aparelho) => (
-          <TouchableOpacity
-            key={aparelho.id}
-            style={styles.item}
-            onPress={() => conectar(aparelho)}
+      <Cartao>
+        <View style={{ flexDirection: 'row', gap: espaco.sm, alignItems: 'flex-start' }}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: raio.campo,
+              backgroundColor: cores.lavandaSuave,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <Feather name="bluetooth" size={18} color={colors.sage} />
-            <Text style={styles.itemNome}>{aparelho.nome}</Text>
-          </TouchableOpacity>
-        ))}
-
-        {buscaConcluida && aparelhos.length === 0 && !erro && (
-          // "Nenhum aparelho" e um RESULTADO da busca, e precisa dizer o
-          // que fazer -- nao pode ser uma tela vazia para sempre.
-          <View style={styles.card}>
-            <Text style={styles.cardEyebrow}>Nenhum aparelho encontrado</Text>
-            <Text style={styles.nota}>
-              Confira se o monitor está ligado, com bateria e perto do
-              celular, e toque em "Procurar aparelhos" de novo. Se não
-              aparecer, digite os valores manualmente.
-            </Text>
+            <Feather name="bluetooth" size={20} color={cores.sobreLavandaSuave} />
           </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Texto variante="corpoForte">Ler do monitor cardíaco</Texto>
+            <Texto variante="legenda" cor="apoio">
+              Ligue o monitor e deixe perto do celular. A leitura vai direto
+              para o prontuário.
+            </Texto>
+          </View>
+        </View>
+
+        {procurando ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
+            <ActivityIndicator color={cores.acao} />
+            <View>
+              <Texto variante="rotuloForte">Procurando aparelhos…</Texto>
+              <Texto variante="legenda" cor="apoio">
+                Leva alguns segundos.
+              </Texto>
+            </View>
+          </View>
+        ) : (
+          <Botao titulo="Procurar monitor" icone="search" onPress={procurar} />
         )}
-      </>
+
+        {aparelhos.length > 0 ? (
+          <View>
+            <Texto variante="legenda" cor="apoio">
+              {aparelhos.length === 1
+                ? '1 aparelho encontrado'
+                : `${aparelhos.length} aparelhos encontrados`}
+            </Texto>
+            {aparelhos.map((aparelho, indice) => (
+              <ItemDeLista
+                key={aparelho.id}
+                titulo={aparelho.nome}
+                subtitulo="Toque para conectar"
+                esquerda={<Feather name="bluetooth" size={20} color={cores.link} />}
+                seta
+                divisor={indice < aparelhos.length - 1}
+                accessibilityLabel={`Conectar ao ${aparelho.nome}`}
+                onPress={() => conectar(aparelho)}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {buscaConcluida && aparelhos.length === 0 && !erro ? (
+          <View style={{ gap: 2 }}>
+            <Texto variante="rotuloForte">Nenhum aparelho encontrado</Texto>
+            <Texto variante="legenda" cor="apoio">
+              Confira se o monitor está ligado, com bateria e perto do
+              celular, e procure de novo. Se não aparecer, digite o valor.
+            </Texto>
+          </View>
+        ) : null}
+      </Cartao>
     );
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Sinais vitais</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
+    <Tela bordas={[]}>
+      <TopoDeTela titulo="Sinais vitais" aoVoltar={() => navigation.goBack()} />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          paddingHorizontal: margemTela + 2,
+          paddingTop: espaco.xs,
+          paddingBottom: insets.bottom + espaco.xl,
+          gap: espaco.md,
+        }}
+      >
         {!paciente ? (
-          <Text style={styles.erroTexto}>
+          <Texto variante="corpo" cor="tinta2">
             Abra esta tela a partir de um paciente.
-          </Text>
+          </Texto>
         ) : (
           <>
-            <View style={styles.pacienteBloco}>
+            <View style={{ gap: 4 }}>
               {/* O paciente registrando para si nao se ve como "outra
                   pessoa" na tela. */}
               {ehPaciente ? (
-                <Text style={styles.pacienteSubtitulo}>
+                <Texto variante="corpo" cor="tinta2">
                   Envie sua frequência cardíaca antes da consulta.
-                </Text>
+                </Texto>
               ) : (
-                <>
-                  <Text style={styles.cardEyebrow}>Paciente</Text>
-                  <Text style={styles.pacienteNome}>{paciente.nome}</Text>
-                </>
+                <Texto variante="tituloMedio" selectable>
+                  {paciente.nome}
+                </Texto>
               )}
-              {MODO_SIMULADO && (
-                <Text style={styles.modo}>
+              {MODO_SIMULADO ? (
+                <Texto variante="legenda" cor="apoio">
                   Modo simulado — aparelhos de teste
-                </Text>
-              )}
+                </Texto>
+              ) : null}
             </View>
 
             {renderConteudo()}
 
-            {erro && <Text style={styles.erroTexto}>{erro}</Text>}
+            {erro ? (
+              <View
+                accessibilityRole="alert"
+                style={{
+                  flexDirection: 'row',
+                  gap: espaco.xs,
+                  backgroundColor: cores.atencaoSuave,
+                  borderRadius: raio.campo,
+                  padding: espaco.sm,
+                }}
+              >
+                <Feather name="alert-circle" size={16} color={cores.atencao} style={{ marginTop: 2 }} />
+                <Texto variante="legenda" cor="atencao" style={{ flex: 1 }} selectable>
+                  {erro}
+                </Texto>
+              </View>
+            ) : null}
 
             {/* Sempre visivel fora do modo manual. Se o Bluetooth falhar,
                 a consulta nao pode parar -- isto e requisito, nao
                 cortesia. */}
-            {!modoManual && (
-              <TouchableOpacity
-                onPress={() => {
-                  clearTimeout(timerBuscaRef.current);
-                  servicoRef.current?.pararBusca();
-                  setProcurando(false);
-                  setModoManual(true);
-                }}
-              >
-                <Text style={styles.link}>Digitar os valores manualmente</Text>
-              </TouchableOpacity>
-            )}
+            {!modoManual && !salvo ? (
+              <Botao
+                variante="texto"
+                compacto
+                titulo="Digitar o valor manualmente"
+                onPress={irParaManual}
+              />
+            ) : null}
 
-            <Text style={styles.rodape}>
-              Sinal vital é dado de saúde do paciente: entra no prontuário,
-              nunca em log.
-            </Text>
+            <Texto variante="legenda" cor="apoio">
+              Sinal vital é dado de saúde: vai só para o prontuário da clínica.
+              Nada fica guardado no celular.
+            </Texto>
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Tela>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
-
-  content: { padding: 20, paddingBottom: 40 },
-
-  pacienteBloco: { marginBottom: 16 },
-  pacienteNome: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  pacienteSubtitulo: { fontSize: 15, color: colors.ink, lineHeight: 21 },
-  modo: { fontSize: 12, color: colors.muted, marginTop: 4 },
-
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  cardEyebrow: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-  },
-
-  bpm: { fontSize: 56, fontWeight: '700', color: colors.sage },
-  bpmApagado: { color: colors.muted },
-  unidade: { fontSize: 14, color: colors.muted, marginTop: -6 },
-
-  nota: {
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  aviso: {
-    fontSize: 13,
-    color: colors.danger,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 10,
-  },
-  itemNome: { fontSize: 15, fontWeight: '600', color: colors.ink },
-
-  label: {
-    alignSelf: 'stretch',
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6,
-  },
-  input: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.ink,
-  },
-
-  botao: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 14,
-  },
-  botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  botaoSecundario: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 10,
-  },
-  botaoSecundarioTexto: { color: colors.ink, fontWeight: '600', fontSize: 14 },
-
-  indicador: { marginTop: 14 },
-
-  link: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.sage,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  erroTexto: {
-    fontSize: 13,
-    color: colors.danger,
-    marginTop: 14,
-    lineHeight: 18,
-  },
-  rodape: {
-    fontSize: 11,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 28,
-  },
-});

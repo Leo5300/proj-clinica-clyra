@@ -1,16 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import {
-  SafeAreaView,
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { Alert, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons';
 import {
   buscarMedicos,
   excluirMedico,
@@ -18,25 +8,41 @@ import {
   SemPermissao,
   ErroDaApi,
 } from '../services/api';
+import {
+  Avatar,
+  Botao,
+  BotaoExcluir,
+  FiltroArea,
+  ItemDeLista,
+  Numeral,
+  PlanoTopo,
+  TODAS,
+  TelaDeLista,
+  Texto,
+} from '../components';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useTema,
+  espaco,
+  margemTela,
+  raio,
+  pontoSobreTinta,
+  tomDoAvatar,
+} from '../theme';
+import { useUsuario } from '../services/sessao';
+import { especialidadeERegistro } from '../services/profissionais';
+import TopoDaEquipe from './home/TopoDaEquipe';
 
-// TODO: mover para front/src/theme quando o ThemeContext existir
-// (feature/design-system). Mesma paleta usada na HomeScreen.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-};
-
-// Icones de 18-22 px: o hitSlop leva a area de toque aos 44 px minimos.
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
+// Profissionais da clinica: aba da recepcao, com topo de tinta, a
+// contagem por area e a lista com o conselho (CRP/CRM) visivel. So a
+// recepcao chega aqui; o servidor confere o perfil de novo em cada
+// chamada.
 
 export default function MedicosScreen({ navigation }) {
-  // carregando, erro e medicos sao dimensoes independentes: e possivel ter a
-  // lista na tela e um erro de recarga ao mesmo tempo, entao cada um vive no
-  // seu proprio estado em vez de um "status" unico.
+  const { cores } = useTema();
+  const insets = useSafeAreaInsets();
+  const { usuario } = useUsuario();
+  const [area, setArea] = useState(TODAS);
   const [medicos, setMedicos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -44,9 +50,7 @@ export default function MedicosScreen({ navigation }) {
   const carregarMedicos = useCallback(async () => {
     try {
       setErro(null);
-
       const dados = await buscarMedicos();
-
       setMedicos(dados);
     } catch (e) {
       if (e instanceof SessaoExpirada) {
@@ -62,13 +66,13 @@ export default function MedicosScreen({ navigation }) {
         return;
       }
 
-      setErro('Não foi possível carregar os médicos agora.');
+      setErro('Não foi possível carregar os profissionais agora.');
     } finally {
       setCarregando(false);
     }
   }, [navigation]);
 
-  // useFocusEffect para recarregar a lista toda vez que a tela recebe foco.
+  // Ao voltar do cadastro, a lista vem de novo do servidor.
   useFocusEffect(
     useCallback(() => {
       carregarMedicos();
@@ -77,7 +81,7 @@ export default function MedicosScreen({ navigation }) {
 
   const confirmarExclusao = (medico) => {
     Alert.alert(
-      'Excluir médico',
+      'Excluir profissional',
       `Deseja excluir ${medico.nome}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
@@ -93,9 +97,6 @@ export default function MedicosScreen({ navigation }) {
   const excluir = async (id) => {
     try {
       await excluirMedico(id);
-
-      // O servidor e a fonte da verdade: recarrega a lista dele em vez de
-      // so remover o item do array local.
       carregarMedicos();
     } catch (e) {
       if (e instanceof SessaoExpirada) {
@@ -106,8 +107,7 @@ export default function MedicosScreen({ navigation }) {
         return;
       }
 
-      // 409: o servidor explica o que impede (consulta marcada) e o que
-      // fazer. 403: mensagem do servidor, sem deslogar.
+      // 409: o servidor diz o que impede a exclusao.
       if (e instanceof ErroDaApi && e.mensagem) {
         Alert.alert('Não foi possível excluir', e.mensagem);
         return;
@@ -115,196 +115,138 @@ export default function MedicosScreen({ navigation }) {
 
       Alert.alert(
         'Erro',
-        'Não foi possível excluir o médico agora.',
+        'Não foi possível excluir o profissional agora.',
       );
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
+  // Contagem por area, so das areas que existem nos dados.
+  const areas = [...new Set(medicos.map((m) => m.area).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const porArea = areas.map((a) => ({
+    area: a,
+    total: medicos.filter((m) => m.area === a).length,
+  }));
+  const daArea = area === TODAS ? medicos : medicos.filter((m) => m.area === area);
+  const novo = () => navigation.navigate('CadastroMedico');
+
+  const topo = (
+    <PlanoTopo
+      fundo={cores.planoTinta}
+      corTexto={cores.sobrePlanoTinta}
+      style={{
+        paddingTop: insets.top + espaco.xs,
+        paddingHorizontal: margemTela + 2,
+        paddingBottom: espaco.lg,
+        gap: espaco.md,
+      }}
+    >
+      <TopoDaEquipe
+        usuario={usuario}
+        navigation={navigation}
+        corTexto={cores.sobrePlanoTinta}
+        tomDoAvatar="lavanda"
+      />
+      <View style={{ gap: espaco.xs }}>
+        <Texto variante="rotulo" cor={cores.sobrePlanoTinta2}>
+          Equipe da clínica
+        </Texto>
+        <View
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={`${medicos.length} profissionais`}
+          style={{ flexDirection: 'row', alignItems: 'flex-end', gap: espaco.sm }}
         >
-          <Feather
-            name="arrow-left"
-            size={22}
-            color={colors.ink}
-          />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Médicos</Text>
-
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate('CadastroMedico')
-          }
-          accessibilityRole="button"
-          accessibilityLabel="Cadastrar médico"
-          hitSlop={AREA_DE_TOQUE}
-        >
-          <Feather
-            name="plus"
-            size={22}
-            color={colors.ink}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {carregando ? (
-        <View style={styles.center}>
-          <ActivityIndicator
-            color={colors.sage}
-            size="large"
-          />
+          <Numeral valor={carregando ? '–' : medicos.length} tamanho="grande" cor={cores.lavandaNumeral} />
+          <Texto variante="titulo" cor={cores.sobrePlanoTinta} style={{ marginBottom: 12 }}>
+            {medicos.length === 1 ? 'profissional' : 'profissionais'}
+          </Texto>
         </View>
-      ) : erro ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{erro}</Text>
-
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={carregarMedicos}
-          >
-            <Text style={styles.retryText}>
-              Tentar novamente
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={medicos}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardInfo}
-                onPress={() =>
-                  navigation.navigate(
-                    'CadastroMedico',
-                    { medico: item },
-                  )
-                }
+        {porArea.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: espaco.xs }}>
+            {porArea.map(({ area: nome, total }) => (
+              <View
+                key={nome}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: raio.capsula,
+                  backgroundColor: cores.capsulaSobreTinta,
+                }}
               >
-                <Text style={styles.nome}>{item.nome}</Text>
-
-                <Text style={styles.especialidade}>
-                  {item.especialidade}
-                </Text>
-
-                <Text style={styles.detalhe}>
-                  CRM {item.crm}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() =>
-                  confirmarExclusao(item)
-                }
-                accessibilityRole="button"
-                accessibilityLabel={`Excluir ${item.nome}`}
-                hitSlop={AREA_DE_TOQUE}
-              >
-                <Feather
-                  name="trash-2"
-                  size={18}
-                  color={colors.muted}
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: pontoSobreTinta(nome, cores),
+                  }}
                 />
-              </TouchableOpacity>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              Nenhum médico cadastrado.
-            </Text>
+                <Texto variante="pequeno" cor={cores.sobrePlanoTinta}>
+                  {total} {nome}
+                </Texto>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+    </PlanoTopo>
+  );
+
+  const cabecalhoDaLista = (
+    <>
+      {areas.length > 1 ? (
+        <FiltroArea areas={areas} valor={area} aoMudar={setArea} rotuloTodas="Todos" />
+      ) : null}
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+      >
+        <Texto variante="titulo" accessibilityRole="header">
+          Equipe
+        </Texto>
+        <Botao variante="texto" compacto titulo="Novo profissional" onPress={novo} />
+      </View>
+    </>
+  );
+
+  return (
+    <TelaDeLista
+      titulo="Profissionais"
+      navigation={navigation}
+      abaAtual="Medicos"
+      topo={topo}
+      cabecalhoDaLista={cabecalhoDaLista}
+      carregando={carregando}
+      erro={erro}
+      aoTentar={carregarMedicos}
+      dados={daArea}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={({ item }) => (
+        <ItemDeLista
+          titulo={item.nome}
+          subtitulo={especialidadeERegistro(item)}
+          esquerda={
+            <Avatar nome={item.nome} fotoUri={item.fotoUri} tom={tomDoAvatar(item.area)} />
+          }
+          accessibilityLabel={`Editar ${item.nome}`}
+          onPress={() => navigation.navigate('CadastroMedico', { medico: item })}
+          direita={
+            <BotaoExcluir
+              rotulo={`Excluir ${item.nome}`}
+              onPress={() => confirmarExclusao(item)}
+            />
           }
         />
       )}
-    </SafeAreaView>
+      vazio={{
+        titulo: 'Nenhum profissional cadastrado',
+        texto: 'Cadastre os profissionais para abrir a agenda.',
+        acao: { titulo: 'Cadastrar profissional', onPress: novo },
+      }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  errorText: {
-    color: colors.muted,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  retryBtn: {
-    backgroundColor: colors.sage,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  list: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  nome: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  especialidade: {
-    fontSize: 13,
-    color: colors.sage,
-    marginTop: 2,
-  },
-  detalhe: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 6,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: colors.muted,
-    marginTop: 40,
-  },
-});

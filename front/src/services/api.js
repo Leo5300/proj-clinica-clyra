@@ -15,7 +15,7 @@
 // com dados sensiveis.
 //
 
-import { obterToken, limparSessao } from './sessao';
+import { obterToken, limparSessao, avisarSessaoExpirada } from './sessao';
 
 // EXPO_PUBLIC_API_HOST vem de front/.env.local (não commitado) -- cada dev
 // configura o próprio IP ali. Sem esse arquivo, cai no fallback 'localhost',
@@ -97,6 +97,7 @@ async function requisicao(caminho, opcoes = {}) {
   // 401 fora da tela de login significa sessao expirada.
   if (resposta.status === 401 && !publica) {
     await limparSessao();
+    avisarSessaoExpirada();
     throw new SessaoExpirada();
   }
 

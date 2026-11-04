@@ -1,14 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import {
-  SafeAreaView,
-  View,
-  Text,
-  SectionList,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View } from 'react-native';
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   buscarConsultas,
@@ -19,40 +17,53 @@ import {
 } from '../services/api';
 import {
   dataDaConsulta,
-  formatarHora,
   listarLembretesAgendados,
   notificacoesPermitidas,
   sincronizarLembretes,
 } from '../services/lembretes';
 import { useUsuario } from '../services/sessao';
-import { formatarDataCurta } from '../services/datas';
+import {
+  formatarDiaEHora,
+  formatarHorario,
+  nomeDoMes,
+  nomeLongoDoDia,
+} from '../services/datas';
 import { TITULO_CONSULTAS } from '../navigation/permissoes';
+import {
+  BarraAbas,
+  Botao,
+  Cabecalho,
+  ComVidro,
+  Esqueleto,
+  EstadoErro,
+  EstadoVazio,
+  ItemDeLista,
+  Pressionavel,
+  Segmentado,
+  Selo,
+  Texto,
+  ehAba,
+  useEspacoDaBarra,
+  useRolagem,
+} from '../components';
+import { useTema, espaco, margemTela, raio, toque, duracao } from '../theme';
 
 // Lista de consultas. O servidor ja devolve so as que o perfil pode ver:
 // recepcao ve todas, medico a propria agenda, paciente as proprias.
 // Para o paciente, mostra tambem quantos lembretes o aparelho tem
 // agendados: e a conferencia de que cancelar consulta cancela lembrete.
 
-// TODO: mover para front/src/theme quando o ThemeContext existir.
-const colors = {
-  bg: '#F5F5F2',
-  surface: '#FFFFFF',
-  border: '#E2E1DB',
-  ink: '#4A5560',
-  muted: '#8B909A',
-  sage: '#4B7776',
-  danger: '#B0555F',
-  lavenderSoft: '#EFE9F3',
-};
-
-const AREA_DE_TOQUE = { top: 11, bottom: 11, left: 11, right: 11 };
-
 const MAX_ANTERIORES = 20;
 
-// "seg, 05/10 às 08:30"
-function formatarQuando(data) {
-  return `${formatarDataCurta(data)} às ${formatarHora(data)}`;
-}
+const ABAS = [
+  { valor: 'proximas', rotulo: 'Próximas' },
+  { valor: 'anteriores', rotulo: 'Anteriores' },
+];
+
+// Altura do segmento de vidro e o respiro abaixo dele.
+const ALTURA_SEGMENTO = 52;
+
+const TROCA_DE_LISTA = FadeIn.duration(duracao.lista);
 
 function mesmoDia(a, b) {
   return (
@@ -62,9 +73,9 @@ function mesmoDia(a, b) {
   );
 }
 
-// Hoje e Proximas em ordem de chegada; Anteriores da mais recente para a
-// mais antiga. Secao vazia nao aparece.
-function montarSecoes(consultas) {
+// Proximas = de hoje em diante, em ordem de chegada. Anteriores = antes
+// de hoje, da mais recente para a mais antiga.
+function separar(consultas) {
   const agora = new Date();
   const inicioDeHoje = new Date(
     agora.getFullYear(),
@@ -75,28 +86,100 @@ function montarSecoes(consultas) {
     (a, b) => dataDaConsulta(a) - dataDaConsulta(b),
   );
 
-  const hoje = ordenadas.filter((c) => mesmoDia(dataDaConsulta(c), agora));
-  const proximas = ordenadas.filter(
-    (c) => dataDaConsulta(c) >= inicioDeHoje && !mesmoDia(dataDaConsulta(c), agora),
-  );
-  const anteriores = ordenadas
-    .filter((c) => dataDaConsulta(c) < inicioDeHoje)
-    .reverse()
-    .slice(0, MAX_ANTERIORES);
-
-  return [
-    { title: 'Hoje', chave: 'hoje', data: hoje },
-    { title: 'Próximas', chave: 'proximas', data: proximas },
-    { title: 'Anteriores', chave: 'anteriores', data: anteriores },
-  ].filter((secao) => secao.data.length > 0);
+  return {
+    proximas: ordenadas.filter((c) => dataDaConsulta(c) >= inicioDeHoje),
+    anteriores: ordenadas
+      .filter((c) => dataDaConsulta(c) < inicioDeHoje)
+      .reverse()
+      .slice(0, MAX_ANTERIORES),
+  };
 }
 
-export default function ConsultasScreen({ navigation }) {
+const maiuscula = (texto) => `${texto[0].toUpperCase()}${texto.slice(1)}`;
+
+// plano (opcional): azulejo da data na cor do perfil (verde suave no paciente).
+function CartaoProxima({ consulta, primeira, linha, tomDoSelo, plano, onPress }) {
+  const { cores } = useTema();
+  const quando = dataDaConsulta(consulta);
+  const hoje = mesmoDia(quando, new Date());
+
+  return (
+    <Pressionavel
+      onPress={onPress}
+      accessibilityRole="button"
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        padding: espaco.md,
+        borderRadius: raio.cartao,
+        borderCurve: 'continuous',
+        backgroundColor: cores.superficie,
+        borderWidth: 1,
+        borderColor: cores.linha,
+      }}
+    >
+      <View
+        style={{
+          width: 56,
+          minHeight: 62,
+          borderRadius: 14,
+          borderCurve: 'continuous',
+          backgroundColor: plano ? plano.fundo : primeira ? cores.destaque : cores.superficie2,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Texto variante="pequeno" cor={plano ? plano.texto2 : primeira ? 'sobreDestaque2' : 'apoio'}>
+          {nomeDoMes(quando)}
+        </Texto>
+        <Texto
+          variante="tituloMedio"
+          cor={plano ? plano.texto : primeira ? 'sobreDestaque' : 'tinta'}
+          tabular
+          maxFontSizeMultiplier={1.2}
+        >
+          {quando.getDate()}
+        </Texto>
+      </View>
+
+      <View style={{ flex: 1, gap: 3 }}>
+        <Texto variante="corpoForte" tabular>
+          {hoje ? 'Hoje' : maiuscula(nomeLongoDoDia(quando))} · {formatarHorario(quando)}
+        </Texto>
+        <Texto variante="legenda" cor="apoio">
+          {linha}
+        </Texto>
+        <Selo texto="Agendada" tom={tomDoSelo} icone="calendar" style={{ marginTop: 3 }} />
+      </View>
+
+      <Feather name="chevron-right" size={20} color={cores.apoio} />
+    </Pressionavel>
+  );
+}
+
+function CarregandoLista() {
+  return (
+    <View style={{ gap: 10 }} accessibilityState={{ busy: true }}>
+      {[0, 1, 2].map((i) => (
+        <Esqueleto key={i} altura={96} raio={raio.cartao} />
+      ))}
+    </View>
+  );
+}
+
+export default function ConsultasScreen({ navigation, route }) {
   const { usuario } = useUsuario();
+  const { cores } = useTema();
+  const insets = useSafeAreaInsets();
+  const espacoDaBarra = useEspacoDaBarra();
+
   const perfil = usuario?.perfil;
   const ehPaciente = perfil === 'paciente';
   const podeAgendar = perfil === 'recepcao' || perfil === 'paciente';
+  const comoAba = ehAba(perfil, 'Consultas');
 
+  const [aba, setAba] = useState(route.params?.aba ?? 'proximas');
   const [consultas, setConsultas] = useState([]);
   const [pacientes, setPacientes] = useState({});
   const [medicos, setMedicos] = useState({});
@@ -104,6 +187,9 @@ export default function ConsultasScreen({ navigation }) {
   const [erro, setErro] = useState(null);
   const [lembretesAgendados, setLembretesAgendados] = useState(null);
   const [permitido, setPermitido] = useState(true);
+
+  const { rolagem, aoRolar } = useRolagem();
+  const alturaDoTitulo = useSharedValue(38);
 
   // Estado dos lembretes no aparelho. Falhar aqui nao impede a lista.
   const conferirLembretes = useCallback(async () => {
@@ -122,7 +208,6 @@ export default function ConsultasScreen({ navigation }) {
   const carregar = useCallback(async () => {
     if (!perfil) return;
 
-    setCarregando(true);
     setErro(null);
 
     let lista = null;
@@ -180,212 +265,225 @@ export default function ConsultasScreen({ navigation }) {
     }, [carregar]),
   );
 
+  // A lista nova comeca do topo: o segmento volta para baixo do titulo.
+  useEffect(() => {
+    rolagem.set(0);
+  }, [aba]);
+
   const nomeDoPaciente = (item) =>
     pacientes[String(item.pacienteId)]?.nome ?? 'Paciente';
   const medicoDa = (item) => medicos[String(item.medicoId)];
 
-  const renderItem = ({ item, section }) => {
-    const quando = dataDaConsulta(item);
-    let linhas;
+  // Segunda linha de cada consulta: quem o perfil precisa ver.
+  const linhaDe = (item) => {
+    if (perfil === 'medico') return nomeDoPaciente(item);
 
-    if (perfil === 'medico') {
-      linhas = [
-        section.chave === 'hoje' ? formatarHora(quando) : formatarQuando(quando),
-        nomeDoPaciente(item),
-      ];
-    } else if (perfil === 'paciente') {
-      linhas = [
-        formatarQuando(quando),
-        medicoDa(item)?.nome ?? 'Médico',
-        medicoDa(item)?.especialidade,
-      ];
-    } else {
-      linhas = [
-        formatarQuando(quando),
-        nomeDoPaciente(item),
-        medicoDa(item)?.nome ?? 'Médico',
-      ];
+    const medico = medicoDa(item);
+    if (perfil === 'paciente') {
+      return [medico?.nome ?? 'Profissional', medico?.especialidade]
+        .filter(Boolean)
+        .join(' · ');
     }
 
-    const [principal, ...detalhes] = linhas.filter(Boolean);
-
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() =>
-          navigation.navigate('DetalheConsulta', {
-            consultaId: String(item.id),
-          })
-        }
-      >
-        <Text style={styles.quando}>{principal}</Text>
-        {detalhes.map((texto, indice) => (
-          <Text key={indice} style={styles.detalhe}>
-            {texto}
-          </Text>
-        ))}
-      </TouchableOpacity>
-    );
+    return `${nomeDoPaciente(item)} · ${medico?.nome ?? 'Profissional'}`;
   };
 
-  const renderVazio = () => {
+  const abrir = (item) =>
+    navigation.navigate('DetalheConsulta', { consultaId: String(item.id) });
+
+  const { proximas, anteriores } = separar(consultas);
+  const dados = aba === 'proximas' ? proximas : anteriores;
+
+  // Topo da lista: abaixo do voltar quando a tela nao e aba.
+  const topoFixo = insets.top + espaco.xs + (comoAba ? 0 : toque.minimo + espaco.xs);
+  const topoDaLista = topoFixo + espaco.md;
+
+  // O segmento comeca abaixo do titulo e, ao rolar, para no topo: segue a
+  // rolagem no thread de UI, sem render.
+  const estiloSegmento = useAnimatedStyle(() => {
+    const repouso = topoDaLista + alturaDoTitulo.get() + espaco.md;
+    return {
+      transform: [{ translateY: Math.max(topoFixo, repouso - rolagem.get()) }],
+    };
+  });
+
+  const titulo = ehPaciente
+    ? 'Suas consultas'
+    : TITULO_CONSULTAS[perfil] ?? 'Consultas';
+
+  const cabecalhoDaLista = (
+    <View style={{ gap: espaco.md, marginBottom: espaco.md }}>
+      <Texto
+        variante="tituloGrande"
+        accessibilityRole="header"
+        onLayout={(e) => alturaDoTitulo.set(e.nativeEvent.layout.height)}
+      >
+        {titulo}
+      </Texto>
+      <View style={{ height: ALTURA_SEGMENTO }} />
+
+      {ehPaciente && !permitido && (
+        // Sem permissao o lembrete falha em silencio. A tela precisa dizer.
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: espaco.xs,
+            backgroundColor: cores.lavandaSuave,
+            borderRadius: raio.campo,
+            padding: espaco.sm,
+          }}
+        >
+          <Feather name="bell-off" size={14} color={cores.sobreLavandaSuave} style={{ marginTop: 2 }} />
+          <Texto variante="legenda" cor="sobreLavandaSuave" style={{ flex: 1 }}>
+            As notificações estão desativadas neste aparelho: nenhum lembrete
+            de consulta vai aparecer. Ative nos ajustes do aparelho.
+          </Texto>
+        </View>
+      )}
+    </View>
+  );
+
+  const vazio = () => {
+    if (carregando) return <CarregandoLista />;
+    if (erro) return <EstadoErro texto={erro} aoTentar={carregar} />;
+
+    if (aba === 'anteriores') {
+      return (
+        <EstadoVazio
+          ilustracao
+          titulo="Nada por aqui ainda"
+          texto="Seu histórico aparece aqui depois da primeira consulta."
+        />
+      );
+    }
+
     const textos = {
-      paciente: 'Você ainda não tem consultas.',
+      paciente: 'Quando você agendar, ela aparece aqui com data e profissional.',
       medico: 'Nenhuma consulta na sua agenda.',
       recepcao: 'Nenhuma consulta agendada.',
     };
 
     return (
-      <View style={styles.vazioBloco}>
-        <Text style={styles.vazio}>{textos[perfil] ?? textos.recepcao}</Text>
-        {podeAgendar && (
-          <TouchableOpacity
-            style={styles.botao}
-            onPress={() => navigation.navigate('Agendar')}
-          >
-            <Text style={styles.botaoTexto}>Agendar consulta</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <EstadoVazio
+        ilustracao
+        titulo="Nenhuma consulta marcada"
+        texto={textos[perfil] ?? textos.recepcao}
+        acao={
+          podeAgendar
+            ? { titulo: 'Agendar consulta', onPress: () => navigation.navigate('Agendar') }
+            : null
+        }
+      />
     );
   };
 
+  // Azulejo da data no paciente: verde suave, a cor do perfil dele.
+  const azulejoDoPaciente = {
+    fundo: cores.verdeSuave,
+    texto: cores.sobreVerdeSuave,
+    texto2: cores.sobreVerdeSuave,
+  };
+
+  const renderItem = ({ item, index }) =>
+    aba === 'proximas' ? (
+      <CartaoProxima
+        consulta={item}
+        primeira={index === 0}
+        linha={linhaDe(item)}
+        tomDoSelo={ehPaciente ? 'papel' : 'lavanda'}
+        plano={ehPaciente ? azulejoDoPaciente : null}
+        onPress={() => abrir(item)}
+      />
+    ) : (
+      <ItemDeLista
+        titulo={formatarDiaEHora(dataDaConsulta(item))}
+        subtitulo={linhaDe(item)}
+        tabular
+        seta
+        onPress={() => abrir(item)}
+      />
+    );
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          hitSlop={AREA_DE_TOQUE}
+    <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <ComVidro
+        conteudo={
+          <Animated.View key={aba} entering={TROCA_DE_LISTA} style={{ flex: 1 }}>
+            <Animated.FlatList
+              data={carregando || erro ? [] : dados}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={renderItem}
+              onScroll={aoRolar}
+              scrollEventThrottle={16}
+              ItemSeparatorComponent={
+                aba === 'proximas' ? () => <View style={{ height: 10 }} /> : null
+              }
+              ListHeaderComponent={cabecalhoDaLista}
+              ListEmptyComponent={vazio()}
+              ListFooterComponent={
+                ehPaciente && lembretesAgendados !== null && !carregando ? (
+                  <Texto
+                    variante="legenda"
+                    cor="apoio"
+                    style={{ textAlign: 'center', marginTop: espaco.md }}
+                  >
+                    Lembretes agendados neste aparelho: {lembretesAgendados}
+                  </Texto>
+                ) : null
+              }
+              contentContainerStyle={{
+                paddingTop: topoDaLista,
+                paddingHorizontal: margemTela + 2,
+                paddingBottom: comoAba ? espacoDaBarra : insets.bottom + espaco.xl,
+              }}
+            />
+          </Animated.View>
+        }
+      >
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              left: espaco.md,
+              right: espaco.md,
+            },
+            estiloSegmento,
+          ]}
         >
-          <Feather name="arrow-left" size={22} color={colors.ink} />
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {TITULO_CONSULTAS[perfil] ?? 'Consultas'}
-        </Text>
-        {podeAgendar ? (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Agendar')}
-            accessibilityRole="button"
-            accessibilityLabel="Agendar consulta"
-            hitSlop={AREA_DE_TOQUE}
-          >
-            <Feather name="plus" size={22} color={colors.ink} />
-          </TouchableOpacity>
+          <Segmentado
+            variante="vidro"
+            rotuloDoGrupo="Mostrar"
+            opcoes={ABAS}
+            valor={aba}
+            aoMudar={setAba}
+          />
+        </Animated.View>
+
+        {comoAba ? (
+          <BarraAbas navigation={navigation} atual="Consultas" />
         ) : (
-          <View style={styles.headerSpacer} />
+          <Cabecalho
+            flutuante
+            aoVoltar={() => navigation.goBack()}
+            direita={
+              podeAgendar ? (
+                // Tinta, nao vidro: o voltar e o segmento ja usam o
+                // limite de dois desfoques da tela.
+                <Botao
+                  variante="tinta"
+                  icone="plus"
+                  compacto
+                  accessibilityLabel="Agendar consulta"
+                  onPress={() => navigation.navigate('Agendar')}
+                />
+              ) : null
+            }
+          />
         )}
-      </View>
-
-      {ehPaciente && !permitido && (
-        // Sem permissao o lembrete falha em silencio. A tela precisa dizer.
-        <View style={styles.aviso}>
-          <Feather name="bell-off" size={14} color={colors.ink} />
-          <Text style={styles.avisoTexto}>
-            As notificações estão desativadas neste aparelho: nenhum lembrete
-            de consulta vai aparecer. Ative nos ajustes do aparelho.
-          </Text>
-        </View>
-      )}
-
-      {carregando ? (
-        <ActivityIndicator color={colors.sage} style={styles.indicador} />
-      ) : erro ? (
-        <View style={styles.centro}>
-          <Text style={styles.erroTexto}>{erro}</Text>
-          <TouchableOpacity style={styles.botao} onPress={carregar}>
-            <Text style={styles.botaoTexto}>Tentar novamente</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <SectionList
-          contentContainerStyle={styles.lista}
-          sections={montarSecoes(consultas)}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.secao}>{section.title}</Text>
-          )}
-          stickySectionHeadersEnabled={false}
-          ListEmptyComponent={renderVazio()}
-          ListFooterComponent={
-            ehPaciente &&
-            lembretesAgendados !== null && (
-              <Text style={styles.rodape}>
-                Lembretes agendados neste aparelho: {lembretesAgendados}
-              </Text>
-            )
-          }
-        />
-      )}
-    </SafeAreaView>
+      </ComVidro>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  headerSpacer: { width: 22 },
-
-  aviso: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: colors.lavenderSoft,
-    borderRadius: 10,
-    padding: 12,
-    marginHorizontal: 20,
-    marginBottom: 8,
-  },
-  avisoTexto: { flex: 1, fontSize: 12, color: colors.ink, lineHeight: 17 },
-
-  indicador: { marginTop: 40 },
-  centro: { padding: 20 },
-  lista: { padding: 20, paddingBottom: 40 },
-
-  secao: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.muted,
-    marginTop: 6,
-    marginBottom: 10,
-  },
-
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-  },
-  quando: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  detalhe: { fontSize: 13, color: colors.muted, marginTop: 4 },
-
-  vazioBloco: { marginTop: 40 },
-  vazio: { textAlign: 'center', color: colors.muted },
-  rodape: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 16,
-  },
-  erroTexto: { fontSize: 14, color: colors.danger, marginBottom: 6 },
-
-  botao: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 14 },
-});
