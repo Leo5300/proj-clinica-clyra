@@ -1,14 +1,15 @@
-// Campo de texto com rotulo e erro. rotulo; erro (texto abaixo, em alerta); nota (ajuda abaixo); style (do bloco); demais props vao para o TextInput.
-import React from 'react';
+// Campo de texto com rotulo e erro. rotulo; erro (texto abaixo, em alerta); nota (ajuda abaixo); style (do bloco); demais props vao para o TextInput. Com foco, ganha um anel de 2 px em tinta (contorno, sem mudar o tamanho).
+import React, { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import Texto from './Texto';
 import { useTema, estilosDeTexto, espaco, raio, toque } from '../theme';
 
 const Campo = React.forwardRef(function Campo(
-  { rotulo, erro, nota, style, editable = true, multiline, ...props },
+  { rotulo, erro, nota, style, editable = true, multiline, onFocus, onBlur, ...props },
   ref,
 ) {
   const { cores } = useTema();
+  const [focado, setFocado] = useState(false);
 
   return (
     <View style={[{ gap: 6 }, style]}>
@@ -36,8 +37,20 @@ const Campo = React.forwardRef(function Campo(
             paddingVertical: espaco.sm,
             minHeight: toque.botao + 4,
             textAlignVertical: multiline ? 'top' : 'center',
+            outlineWidth: focado ? 2 : 0,
+            outlineColor: cores.tinta,
+            outlineStyle: 'solid',
+            outlineOffset: 1,
           },
         ]}
+        onFocus={(e) => {
+          setFocado(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocado(false);
+          onBlur?.(e);
+        }}
         {...props}
       />
       {erro ? (

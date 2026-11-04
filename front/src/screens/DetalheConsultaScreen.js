@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Linking, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -33,6 +33,7 @@ import {
 } from '../services/datas';
 import { CLINICA } from '../services/localizacao';
 import {
+  BarraDoTopo,
   BilheteConsulta,
   Botao,
   Cabecalho,
@@ -57,6 +58,7 @@ import {
   raio,
   toque,
   planoDaArea,
+  duracao,
   planoDoPaciente,
 } from '../theme';
 import { vibrarImpacto } from '../services/haptica';
@@ -142,9 +144,13 @@ export default function DetalheConsultaScreen({ navigation, route }) {
   const consultaId = route.params?.consultaId;
 
   const { usuario } = useUsuario();
-  const { cores } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const { aoRolar, rolou } = useRolagem(120);
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
 
   const perfil = usuario?.perfil;
 
@@ -476,7 +482,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
       ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
 
     return (
-      <>
+      <Animated.View entering={chegada}>
         <PlanoTopo
           fundo={plano.fundo}
           corTexto={plano.texto}
@@ -581,7 +587,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
             </View>
           ) : null}
         </View>
-      </>
+      </Animated.View>
     );
   };
 
@@ -589,6 +595,7 @@ export default function DetalheConsultaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : planoDoTopo(medico?.area).escuro} />
       <ComVidro
         conteudo={
           <Animated.ScrollView onScroll={aoRolar} scrollEventThrottle={16}>

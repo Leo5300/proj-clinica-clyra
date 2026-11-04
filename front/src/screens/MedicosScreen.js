@@ -219,6 +219,7 @@ export default function MedicosScreen({ navigation }) {
       navigation={navigation}
       abaAtual="Medicos"
       topo={topo}
+      barraClara
       cabecalhoDaLista={cabecalhoDaLista}
       carregando={carregando}
       erro={erro}

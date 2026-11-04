@@ -1,37 +1,42 @@
-// Confirmacao de que deu certo: o check se desenha em 320 ms junto com a vibracao de sucesso. titulo; texto; style. Sem confete.
+// Confirmacao de que deu certo: o check se desenha em 320 ms junto com a vibracao de sucesso. titulo; texto; style. Sem mola, sem salto, sem confete.
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, {
-  useAnimatedStyle,
+  useAnimatedProps,
   useSharedValue,
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import { Feather } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import Texto from './Texto';
 import { useTema, espaco, duracao, curva } from '../theme';
 import { vibrarSucesso } from '../services/haptica';
 
 const TAMANHO = 64;
+// Comprimento do traco do check (um pouco acima do real, para nao sobrar
+// ponta visivel no inicio).
+const TRACO = 40;
+
+const CaminhoAnimado = Animated.createAnimatedComponent(Path);
 
 export default function SeloSucesso({ titulo, texto, style }) {
   const { cores, movimentoReduzido } = useTema();
 
-  // Uma "cortina" da cor do circulo sai de cima do check, da esquerda para
-  // a direita: parece que o traco esta sendo desenhado. So transform.
-  const cortina = useSharedValue(0);
+  // O traco "se desenha": o deslocamento do tracejado vai do comprimento
+  // inteiro a zero. Com "reduzir movimento", ja aparece desenhado.
+  const deslocamento = useSharedValue(movimentoReduzido ? 0 : TRACO);
 
   useEffect(() => {
     vibrarSucesso();
-    cortina.set(
-      movimentoReduzido
-        ? TAMANHO
-        : withDelay(80, withTiming(TAMANHO, { duration: duracao.sucesso, easing: curva.saida })),
-    );
+    if (!movimentoReduzido) {
+      deslocamento.set(
+        withDelay(80, withTiming(0, { duration: duracao.sucesso, easing: curva.saida })),
+      );
+    }
   }, []);
 
-  const estiloCortina = useAnimatedStyle(() => ({
-    transform: [{ translateX: cortina.get() }],
+  const propsDoTraco = useAnimatedProps(() => ({
+    strokeDashoffset: deslocamento.get(),
   }));
 
   return (
@@ -47,23 +52,20 @@ export default function SeloSucesso({ titulo, texto, style }) {
           backgroundColor: cores.lavandaSuave,
           alignItems: 'center',
           justifyContent: 'center',
-          overflow: 'hidden',
         }}
       >
-        <Feather name="check" size={32} color={cores.sobreLavandaSuave} />
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: 0,
-              width: TAMANHO,
-              backgroundColor: cores.lavandaSuave,
-            },
-            estiloCortina,
-          ]}
-        />
+        <Svg width={32} height={32} viewBox="0 0 32 32">
+          <CaminhoAnimado
+            d="M7 16.5 L13.5 23 L25.5 10"
+            stroke={cores.sobreLavandaSuave}
+            strokeWidth={3.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+            strokeDasharray={TRACO}
+            animatedProps={propsDoTraco}
+          />
+        </Svg>
       </View>
       {titulo ? (
         <Texto variante="tituloMedio" style={{ textAlign: 'center' }}>

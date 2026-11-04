@@ -2,7 +2,8 @@
 //
 // Duracoes e curvas compartilhadas, para os movimentos do app parecerem
 // da mesma familia. Toque: 120 ms e escala 0,97. Selecao: so a cor muda.
-// Folha: curva de folha do iOS, sem quique. Abas nunca animam.
+// Folha: curva de folha do iOS, sem quique. Abas nunca deslizam: na
+// recepcao, a troca e um fade de cor; nos outros perfis, direta.
 
 import { Easing, cubicBezier } from 'react-native-reanimated';
 
@@ -15,6 +16,15 @@ export const duracao = {
   folha: 300,
   sucesso: 320,
   esqueleto: 1200,
+  // Movimentos do acabamento final.
+  odometro: 420,
+  entradaLista: 220,
+  intervaloLista: 40,
+  conteudo: 200,
+  corDaAba: 220,
+  sair: 220,
+  // Teto de qualquer movimento com "reduzir movimento": so opacidade.
+  reduzido: 120,
 };
 
 // Mesmas curvas nos dois formatos do Reanimated: Easing para withTiming e

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
   BarraAbas,
+  BarraDoTopo,
   Botao,
   ComVidro,
   Esqueleto,
@@ -21,7 +22,9 @@ import {
   Selo,
   TODAS,
   Texto,
+  useEntradaDeLista,
   useEspacoDaBarra,
+  useRolagem,
 } from '../../components';
 import { useTema, espaco, margemTela, raio, duracao, corDaArea } from '../../theme';
 import { dataDaConsulta } from '../../services/lembretes';
@@ -54,13 +57,13 @@ function faltaPara(data, agora) {
 
 const plural = (n, um, varios) => (n === 1 ? um : varios);
 
-function LinhaDaAgenda({ consulta, paciente, medico, agora, proxima, passada, onPress }) {
+function LinhaDaAgenda({ consulta, paciente, medico, agora, proxima, passada, entrada, onPress }) {
   const { cores, movimentoReduzido } = useTema();
   const quando = dataDaConsulta(consulta);
 
   return (
     <Animated.View
-      entering={movimentoReduzido ? undefined : ENTRA}
+      entering={entrada ?? (movimentoReduzido ? undefined : ENTRA)}
       exiting={movimentoReduzido ? undefined : SAI}
       layout={movimentoReduzido ? undefined : REFLUI}
     >
@@ -130,9 +133,15 @@ export default function HomeRecepcao({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
+  const { aoRolar, rolou } = useRolagem(80);
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
+  const entrada = useEntradaDeLista('agenda-recepcao', !carregando);
 
   const [area, setArea] = useState(TODAS);
   const [cedoAberto, setCedoAberto] = useState(false);
@@ -176,7 +185,7 @@ export default function HomeRecepcao({
     );
   } else {
     corpo = (
-      <View style={{ gap: espaco.sm }}>
+      <Animated.View entering={chegada} style={{ gap: espaco.sm }}>
         {areas.length > 1 ? (
           <FiltroArea areas={areas} valor={area} aoMudar={setArea} />
         ) : null}
@@ -260,20 +269,24 @@ export default function HomeRecepcao({
                 medico={medicos[String(c.medicoId)]}
                 agora={agora}
                 proxima={indice === 0}
+                entrada={entrada(indice)}
                 onPress={() => abrir(c)}
               />
             ))
           )}
         </View>
-      </View>
+      </Animated.View>
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : true} />
       <ComVidro
         conteudo={
           <Animated.ScrollView
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={atualizando}

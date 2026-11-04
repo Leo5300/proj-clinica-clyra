@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Avatar,
   BarraAbas,
+  BarraDoTopo,
   Botao,
   ComVidro,
   Esqueleto,
@@ -14,7 +15,9 @@ import {
   Numeral,
   PlanoTopo,
   Texto,
+  useEntradaDeLista,
   useEspacoDaBarra,
+  useRolagem,
 } from '../../components';
 import {
   useTema,
@@ -24,6 +27,7 @@ import {
   corDaArea,
   topoDoProfissional,
   tomDoAvatar,
+  duracao,
 } from '../../theme';
 import { dataDaConsulta } from '../../services/lembretes';
 import { buscarSinaisVitais } from '../../services/api';
@@ -201,9 +205,15 @@ export default function HomeMedico({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const insets = useSafeAreaInsets();
+  const { aoRolar, rolou } = useRolagem(80);
   const espacoDaBarra = useEspacoDaBarra();
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
+  const entrada = useEntradaDeLista('agenda-profissional', !carregando);
 
   const agora = new Date();
   const ordenadas = [...consultas].sort(
@@ -242,7 +252,7 @@ export default function HomeMedico({
     corpo = <EstadoErro aoTentar={aoTentar} />;
   } else {
     corpo = (
-      <>
+      <Animated.View entering={chegada} style={{ gap: espaco.lg }}>
         {proxima ? (
           <ProximoPaciente
             consulta={proxima}
@@ -270,8 +280,8 @@ export default function HomeMedico({
               const quando = dataDaConsulta(c);
               const passou = quando <= agora;
               return (
+                <Animated.View key={String(c.id)} entering={entrada(indice)}>
                 <ItemDeLista
-                  key={String(c.id)}
                   esquerda={
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
                       <Texto
@@ -301,6 +311,7 @@ export default function HomeMedico({
                     navigation.navigate('DetalheConsulta', { consultaId: String(c.id) })
                   }
                 />
+                </Animated.View>
               );
             })}
           </View>
@@ -315,15 +326,18 @@ export default function HomeMedico({
             style={{ alignSelf: 'flex-start' }}
           />
         ) : null}
-      </>
+      </Animated.View>
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
+      <BarraDoTopo clara={rolou ? escuro : false} />
       <ComVidro
         conteudo={
           <Animated.ScrollView
+            onScroll={aoRolar}
+            scrollEventThrottle={16}
             refreshControl={
               <RefreshControl
                 refreshing={atualizando}

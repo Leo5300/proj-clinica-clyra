@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  FadeOut,
+  interpolate,
+  useAnimatedReaction,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useIsFocused } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,17 +24,27 @@ import {
   EstadoVazio,
   ItemDeLista,
   Logotipo,
-  Numeral,
+  NumeralRolante,
   PlanoTopo,
   Pressionavel,
   Texto,
   Vidro,
   escalaDoVidro,
+  modoDoVidro,
   iniciais,
+  useEntradaDeLista,
   useEspacoDaBarra,
   useRolagem,
 } from '../../components';
-import { useTema, espaco, margemTela, raio, toque, estilosDeTexto } from '../../theme';
+import {
+  useTema,
+  espaco,
+  margemTela,
+  raio,
+  toque,
+  estilosDeTexto,
+  duracao,
+} from '../../theme';
 import {
   ANTECEDENCIA_MINUTOS,
   dataDaConsulta,
@@ -41,7 +59,9 @@ import {
   nomeDoMes,
   formatarFaixa,
   formatarDiaEHora,
+  formatarHorario,
 } from '../../services/datas';
+import { vibrarSelecao } from '../../services/haptica';
 import { especialidadeERegistro } from '../../services/profissionais';
 
 // Inicio do paciente: a proxima consulta em destaque, o aviso dos
@@ -50,6 +70,11 @@ import { especialidadeERegistro } from '../../services/profissionais';
 // Mesma regra do servidor: remarcar ou cancelar pelo app so com 24 h.
 const ANTECEDENCIA_MINIMA_MS = 24 * 60 * 60 * 1000;
 const MAX_ULTIMAS = 5;
+
+// Rolagem em que o numeral chega ao menor tamanho, e em que a data ja saiu
+// da tela e vira a capsula de vidro.
+const FIM_DO_ENCOLHER = 180;
+const LIMITE_DA_CAPSULA = 260;
 
 const LEMBRETE =
   ANTECEDENCIA_MINUTOS === 60 ? 'uma hora' : `${ANTECEDENCIA_MINUTOS} minutos`;
@@ -77,8 +102,26 @@ function BlocoDestaque({ children }) {
   );
 }
 
-function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
-  const { cores } = useTema();
+function ProximaConsulta({ consulta, medico, primeiroNome, navigation, rolagem }) {
+  const { cores, movimentoReduzido } = useTema();
+
+  // Preso a rolagem, sem tempo fixo. Com "reduzir movimento" nao encolhe:
+  // so a capsula troca de uma vez.
+  const estiloDoNumeral = useAnimatedStyle(() => {
+    if (movimentoReduzido) return {};
+    return {
+      transform: [
+        {
+          scale: interpolate(
+            rolagem.get(),
+            [0, FIM_DO_ENCOLHER],
+            [1, 0.7],
+            Extrapolation.CLAMP,
+          ),
+        },
+      ],
+    };
+  });
   const quando = dataDaConsulta(consulta);
   const falta = quando - new Date();
   const podeAlterar = falta >= ANTECEDENCIA_MINIMA_MS;
@@ -101,7 +144,14 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
         accessibilityLabel={`Dia ${quando.getDate()} de ${nomeDoMes(quando)}, ${formatarFaixa(quando)}, ${quandoRelativo(quando)}`}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}
       >
-        <Numeral valor={quando.getDate()} tamanho="grande" cor="sobrePlanoPaciente" />
+        <Animated.View style={[{ transformOrigin: 'left center' }, estiloDoNumeral]}>
+          <NumeralRolante
+            chave="inicio-data"
+            valor={quando.getDate()}
+            tamanho="grande"
+            cor="sobrePlanoPaciente"
+          />
+        </Animated.View>
         <View style={{ flex: 1, gap: 4 }}>
           <Texto variante="titulo" cor="sobrePlanoPaciente">
             {nomeDoMes(quando)} · {nomeCurtoDoDia(quando)}
@@ -144,11 +194,12 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
           titulo="Ver detalhes"
           variante="inverso"
           style={{ flex: 1 }}
-          onPress={() =>
+          onPress={() => {
+            vibrarSelecao();
             navigation.navigate('DetalheConsulta', {
               consultaId: String(consulta.id),
-            })
-          }
+            });
+          }}
         />
         {podeAlterar ? (
           <Botao
@@ -178,6 +229,43 @@ function ProximaConsulta({ consulta, medico, primeiroNome, navigation }) {
 }
 
 // Sem consulta: o topo so cumprimenta; a ilustracao fica abaixo dele.
+// A data que saiu da tela, numa capsula de vidro no alto. No iOS 26 o
+// vidro do sistema nao aceita pai com opacidade animada: ali so aparece.
+function CapsulaDaData({ quando, animar, onPress }) {
+  const insets = useSafeAreaInsets();
+  const comFade = animar && modoDoVidro !== 'liquido';
+
+  return (
+    <Animated.View
+      entering={comFade ? FadeIn.duration(duracao.camada) : undefined}
+      exiting={comFade ? FadeOut.duration(duracao.camada) : undefined}
+      pointerEvents="box-none"
+      style={{ position: 'absolute', top: insets.top + espaco.xs, left: espaco.md }}
+    >
+      <Pressionavel
+        escala={escalaDoVidro}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Próxima consulta, ${quando.getDate()} de ${nomeDoMes(quando)} às ${formatarHorario(quando)}`}
+      >
+        <Vidro interativo>
+          <View
+            style={{
+              minHeight: toque.minimo,
+              justifyContent: 'center',
+              paddingHorizontal: espaco.md,
+            }}
+          >
+            <Texto variante="rotuloForte" tabular>
+              {quando.getDate()} {nomeDoMes(quando)} · {formatarHorario(quando)}
+            </Texto>
+          </View>
+        </Vidro>
+      </Pressionavel>
+    </Animated.View>
+  );
+}
+
 function SemConsulta({ primeiroNome }) {
   return (
     <Texto variante="tituloGrande" cor="sobrePlanoPaciente" accessibilityRole="header">
@@ -308,11 +396,24 @@ export default function HomePaciente({
   aoAtualizar,
   aoTentar,
 }) {
-  const { cores, escuro } = useTema();
+  const { cores, escuro, movimentoReduzido } = useTema();
   const focada = useIsFocused();
   const insets = useSafeAreaInsets();
   const espacoDaBarra = useEspacoDaBarra();
-  const { aoRolar, rolou } = useRolagem(60);
+  const { aoRolar, rolou, rolagem } = useRolagem(60);
+  // Quando o dado chega, o conteudo entra em fade sobre o esqueleto.
+  const chegada = FadeIn.duration(
+    movimentoReduzido ? duracao.reduzido : duracao.conteudo,
+  );
+  const entrada = useEntradaDeLista('inicio-ultimas', !carregando);
+  const [capsula, setCapsula] = useState(false);
+
+  useAnimatedReaction(
+    () => rolagem.get() > LIMITE_DA_CAPSULA,
+    (passou, antes) => {
+      if (passou !== antes) scheduleOnRN(setCapsula, passou);
+    },
+  );
 
   const primeiroNome = String(usuario?.nome ?? '').split(' ')[0];
   const agora = new Date();
@@ -344,7 +445,7 @@ export default function HomePaciente({
     );
   } else {
     conteudo = (
-      <>
+      <Animated.View entering={chegada}>
         <BlocoDestaque>
           {proxima ? (
             <ProximaConsulta
@@ -352,6 +453,7 @@ export default function HomePaciente({
               medico={medicos[String(proxima.medicoId)]}
               primeiroNome={primeiroNome}
               navigation={navigation}
+              rolagem={rolagem}
             />
           ) : (
             <SemConsulta primeiroNome={primeiroNome} />
@@ -400,24 +502,26 @@ export default function HomePaciente({
               </Texto>
             ) : (
               ultimas.map((c, indice) => (
+                <Animated.View key={String(c.id)} entering={entrada(indice)}>
                 <ItemDeLista
-                  key={String(c.id)}
                   titulo={formatarDiaEHora(dataDaConsulta(c))}
                   subtitulo={medicos[String(c.medicoId)]?.nome ?? 'Profissional'}
                   tabular
                   seta
                   divisor={indice < ultimas.length - 1}
-                  onPress={() =>
+                  onPress={() => {
+                    vibrarSelecao();
                     navigation.navigate('DetalheConsulta', {
                       consultaId: String(c.id),
-                    })
-                  }
+                    });
+                  }}
                 />
+                </Animated.View>
               ))
             )}
           </View>
         </View>
-      </>
+      </Animated.View>
     );
   }
 
@@ -484,6 +588,17 @@ export default function HomePaciente({
               </Vidro>
             </Pressionavel>
           </View>
+        ) : null}
+
+        {capsula && proxima && !carregando ? (
+          <CapsulaDaData
+            quando={dataDaConsulta(proxima)}
+            animar={!movimentoReduzido}
+            onPress={() => {
+              vibrarSelecao();
+              navigation.navigate('DetalheConsulta', { consultaId: String(proxima.id) });
+            }}
+          />
         ) : null}
 
         <BarraAbas navigation={navigation} atual="Home" />

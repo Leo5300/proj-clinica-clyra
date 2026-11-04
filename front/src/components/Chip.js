@@ -19,7 +19,9 @@ export default function Chip({
   accessibilityLabel,
   style,
 }) {
-  const { cores } = useTema();
+  const { cores, movimentoReduzido } = useTema();
+  // Com "reduzir movimento", a cor troca direto.
+  const transicao = movimentoReduzido ? null : transicaoDeCor;
 
   const aoTocar = () => {
     if (!selecionado) vibrarSelecao();
@@ -51,7 +53,7 @@ export default function Chip({
             backgroundColor: selecionado ? cores.selFundo : cores.superficie,
             borderColor: selecionado ? cores.selFundo : cores.linha,
           },
-          transicaoDeCor,
+          transicao,
         ]}
       >
         {detalhe ? (
@@ -59,7 +61,7 @@ export default function Chip({
             style={[
               estilosDeTexto.pequeno,
               { color: selecionado ? cores.selTexto : cores.apoio },
-              transicaoDeCor,
+              transicao,
             ]}
           >
             {detalhe}
@@ -70,7 +72,7 @@ export default function Chip({
             estilosDeTexto.rotuloForte,
             numerosTabulares,
             { color: corTexto },
-            transicaoDeCor,
+            transicao,
           ]}
         >
           {rotulo}

@@ -14,6 +14,7 @@ import Texto from './Texto';
 import { useTema, espaco, raio, fontes, acentoDoPerfil } from '../theme';
 import { useUsuario } from '../services/sessao';
 import { podeAcessar } from '../navigation/permissoes';
+import { vibrarSelecao } from '../services/haptica';
 
 const ABAS_DO_PERFIL = {
   paciente: [
@@ -70,6 +71,8 @@ export default function BarraAbas({ navigation, atual }) {
 
   const irPara = (rota) => {
     if (rota === atual) return;
+    // Na recepcao a troca tem fade de cor; a vibracao de selecao acompanha.
+    if (perfil === 'recepcao') vibrarSelecao();
 
     if (rota === 'Home') {
       navigation.popTo('Home');
