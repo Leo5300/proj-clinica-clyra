@@ -13,6 +13,10 @@
 // pelo terminal e nunca em producao, porque a clinica nao tem para onde
 // mandar. Por isso o registro na API faz parte de obter o token.
 
+import { isRunningInExpoGo } from 'expo';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+
 // Push indisponivel por um motivo conhecido. A tela precisa distinguir
 // isto de uma falha de rede: "este aparelho nao recebe" pede outra
 // explicacao do que "nao deu agora".
@@ -26,4 +30,24 @@ export class PushIndisponivel extends Error {
     this.name = 'PushIndisponivel';
     this.motivo = motivo;
   }
+}
+
+// O projectId e criado pelo "eas init" e identifica o projeto no servico
+// de push do Expo. Sem ele, o pedido do token falha com uma mensagem que
+// nao sugere a causa.
+function projectIdDoApp() {
+  return (
+    Constants?.expoConfig?.extra?.eas?.projectId ??
+    Constants?.easConfig?.projectId ??
+    null
+  );
+}
+
+// O que impede o push neste ambiente, antes de pedir qualquer coisa.
+// A ordem importa: ela decide qual explicacao a pessoa ve.
+function motivoDoAmbiente() {
+  if (!Device.isDevice) return 'emulador';
+  if (isRunningInExpoGo()) return 'expo-go';
+  if (!projectIdDoApp()) return 'sem-projeto';
+  return null;
 }
