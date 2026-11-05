@@ -321,6 +321,15 @@ const buscarSinaisVitais = ({ pacienteId, consultaId } = {}) =>
   get(`/sinaisVitais${parametros({ pacienteId, consultaId })}`);
 
 // =====================================================================
+// DISPOSITIVOS (push)
+// =====================================================================
+
+// Vincula o token de push deste aparelho ao usuario logado. O servidor
+// descobre QUEM pelo header Authorization; o corpo leva so o endereco.
+const registrarDispositivo = (dados) =>
+  post('/dispositivos', dados);
+
+// =====================================================================
 // EXPORTS
 // =====================================================================
 
@@ -381,4 +390,7 @@ export {
   // sinais vitais
   registrarSinaisVitais,
   buscarSinaisVitais,
+
+  // dispositivos (push)
+  registrarDispositivo,
 };
