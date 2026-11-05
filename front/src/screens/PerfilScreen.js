@@ -61,6 +61,20 @@ const OPCOES_DE_TEMA = [
 // papel com texto tinta (no perfil dele, a lavanda so diz Psicologia).
 const TOM_DO_PERFIL = { recepcao: 'neutro', medico: 'lavanda', paciente: 'papel' };
 
+// Texto da linha "Avisos da clinica" para cada estado do push.
+const TEXTO_DO_PUSH = {
+  ativo: 'A clínica avisa aqui sobre mudanças nas suas consultas.',
+  'sem-permissao': 'Desligados. Toque para ativar.',
+  'expo-go': 'Indisponível nesta versão de teste do app.',
+  emulador: 'Indisponível neste aparelho.',
+  'sem-projeto': 'Configuração do app pendente.',
+  falhou: 'Não foi possível ativar agora. Tentamos de novo na próxima abertura.',
+};
+
+// O que a pessoa perde sem push: o exercicio pede que isto fique claro.
+const SEM_PUSH =
+  ' Você continua recebendo o lembrete agendado neste aparelho, mas não os avisos de alterações feitas pela clínica.';
+
 function Grupo({ titulo, children }) {
   const { cores } = useTema();
 
