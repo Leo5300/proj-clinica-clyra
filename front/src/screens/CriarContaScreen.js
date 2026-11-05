@@ -13,6 +13,7 @@ import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { registrarPaciente, ErroDaApi } from '../services/api';
+import { manterRegistroAtualizado } from '../services/push';
 import { salvarSessao } from '../services/sessao';
 import { brParaIso } from '../services/datas';
 
@@ -166,6 +167,9 @@ export default function CriarContaScreen({ navigation }) {
       });
 
       await salvarSessao(dados.token, dados.usuario);
+      // Conta nova neste aparelho: o servidor ja passa a saber para onde
+      // avisar. Sem await: push e extra e nao segura a entrada.
+      manterRegistroAtualizado();
 
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (e) {
