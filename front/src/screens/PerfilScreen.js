@@ -26,6 +26,10 @@ import {
   garantirPermissao,
   notificacoesPermitidas,
 } from '../services/lembretes';
+import {
+  consultarEstadoDoPush,
+  manterRegistroAtualizado,
+} from '../services/push';
 import { ROTULO_DO_PERFIL } from '../navigation/permissoes';
 import {
   Avatar,
@@ -121,6 +125,7 @@ export default function PerfilScreen({ navigation }) {
   const [saindo, setSaindo] = useState(false);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const [lembretes, setLembretes] = useState(null);
+  const [push, setPush] = useState(null);
 
   const perfil = usuario?.perfil;
   const comoAba = ehAba(perfil, 'Perfil');
@@ -131,6 +136,16 @@ export default function PerfilScreen({ navigation }) {
     if (perfil !== 'paciente') return;
     notificacoesPermitidas().then(setLembretes).catch(() => setLembretes(null));
   }, [perfil]);
+
+  // Estado dos avisos da clinica. Roda de novo quando os lembretes sao
+  // ativados aqui: com a permissao liberada, o aparelho ja se registra.
+  useEffect(() => {
+    if (perfil !== 'paciente') return;
+    manterRegistroAtualizado()
+      .then(consultarEstadoDoPush)
+      .then(setPush)
+      .catch(() => setPush(null));
+  }, [perfil, lembretes]);
 
   const irParaLogin = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
