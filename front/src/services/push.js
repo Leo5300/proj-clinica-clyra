@@ -16,6 +16,11 @@
 import { isRunningInExpoGo } from 'expo';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import {
+  prepararCanal,
+  notificacoesPermitidas,
+  garantirPermissao,
+} from './lembretes';
 
 // Push indisponivel por um motivo conhecido. A tela precisa distinguir
 // isto de uma falha de rede: "este aparelho nao recebe" pede outra
@@ -50,4 +55,36 @@ function motivoDoAmbiente() {
   if (isRunningInExpoGo()) return 'expo-go';
   if (!projectIdDoApp()) return 'sem-projeto';
   return null;
+}
+
+// Devolve o token deste app neste aparelho, ou lanca PushIndisponivel.
+//
+// Por padrao NAO pede permissao: quem pede e uma acao com a pessoa
+// olhando (agendar, ativar no Perfil), nunca a abertura do app. Mesmo
+// combinado do lembretes.js.
+export async function obterTokenPush({ pedirPermissao = false } = {}) {
+  const motivo = motivoDoAmbiente();
+  if (motivo) throw new PushIndisponivel(motivo);
+
+  // Canal e permissao sao os mesmos da Aula 8. O canal precisa ter o
+  // mesmo nome que o servidor manda no channelId; se nao bater, o aviso
+  // chega sem som e sem aparecer na tela, sem erro nenhum.
+  await prepararCanal();
+
+  const permitido = pedirPermissao
+    ? await garantirPermissao()
+    : await notificacoesPermitidas();
+
+  if (!permitido) throw new PushIndisponivel('sem-permissao');
+
+  // Carregado SO aqui, depois de saber que nao e Expo Go. As funcoes de
+  // token do expo-notifications lancam erro no Expo Go do Android, e o
+  // arquivo delas roda codigo assim que e importado. Um import no topo
+  // deste arquivo poria isso no caminho da abertura do app inteiro.
+  const {
+    getExpoPushTokenAsync,
+  } = require('expo-notifications/build/getExpoPushTokenAsync');
+
+  const resposta = await getExpoPushTokenAsync({ projectId: projectIdDoApp() });
+  return resposta.data;
 }
