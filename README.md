@@ -258,6 +258,17 @@ psicologia e psiquiatria a especialidade já é dado de saúde (LGPD). Quando a 
 agenda pelo aparelho da clínica, nenhum lembrete é criado ali; o aparelho do paciente
 sincroniza os lembretes quando ele abre o app.
 
+### Avisos da clínica por push (Aula 9)
+
+O lembrete de uma hora antes continua local: o aparelho agenda e dispara
+sozinho, mesmo sem internet. O push cobre o que só o servidor sabe, como uma
+consulta remarcada ou cancelada pela recepção.
+
+O app registra o token do aparelho em `POST /dispositivos` a cada abertura e a
+cada login, com o usuário logado no header. O servidor guarda
+`{ usuarioId, token, plataforma }` e atualiza o registro quando o mesmo token
+volta, em vez de duplicar.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
