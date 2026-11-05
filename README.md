@@ -289,6 +289,29 @@ Limites conhecidos:
   pessoa entrar nele. Apagar no logout depende de uma rota de remoção que a API
   ainda não tem.
 
+#### Como o servidor da clínica deve disparar os avisos
+
+Esta entrega deixa o aparelho registrado e o contrato definido. O envio pelo
+servidor fica para depois; quando for feito, deve seguir estas regras:
+
+1. **Conferir antes de enviar.** O aviso só sai se a consulta ainda existe e
+   ainda está confirmada. É fácil no servidor e impossível no aparelho: o
+   servidor é a fonte da verdade.
+2. **Enviar em lote.** O serviço de push do Expo aceita até 100 mensagens por
+   requisição. Uma requisição por paciente funciona com 5 pacientes e derruba
+   tudo com 5 mil.
+3. **Conferir o corpo da resposta, não só o HTTP.** O serviço responde 200
+   mesmo quando recusa a mensagem; o que vale é o `status` de cada item.
+4. **Ler os recibos.** "Aceita" não é "entregue". Erros de entrega, como o
+   aparelho que desinstalou o app, só aparecem no recibo.
+5. **Limpar os tokens mortos.** Token que voltar `DeviceNotRegistered` sai da
+   coleção `dispositivos`.
+6. **Texto genérico.** Mesma regra do lembrete local: nada de profissional,
+   especialidade ou motivo na tela bloqueada.
+
+Para testar à mão, sem o servidor: `node servidor/enviar-push.js` envia um aviso
+para um token, e `node servidor/consultar-recibo.js` confere o recibo.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
