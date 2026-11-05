@@ -348,6 +348,25 @@ export default function PerfilScreen({ navigation }) {
           />
         ) : null}
 
+        {perfil === 'paciente' && push ? (
+          <ItemDeLista
+            titulo="Avisos da clínica"
+            subtitulo={
+              (TEXTO_DO_PUSH[push.motivo ?? 'ativo'] ?? TEXTO_DO_PUSH.falhou) +
+              (push.estado === 'ativo' ? '' : SEM_PUSH)
+            }
+            esquerda={
+              <IconeDeLinha
+                nome={push.estado === 'ativo' ? 'message-square' : 'slash'}
+              />
+            }
+            direita={
+              push.estado === 'ativo' ? <Selo texto="Ativos" tom="papel" /> : null
+            }
+            onPress={push.estado === 'sem-permissao' ? ativarLembretes : undefined}
+          />
+        ) : null}
+
         <View style={{ paddingVertical: 14, gap: espaco.sm, borderBottomWidth: 1, borderBottomColor: cores.linha }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
             <IconeDeLinha nome="sun" />
