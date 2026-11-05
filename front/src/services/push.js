@@ -122,3 +122,20 @@ export async function manterRegistroAtualizado(opcoes) {
     ultimoRegistro = e instanceof PushIndisponivel ? e.motivo : 'falhou';
   }
 }
+
+// Estado para a tela, sem pedir nada:
+//   { estado: 'ativo' | 'sem-permissao' | 'indisponivel', motivo }
+export async function consultarEstadoDoPush() {
+  const motivo = motivoDoAmbiente();
+  if (motivo) return { estado: 'indisponivel', motivo };
+
+  if (!(await notificacoesPermitidas())) {
+    return { estado: 'sem-permissao', motivo: 'sem-permissao' };
+  }
+
+  if (ultimoRegistro && ultimoRegistro !== 'ok') {
+    return { estado: 'indisponivel', motivo: ultimoRegistro };
+  }
+
+  return { estado: 'ativo', motivo: null };
+}
