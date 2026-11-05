@@ -269,6 +269,17 @@ cada login, com o usuário logado no header. O servidor guarda
 `{ usuarioId, token, plataforma }` e atualiza o registro quando o mesmo token
 volta, em vez de duplicar.
 
+Para o toque abrir a consulta certa, o servidor precisa enviar:
+
+| Campo | Valor |
+|---|---|
+| `data.consultaId` | id da consulta |
+| `data.tela` | `"DetalheConsulta"` |
+| `channelId` | `"lembretes-consulta"` (Android) |
+
+O texto segue a regra do lembrete local: a tela bloqueada é pública, e o aviso
+não cita profissional, especialidade, área nem motivo da consulta.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
