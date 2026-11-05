@@ -13,6 +13,7 @@
 // pelo terminal e nunca em producao, porque a clinica nao tem para onde
 // mandar. Por isso o registro na API faz parte de obter o token.
 
+import { Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -21,6 +22,7 @@ import {
   notificacoesPermitidas,
   garantirPermissao,
 } from './lembretes';
+import { registrarDispositivo as registrarDispositivoNaApi } from './api';
 
 // Push indisponivel por um motivo conhecido. A tela precisa distinguir
 // isto de uma falha de rede: "este aparelho nao recebe" pede outra
@@ -87,4 +89,20 @@ export async function obterTokenPush({ pedirPermissao = false } = {}) {
 
   const resposta = await getExpoPushTokenAsync({ projectId: projectIdDoApp() });
   return resposta.data;
+}
+
+// Resultado do ultimo registro nesta abertura do app: 'ok', um dos
+// motivos de PushIndisponivel, ou 'falhou' (rede, servidor).
+// null = ainda nao tentou.
+let ultimoRegistro = null;
+
+// Obtem o token e o vincula ao usuario logado, na API. O header
+// Authorization vai sozinho pelo api.js: e assim que o servidor sabe QUEM
+// avisar. O token identifica o aparelho, nao a pessoa; quem faz o vinculo
+// e o servidor.
+export async function registrarDispositivo(opcoes) {
+  const token = await obterTokenPush(opcoes);
+  await registrarDispositivoNaApi({ token, plataforma: Platform.OS });
+  ultimoRegistro = 'ok';
+  return token;
 }
