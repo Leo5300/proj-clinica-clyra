@@ -280,6 +280,15 @@ Para o toque abrir a consulta certa, o servidor precisa enviar:
 O texto segue a regra do lembrete local: a tela bloqueada é pública, e o aviso
 não cita profissional, especialidade, área nem motivo da consulta.
 
+Limites conhecidos:
+
+- Push não funciona no Expo Go nem em emulador, só em development build num
+  aparelho físico. No Expo Go, o Perfil do paciente mostra os avisos da clínica
+  como indisponíveis e explica o que se perde sem eles.
+- Ao sair da conta, o registro do aparelho continua no servidor até outra
+  pessoa entrar nele. Apagar no logout depende de uma rota de remoção que a API
+  ainda não tem.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
