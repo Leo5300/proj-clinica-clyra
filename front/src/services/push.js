@@ -23,6 +23,7 @@ import {
   garantirPermissao,
 } from './lembretes';
 import { registrarDispositivo as registrarDispositivoNaApi } from './api';
+import { estaLogado } from './sessao';
 
 // Push indisponivel por um motivo conhecido. A tela precisa distinguir
 // isto de uma falha de rede: "este aparelho nao recebe" pede outra
@@ -105,4 +106,19 @@ export async function registrarDispositivo(opcoes) {
   await registrarDispositivoNaApi({ token, plataforma: Platform.OS });
   ultimoRegistro = 'ok';
   return token;
+}
+
+// Chamada na abertura do app e no login. Push e um extra: falhar aqui
+// nunca pode impedir o uso do app. Por isso engole o erro e so guarda o
+// motivo, para o Perfil explicar.
+//
+// Sem sessao nao registra: o servidor responderia 401 e o app mostraria
+// "sessao expirada" a quem nem entrou ainda.
+export async function manterRegistroAtualizado(opcoes) {
+  try {
+    if (!(await estaLogado())) return;
+    await registrarDispositivo(opcoes);
+  } catch (e) {
+    ultimoRegistro = e instanceof PushIndisponivel ? e.motivo : 'falhou';
+  }
 }
