@@ -14,7 +14,9 @@
 
 const https = require('https');
 
-const [, , tokenArg, tituloArg, corpoArg] = process.argv;
+// O quarto argumento e o id de uma consulta de verdade, para o toque
+// abrir a consulta certa. Sem ele, cai no 42 do exemplo da aula.
+const [, , tokenArg, tituloArg, corpoArg, consultaArg] = process.argv;
 
 const token = tokenArg;
 const titulo = tituloArg || 'Lembrete de consulta';
@@ -36,7 +38,7 @@ const mensagem = {
   title: titulo,
   body: corpo,
   sound: 'default',
-  data: { consultaId: 42, tela: 'DetalheConsulta' },
+  data: { consultaId: consultaArg || '42', tela: 'DetalheConsulta' },
   // channelId precisa bater com o canal criado no app (Android).
   channelId: 'lembretes-consulta',
 };
