@@ -26,6 +26,10 @@ import {
   garantirPermissao,
   notificacoesPermitidas,
 } from '../services/lembretes';
+import {
+  consultarEstadoDoPush,
+  manterRegistroAtualizado,
+} from '../services/push';
 import { ROTULO_DO_PERFIL } from '../navigation/permissoes';
 import {
   Avatar,
@@ -60,6 +64,20 @@ const OPCOES_DE_TEMA = [
 // Profissional e lavanda; a recepcao e neutra; o paciente usa o selo de
 // papel com texto tinta (no perfil dele, a lavanda so diz Psicologia).
 const TOM_DO_PERFIL = { recepcao: 'neutro', medico: 'lavanda', paciente: 'papel' };
+
+// Texto da linha "Avisos da clinica" para cada estado do push.
+const TEXTO_DO_PUSH = {
+  ativo: 'A clínica avisa aqui sobre mudanças nas suas consultas.',
+  'sem-permissao': 'Desligados. Toque para ativar.',
+  'expo-go': 'Indisponível nesta versão de teste do app.',
+  emulador: 'Indisponível neste aparelho.',
+  'sem-projeto': 'Configuração do app pendente.',
+  falhou: 'Não foi possível ativar agora. Tentamos de novo na próxima abertura.',
+};
+
+// O que a pessoa perde sem push: o exercicio pede que isto fique claro.
+const SEM_PUSH =
+  ' Você continua recebendo o lembrete agendado neste aparelho, mas não os avisos de alterações feitas pela clínica.';
 
 function Grupo({ titulo, children }) {
   const { cores } = useTema();
@@ -107,6 +125,7 @@ export default function PerfilScreen({ navigation }) {
   const [saindo, setSaindo] = useState(false);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
   const [lembretes, setLembretes] = useState(null);
+  const [push, setPush] = useState(null);
 
   const perfil = usuario?.perfil;
   const comoAba = ehAba(perfil, 'Perfil');
@@ -117,6 +136,16 @@ export default function PerfilScreen({ navigation }) {
     if (perfil !== 'paciente') return;
     notificacoesPermitidas().then(setLembretes).catch(() => setLembretes(null));
   }, [perfil]);
+
+  // Estado dos avisos da clinica. Roda de novo quando os lembretes sao
+  // ativados aqui: com a permissao liberada, o aparelho ja se registra.
+  useEffect(() => {
+    if (perfil !== 'paciente') return;
+    manterRegistroAtualizado()
+      .then(consultarEstadoDoPush)
+      .then(setPush)
+      .catch(() => setPush(null));
+  }, [perfil, lembretes]);
 
   const irParaLogin = () => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -316,6 +345,25 @@ export default function PerfilScreen({ navigation }) {
               lembretes ? <Selo texto="Ativos" tom="papel" /> : null
             }
             onPress={lembretes ? undefined : ativarLembretes}
+          />
+        ) : null}
+
+        {perfil === 'paciente' && push ? (
+          <ItemDeLista
+            titulo="Avisos da clínica"
+            subtitulo={
+              (TEXTO_DO_PUSH[push.motivo ?? 'ativo'] ?? TEXTO_DO_PUSH.falhou) +
+              (push.estado === 'ativo' ? '' : SEM_PUSH)
+            }
+            esquerda={
+              <IconeDeLinha
+                nome={push.estado === 'ativo' ? 'message-square' : 'slash'}
+              />
+            }
+            direita={
+              push.estado === 'ativo' ? <Selo texto="Ativos" tom="papel" /> : null
+            }
+            onPress={push.estado === 'sem-permissao' ? ativarLembretes : undefined}
           />
         ) : null}
 

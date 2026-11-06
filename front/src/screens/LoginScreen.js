@@ -7,6 +7,7 @@ import {
   TextInput,
 } from 'react-native';
 import { autenticar } from '../services/api';
+import { manterRegistroAtualizado } from '../services/push';
 import { salvarSessao } from '../services/sessao';
 import { Tela, Texto, Botao, Logotipo, Pressionavel } from '../components';
 import { useTema, estilosDeTexto, espaco, margemTela, raio, toque } from '../theme';
@@ -75,6 +76,10 @@ export default function LoginScreen({ navigation }) {
       const dados = await autenticar(emailInformado.trim(), senhaInformada);
 
       await salvarSessao(dados.token, dados.usuario);
+      // Outra conta pode ter acabado de entrar neste aparelho: o servidor
+      // passa a avisar quem esta logado agora. Sem await: push e extra e
+      // nao segura a entrada.
+      manterRegistroAtualizado();
 
       // A senha nao precisa continuar na memoria do app: dagora em diante o
       // que vale e o token.
