@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { buscarConsultas } from '../services/api';
+import {
+  SemPermissao,
+  SessaoExpirada,
+  buscarConsultas,
+} from '../services/api';
 import { detectarConflitosAgrupadoEmFatias } from '../services/conflitos';
 import { useTarefaPesada } from '../services/useTarefaPesada';
 import {
   Botao,
   Cabecalho,
   ComVidro,
+  EstadoErro,
   Selo,
   Texto,
   useRolagem,
@@ -33,6 +38,14 @@ function rotuloDeConflitos(total) {
   }
 
   return total === 1 ? '1 conflito' : `${total} conflitos`;
+}
+
+function textoDoErro(erro) {
+  if (erro instanceof SemPermissao) {
+    return erro.mensagem ?? 'Você não tem permissão para isso.';
+  }
+
+  return 'Não foi possível verificar a agenda.';
 }
 
 function estiloDoCartao(cores) {
@@ -118,10 +131,18 @@ export default function SincronizarAgendaScreen({ navigation }) {
     rodando,
     progresso,
     resultado,
+    erro,
     cancelado,
     iniciar,
     cancelar,
   } = useTarefaPesada(verificar);
+
+  // Sessao expirada no meio da busca: volta para o login, como as outras telas.
+  useEffect(() => {
+    if (erro instanceof SessaoExpirada) {
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    }
+  }, [erro, navigation]);
 
   return (
     <View style={{ flex: 1, backgroundColor: cores.papel }}>
@@ -171,6 +192,12 @@ export default function SincronizarAgendaScreen({ navigation }) {
                 <Texto variante="rotulo" cor="apoio">
                   Verificação cancelada. Nada foi alterado.
                 </Texto>
+              ) : null}
+              {erro ? (
+                <EstadoErro
+                  texto={textoDoErro(erro)}
+                  aoTentar={() => iniciar()}
+                />
               ) : null}
               {resultado ? <Resumo resultado={resultado} /> : null}
             </View>
