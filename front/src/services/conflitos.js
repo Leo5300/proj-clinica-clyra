@@ -65,3 +65,87 @@ export function mesmosConflitos(listaA, listaB) {
 
   return listaA.every((par) => chavesB.has(chaveDoConflito(par)));
 }
+
+// Data e hora gravadas como AAAA-MM-DD e HH:MM ordenam certo como texto.
+function compararPorHorario(a, b) {
+  if (a.data !== b.data) {
+    return a.data < b.data ? -1 : 1;
+  }
+
+  if (a.hora === b.hora) {
+    return 0;
+  }
+
+  return a.hora < b.hora ? -1 : 1;
+}
+
+// Agrupa as consultas por profissional e ordena cada agenda por horario.
+export function agruparPorMedico(consultas) {
+  const grupos = new Map();
+
+  for (const consulta of consultas) {
+    const chave = String(consulta.medicoId);
+    const agenda = grupos.get(chave);
+
+    if (agenda) {
+      agenda.push(consulta);
+    } else {
+      grupos.set(chave, [consulta]);
+    }
+  }
+
+  for (const agenda of grupos.values()) {
+    agenda.sort(compararPorHorario);
+  }
+
+  return grupos;
+}
+
+// Todas as agendas, uma depois da outra: cada profissional ocupa um trecho
+// seguido da lista, ordenado por horario.
+function agendaAgrupada(consultas) {
+  const agenda = [];
+
+  for (const agendaDoMedico of agruparPorMedico(consultas).values()) {
+    for (const consulta of agendaDoMedico) {
+      agenda.push(consulta);
+    }
+  }
+
+  return agenda;
+}
+
+// Compara a consulta i com as seguintes da agenda ordenada e para na primeira
+// que nao conflita: a partir dela, nenhuma mais conflita. Acrescenta os pares
+// em "conflitos" e devolve quantas comparacoes fez.
+function compararComAsSeguintes(agenda, i, conflitos) {
+  let comparacoes = 0;
+
+  for (let j = i + 1; j < agenda.length; j++) {
+    comparacoes++;
+
+    if (!conflita(agenda[i], agenda[j])) {
+      break;
+    }
+
+    conflitos.push([agenda[i], agenda[j]]);
+  }
+
+  return comparacoes;
+}
+
+// Agrupa por profissional, ordena por horario e olha so as vizinhas. No caso
+// comum, cada consulta e comparada so com a seguinte: cerca de n comparacoes
+// em vez de n * (n - 1) / 2.
+export function detectarConflitosAgrupado(consultas) {
+  const inicio = Date.now();
+  const agenda = agendaAgrupada(consultas);
+  const conflitos = [];
+  let comparacoes = 0;
+
+  for (let i = 0; i < agenda.length; i++) {
+    comparacoes += compararComAsSeguintes(agenda, i, conflitos);
+  }
+
+  return { conflitos, comparacoes, duracaoMs: Date.now() - inicio };
+}
