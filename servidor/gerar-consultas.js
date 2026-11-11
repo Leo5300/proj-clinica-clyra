@@ -18,6 +18,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { conflitam } = require('./regras');
 
 const QUANTIDADE_PADRAO = 2500;
 const SEMENTE = 10;
@@ -120,7 +121,12 @@ function sortearVagas(total) {
   return vagas.slice(0, total);
 }
 
-const consultas = sortearVagas(quantidade).map((vaga, indice) => ({
+// 5% das consultas sao conflitos plantados de proposito. Sem eles nao ha o
+// que encontrar.
+const plantadas = Math.round(quantidade * 0.05);
+const repetidas = Math.ceil(plantadas * 0.6);
+
+const consultas = sortearVagas(quantidade - plantadas).map((vaga, indice) => ({
   id: String(indice + 1),
   pacienteId: pacientesIds[sortearAte(pacientesIds.length)],
   medicoId: vaga.medicoId,
@@ -129,9 +135,80 @@ const consultas = sortearVagas(quantidade).map((vaga, indice) => ({
   criadoPor: 'gerador',
 }));
 
+// ---------------------------------------------------------------------
+// Conflitos de proposito
+// ---------------------------------------------------------------------
+// - repetidas: mesmo profissional, dia e horario de uma consulta que ja existe;
+// - deslocadas: comecam 15 minutos depois de uma existente. Se sobrepoem a ela
+//   e, quando a vaga seguinte tambem esta ocupada, a essa tambem.
+function somarMinutos(hora, minutos) {
+  const total = Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3)) + minutos;
+  return `${doisDigitos(Math.floor(total / 60))}:${doisDigitos(total % 60)}`;
+}
+
+const semSobreposicao = consultas.length;
+
+for (let i = 0; i < plantadas; i++) {
+  const original = consultas[sortearAte(semSobreposicao)];
+
+  consultas.push({
+    ...original,
+    id: String(consultas.length + 1),
+    pacienteId: pacientesIds[sortearAte(pacientesIds.length)],
+    hora: i < repetidas ? original.hora : somarMinutos(original.hora, 15),
+  });
+}
+
+console.log(
+  `Consultas: ${semSobreposicao} sem sobreposicao + ${plantadas} plantadas (${repetidas} repetidas, ${plantadas - repetidas} deslocadas).`,
+);
+
+// ---------------------------------------------------------------------
+// A resposta certa, pela regra do servidor
+// ---------------------------------------------------------------------
+// Conta os pares que conflitam usando a conflitam() de regras.js, a mesma
+// regra que a API aplica ao gravar uma consulta. So consultas do mesmo
+// profissional e do mesmo dia podem conflitar, entao compara dentro desses
+// grupos. E o numero que o app precisa encontrar.
+function contarConflitos(lista) {
+  const grupos = new Map();
+
+  for (const consulta of lista) {
+    const chave = `${consulta.medicoId}|${consulta.data}`;
+    const grupo = grupos.get(chave) || [];
+    grupo.push(consulta);
+    grupos.set(chave, grupo);
+  }
+
+  let pares = 0;
+
+  for (const grupo of grupos.values()) {
+    for (let i = 0; i < grupo.length; i++) {
+      for (let j = i + 1; j < grupo.length; j++) {
+        if (conflitam(grupo[i], grupo[j])) {
+          pares++;
+        }
+      }
+    }
+  }
+
+  return pares;
+}
+
+console.log(
+  `Conflitos esperados (regra do servidor): ${contarConflitos(consultas)} pares.`,
+);
+
 fs.writeFileSync(
   caminhoDaSaida,
   JSON.stringify({ ...banco, consultas }, null, 2),
 );
 
 console.log(`Arquivo gravado em: ${caminhoDaSaida}`);
+
+console.log('');
+console.log('Para testar com este volume, pare o json-server de sempre e suba este:');
+console.log(`  npx json-server --watch "${caminhoDaSaida}" --port 3000 --host 127.0.0.1`);
+console.log('');
+console.log('Para voltar ao normal, pare esse e suba o de sempre:');
+console.log('  npx json-server --watch db_clinica.json --port 3000 --host 127.0.0.1');
