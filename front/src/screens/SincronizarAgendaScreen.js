@@ -8,7 +8,12 @@ import {
   buscarConsultas,
   buscarMedicos,
 } from '../services/api';
-import { detectarConflitosAgrupadoEmFatias } from '../services/conflitos';
+import {
+  detectarConflitosAgrupado,
+  detectarConflitosAgrupadoEmFatias,
+  detectarConflitosIngenuo,
+  detectarConflitosIngenuoEmFatias,
+} from '../services/conflitos';
 import { dataDaConsulta } from '../services/lembretes';
 import { formatarDiaEMes } from '../services/datas';
 import { useTarefaPesada } from '../services/useTarefaPesada';
@@ -64,19 +69,65 @@ function estiloDoCartao(cores) {
   };
 }
 
+// Quatro jeitos de fazer a mesma verificacao. A tela usa o ultimo; os outros
+// existem para medir (bloco de medicao, so em desenvolvimento).
+const MODOS = {
+  'ingenuo-bloqueando': {
+    rotulo: 'Todas × todas, bloqueando',
+    bloqueia: true,
+    detectar: detectarConflitosIngenuo,
+  },
+  'ingenuo-fatias': {
+    rotulo: 'Todas × todas, em fatias',
+    bloqueia: false,
+    detectar: detectarConflitosIngenuoEmFatias,
+  },
+  'agrupado-bloqueando': {
+    rotulo: 'Agrupada, bloqueando',
+    bloqueia: true,
+    detectar: detectarConflitosAgrupado,
+  },
+  'agrupado-fatias': {
+    rotulo: 'Agrupada, em fatias',
+    bloqueia: false,
+    detectar: detectarConflitosAgrupadoEmFatias,
+  },
+};
+
+const MODO_DA_TELA = 'agrupado-fatias';
+
+// Tempo para a tela pintar o "verificando" antes de um modo que a congela.
+const TEMPO_PARA_PINTAR_MS = 50;
+
 // A tarefa pesada. Buscar da API e espera: await nao trava a tela. Conferir e
 // calculo: roda em fatias.
-async function verificar({ sinal, aoProgredir }) {
+async function verificar(
+  { sinal, aoProgredir },
+  modo = MODO_DA_TELA,
+  tamanhoDaFatia,
+) {
   const [consultas, medicos] = await Promise.all([
     buscarConsultas(),
     buscarMedicos(),
   ]);
-  const deteccao = await detectarConflitosAgrupadoEmFatias(consultas, {
-    sinal,
+  const { rotulo, bloqueia, detectar } = MODOS[modo];
+
+  // Um modo que bloqueia congela a tela: espera um instante para o aviso de
+  // "verificando" ser pintado antes de travar.
+  if (bloqueia) {
+    await new Promise((resolve) => setTimeout(resolve, TEMPO_PARA_PINTAR_MS));
+  }
+
+  const deteccao = await detectar(consultas, {
+    tamanhoDaFatia,
     aoProgredir,
+    sinal,
   });
 
   return {
+    modo,
+    rotulo,
+    tamanhoDaFatia: bloqueia ? null : tamanhoDaFatia,
     total: consultas.length,
     medicos: Object.fromEntries(medicos.map((m) => [String(m.id), m.nome])),
     ...deteccao,
