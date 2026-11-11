@@ -63,7 +63,17 @@ export async function processarEmFatias(itens, processarItem, opcoes = {}) {
   let inicio = 0;
 
   while (inicio < itens.length) {
-    sinal?.conferir();
+    try {
+      sinal?.conferir();
+    } catch (erro) {
+      if (__DEV__) {
+        console.log(
+          `[processamento] laco parou na posicao ${inicio} de ${itens.length}`,
+        );
+      }
+
+      throw erro;
+    }
 
     const fim = Math.min(inicio + tamanho, itens.length);
 
