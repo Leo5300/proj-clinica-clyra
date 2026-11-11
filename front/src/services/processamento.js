@@ -43,3 +43,36 @@ export function criarSinalDeCancelamento() {
 export function cederAVez() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+// Quantos itens processar antes de ceder a vez. Fatia pequena demais desperdica
+// tempo cedendo; grande demais volta a travar a tela entre uma cessao e outra.
+// O valor foi escolhido medindo no aparelho (veja o README).
+export const TAMANHO_DA_FATIA_PADRAO = 500;
+
+// Percorre os itens chamando processarItem(item, indice). A cada fatia avisa o
+// progresso (de 0 a 1) e cede a vez. O tempo total nao cai: o que muda e que a
+// tela respira entre as fatias. Nao e paralelismo, e boa educacao com o
+// event loop.
+export async function processarEmFatias(itens, processarItem, opcoes = {}) {
+  const { tamanhoDaFatia, aoProgredir, sinal } = opcoes;
+  const tamanho =
+    Number.isFinite(tamanhoDaFatia) && tamanhoDaFatia >= 1
+      ? Math.floor(tamanhoDaFatia)
+      : TAMANHO_DA_FATIA_PADRAO;
+
+  let inicio = 0;
+
+  while (inicio < itens.length) {
+    sinal?.conferir();
+
+    const fim = Math.min(inicio + tamanho, itens.length);
+
+    for (let i = inicio; i < fim; i++) {
+      processarItem(itens[i], i);
+    }
+
+    inicio = fim;
+    aoProgredir?.(inicio / itens.length);
+    await cederAVez();
+  }
+}
