@@ -49,13 +49,47 @@ function estiloDoCartao(cores) {
 
 // A tarefa pesada. Buscar da API e espera: await nao trava a tela. Conferir e
 // calculo: roda em fatias.
-async function verificar({ aoProgredir }) {
+async function verificar({ sinal, aoProgredir }) {
   const consultas = await buscarConsultas();
   const deteccao = await detectarConflitosAgrupadoEmFatias(consultas, {
+    sinal,
     aoProgredir,
   });
 
   return { total: consultas.length, ...deteccao };
+}
+
+// Barra que se move de verdade: cada fatia concluida avanca o valor (0 a 1).
+// Sem animacao de proposito: ela so mostra o que realmente aconteceu.
+function Progresso({ valor }) {
+  const { cores } = useTema();
+  const porcento = Math.round(valor * 100);
+
+  return (
+    <View style={{ gap: espaco.xs }}>
+      <View
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 0, max: 100, now: porcento }}
+        style={{
+          height: 10,
+          borderRadius: raio.capsula,
+          backgroundColor: cores.linha,
+          overflow: 'hidden',
+        }}
+      >
+        <View
+          style={{
+            height: 10,
+            width: `${porcento}%`,
+            backgroundColor: cores.acao,
+          }}
+        />
+      </View>
+      <Texto variante="pequeno" cor="apoio" tabular>
+        {`Verificando… ${porcento}%`}
+      </Texto>
+    </View>
+  );
 }
 
 function Resumo({ resultado }) {
@@ -82,8 +116,11 @@ export default function SincronizarAgendaScreen({ navigation }) {
   const { aoRolar, rolou } = useRolagem(50);
   const {
     rodando,
+    progresso,
     resultado,
+    cancelado,
     iniciar,
+    cancelar,
   } = useTarefaPesada(verificar);
 
   return (
@@ -120,6 +157,21 @@ export default function SincronizarAgendaScreen({ navigation }) {
                 carregando={rodando}
                 onPress={() => iniciar()}
               />
+              {rodando ? (
+                <>
+                  <Progresso valor={progresso} />
+                  <Botao
+                    titulo="Cancelar"
+                    variante="contorno"
+                    onPress={cancelar}
+                  />
+                </>
+              ) : null}
+              {cancelado ? (
+                <Texto variante="rotulo" cor="apoio">
+                  Verificação cancelada. Nada foi alterado.
+                </Texto>
+              ) : null}
               {resultado ? <Resumo resultado={resultado} /> : null}
             </View>
           </Animated.ScrollView>
