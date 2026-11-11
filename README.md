@@ -346,6 +346,21 @@ certa). Para voltar ao normal, pare esse json-server e suba o de sempre com
 `db_clinica.json`. Em desenvolvimento, a tela mostra também um bloco "Medição", que
 roda cada modo com o tamanho de fatia escolhido; ele não existe no app publicado.
 
+#### O algoritmo da verificação
+
+- **Todas contra todas** (`detectarConflitosIngenuo`): compara cada consulta com todas
+  as outras, n·(n−1)/2 comparações. Com 2.500 consultas são quase 3,1 milhões.
+- **Agrupada** (`detectarConflitosAgrupado`): agrupa por profissional e ordena cada
+  agenda por data e hora. Com a agenda ordenada, uma consulta só pode conflitar com as
+  que vêm logo depois dela: assim que uma não conflita, nenhuma mais adiante conflita, e
+  a busca daquela consulta para. No caso comum, cada consulta é comparada só com a
+  seguinte.
+
+As duas acham **exatamente os mesmos pares**. O modo "Conferir" do bloco de medição
+compara as listas par a par, e o script de volume imprime o total esperado pela regra do
+servidor: são três respostas que precisam bater. Melhorar o algoritmo vem antes de
+qualquer técnica de concorrência; só depois entra o fatiamento.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
