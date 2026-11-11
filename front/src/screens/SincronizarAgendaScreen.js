@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import {
   detectarConflitosAgrupadoEmFatias,
   detectarConflitosIngenuo,
   detectarConflitosIngenuoEmFatias,
+  mesmosConflitos,
 } from '../services/conflitos';
 import { dataDaConsulta } from '../services/lembretes';
 import { formatarDiaEMes } from '../services/datas';
@@ -23,6 +24,7 @@ import {
   ComVidro,
   EstadoErro,
   ItemDeLista,
+  Segmentado,
   Selo,
   Texto,
   useRolagem,
@@ -69,6 +71,32 @@ function estiloDoCartao(cores) {
   };
 }
 
+// Roda as duas versoes em fatias e confere se acharam os mesmos pares. A barra
+// de progresso cobre as duas: metade para cada uma.
+async function conferirResultados(consultas, opcoes) {
+  const { aoProgredir } = opcoes;
+
+  const ingenuo = await detectarConflitosIngenuoEmFatias(consultas, {
+    ...opcoes,
+    aoProgredir: (valor) => aoProgredir?.(valor / 2),
+  });
+  const agrupado = await detectarConflitosAgrupadoEmFatias(consultas, {
+    ...opcoes,
+    aoProgredir: (valor) => aoProgredir?.(0.5 + valor / 2),
+  });
+
+  return {
+    conflitos: agrupado.conflitos,
+    comparacoes: ingenuo.comparacoes + agrupado.comparacoes,
+    duracaoMs: ingenuo.duracaoMs + agrupado.duracaoMs,
+    conferencia: {
+      iguais: mesmosConflitos(ingenuo.conflitos, agrupado.conflitos),
+      ingenuo: ingenuo.conflitos.length,
+      agrupado: agrupado.conflitos.length,
+    },
+  };
+}
+
 // Quatro jeitos de fazer a mesma verificacao. A tela usa o ultimo; os outros
 // existem para medir (bloco de medicao, so em desenvolvimento).
 const MODOS = {
@@ -91,6 +119,11 @@ const MODOS = {
     rotulo: 'Agrupada, em fatias',
     bloqueia: false,
     detectar: detectarConflitosAgrupadoEmFatias,
+  },
+  conferir: {
+    rotulo: 'Conferir se as duas acham os mesmos pares',
+    bloqueia: false,
+    detectar: conferirResultados,
   },
 };
 
@@ -218,6 +251,79 @@ function Resumo({ resultado }) {
   );
 }
 
+const FATIAS = [
+  { valor: 100, rotulo: '100' },
+  { valor: 500, rotulo: '500' },
+  { valor: 5000, rotulo: '5000' },
+];
+
+function descreverMedida(medida) {
+  if (medida.conferencia) {
+    const { iguais, ingenuo, agrupado } = medida.conferencia;
+
+    return `Conferência · todas × todas ${ingenuo} e agrupada ${agrupado} conflitos · ${iguais ? 'mesmos pares' : 'PARES DIFERENTES'}`;
+  }
+  const fatia = medida.tamanhoDaFatia
+    ? ` · fatia ${medida.tamanhoDaFatia}`
+    : '';
+
+  return `${medida.rotulo}${fatia} · ${formatarNumero(medida.total)} consultas · ${formatarNumero(medida.comparacoes)} comparações · ${medida.duracaoMs} ms · ${medida.conflitos.length} conflitos`;
+}
+
+// So aparece em desenvolvimento (__DEV__): roda cada modo, com o tamanho de
+// fatia escolhido, e lista as ultimas medidas para o README. Nos modos que
+// bloqueiam, a barra pula de 0% a 100% e a tela nao responde: e o que o
+// exercicio manda observar.
+function Medicao({ rodando, resultado, iniciar }) {
+  const { cores } = useTema();
+  const [fatia, setFatia] = useState(500);
+  const [medidas, setMedidas] = useState([]);
+
+  useEffect(() => {
+    if (resultado) {
+      setMedidas((anteriores) => [resultado, ...anteriores].slice(0, 8));
+    }
+  }, [resultado]);
+
+  return (
+    <View style={estiloDoCartao(cores)}>
+      <View style={{ gap: 4 }}>
+        <Texto variante="secao" accessibilityRole="header">
+          Medição
+        </Texto>
+        <Texto variante="legenda" cor="apoio">
+          Só aparece em desenvolvimento. Olhe a barra e toque em outros
+          elementos durante o cálculo, não só o cronômetro.
+        </Texto>
+      </View>
+
+      <Segmentado
+        rotuloDoGrupo="Tamanho da fatia"
+        opcoes={FATIAS}
+        valor={fatia}
+        aoMudar={setFatia}
+      />
+
+      {Object.entries(MODOS).map(([modo, { rotulo }]) => (
+        <Botao
+          key={modo}
+          titulo={rotulo}
+          variante="contorno"
+          compacto
+          desativado={rodando}
+          onPress={() => iniciar(modo, fatia)}
+        />
+      ))}
+
+      {medidas.map((medida, indice) => (
+        <Texto key={indice} variante="pequeno" cor="tinta2" tabular>
+          {descreverMedida(medida)}
+        </Texto>
+      ))}
+    </View>
+  );
+}
+
 export default function SincronizarAgendaScreen({ navigation }) {
   const { cores } = useTema();
   const insets = useSafeAreaInsets();
@@ -296,6 +402,14 @@ export default function SincronizarAgendaScreen({ navigation }) {
               ) : null}
               {resultado ? <Resumo resultado={resultado} /> : null}
             </View>
+
+            {__DEV__ ? (
+              <Medicao
+                rodando={rodando}
+                resultado={resultado}
+                iniciar={iniciar}
+              />
+            ) : null}
           </Animated.ScrollView>
         }
       >
