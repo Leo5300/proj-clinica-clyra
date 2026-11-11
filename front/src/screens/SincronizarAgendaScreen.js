@@ -6,14 +6,18 @@ import {
   SemPermissao,
   SessaoExpirada,
   buscarConsultas,
+  buscarMedicos,
 } from '../services/api';
 import { detectarConflitosAgrupadoEmFatias } from '../services/conflitos';
+import { dataDaConsulta } from '../services/lembretes';
+import { formatarDiaEMes } from '../services/datas';
 import { useTarefaPesada } from '../services/useTarefaPesada';
 import {
   Botao,
   Cabecalho,
   ComVidro,
   EstadoErro,
+  ItemDeLista,
   Selo,
   Texto,
   useRolagem,
@@ -63,13 +67,20 @@ function estiloDoCartao(cores) {
 // A tarefa pesada. Buscar da API e espera: await nao trava a tela. Conferir e
 // calculo: roda em fatias.
 async function verificar({ sinal, aoProgredir }) {
-  const consultas = await buscarConsultas();
+  const [consultas, medicos] = await Promise.all([
+    buscarConsultas(),
+    buscarMedicos(),
+  ]);
   const deteccao = await detectarConflitosAgrupadoEmFatias(consultas, {
     sinal,
     aoProgredir,
   });
 
-  return { total: consultas.length, ...deteccao };
+  return {
+    total: consultas.length,
+    medicos: Object.fromEntries(medicos.map((m) => [String(m.id), m.nome])),
+    ...deteccao,
+  };
 }
 
 // Barra que se move de verdade: cada fatia concluida avanca o valor (0 a 1).
@@ -105,6 +116,33 @@ function Progresso({ valor }) {
   );
 }
 
+const MAX_NA_LISTA = 20;
+
+// Um item por par: o dia, os dois horarios e as duas consultas envolvidas.
+function ListaDeConflitos({ conflitos, medicos }) {
+  const mostrados = conflitos.slice(0, MAX_NA_LISTA);
+  const restantes = conflitos.length - mostrados.length;
+
+  return (
+    <View>
+      {mostrados.map(([a, b], indice) => (
+        <ItemDeLista
+          key={`${a.id}-${b.id}`}
+          titulo={`${formatarDiaEMes(dataDaConsulta(a))} · ${a.hora} e ${b.hora}`}
+          subtitulo={`${medicos[String(a.medicoId)] ?? 'Profissional'} · consultas #${a.id} e #${b.id}`}
+          divisor={indice < mostrados.length - 1}
+          tabular
+        />
+      ))}
+      {restantes > 0 ? (
+        <Texto variante="pequeno" cor="apoio" style={{ paddingTop: espaco.xs }}>
+          {`e mais ${formatarNumero(restantes)}`}
+        </Texto>
+      ) : null}
+    </View>
+  );
+}
+
 function Resumo({ resultado }) {
   const achou = resultado.conflitos.length > 0;
   const { total, comparacoes, duracaoMs } = resultado;
@@ -119,6 +157,12 @@ function Resumo({ resultado }) {
       <Texto variante="pequeno" cor="apoio" tabular>
         {`${formatarNumero(total)} consultas · ${formatarNumero(comparacoes)} comparações · ${duracaoMs} ms`}
       </Texto>
+      {achou ? (
+        <ListaDeConflitos
+          conflitos={resultado.conflitos}
+          medicos={resultado.medicos}
+        />
+      ) : null}
     </View>
   );
 }
