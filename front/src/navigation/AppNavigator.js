@@ -29,6 +29,7 @@ import CadastroEspecialidadeScreen from "../screens/CadastroEspecialidadeScreen"
 import ComoChegarScreen from "../screens/ComoChegarScreen";
 import SinaisVitaisScreen from "../screens/SinaisVitaisScreen";
 import CadastrosScreen from "../screens/CadastrosScreen";
+import SincronizarAgendaScreen from "../screens/SincronizarAgendaScreen";
 import SemAcessoScreen from "../screens/SemAcessoScreen";
 
 import { estaLogado, useUsuario } from "../services/sessao";
@@ -104,6 +105,7 @@ const TELAS = {
   ComoChegar: protegida(ComoChegarScreen, "ComoChegar"),
   SinaisVitais: protegida(SinaisVitaisScreen, "SinaisVitais"),
   Cadastros: protegida(CadastrosScreen, "Cadastros"),
+  SincronizarAgenda: protegida(SincronizarAgendaScreen, "SincronizarAgenda"),
 };
 
 export default function AppNavigator() {
@@ -251,6 +253,10 @@ export default function AppNavigator() {
           <Stack.Screen name="ComoChegar" component={TELAS.ComoChegar} />
           <Stack.Screen name="SinaisVitais" component={TELAS.SinaisVitais} />
           <Stack.Screen name="Cadastros" component={TELAS.Cadastros} />
+          <Stack.Screen
+            name="SincronizarAgenda"
+            component={TELAS.SincronizarAgenda}
+          />
         </Stack.Navigator>
       </NavigationContainer>
       <AvisoDeSessao aoEntrar={irParaLogin} />
