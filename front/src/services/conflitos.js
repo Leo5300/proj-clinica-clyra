@@ -6,6 +6,7 @@
 // o app confere a agenda inteira de uma vez.
 
 import { DURACAO_CONSULTA_MIN } from './datas';
+import { processarEmFatias } from './processamento';
 
 function minutosDe(hora) {
   const [h, m] = String(hora).split(':').map(Number);
@@ -146,6 +147,49 @@ export function detectarConflitosAgrupado(consultas) {
   for (let i = 0; i < agenda.length; i++) {
     comparacoes += compararComAsSeguintes(agenda, i, conflitos);
   }
+
+  return { conflitos, comparacoes, duracaoMs: Date.now() - inicio };
+}
+
+// A mesma versao ingenua, em fatias: o laco de fora cede a vez a cada
+// "tamanhoDaFatia" consultas. Mesmo trabalho, mesmo resultado; a tela respira.
+export async function detectarConflitosIngenuoEmFatias(consultas, opcoes = {}) {
+  const inicio = Date.now();
+  const conflitos = [];
+  let comparacoes = 0;
+
+  await processarEmFatias(
+    consultas,
+    (consulta, i) => {
+      for (let j = i + 1; j < consultas.length; j++) {
+        comparacoes++;
+
+        if (conflita(consulta, consultas[j])) {
+          conflitos.push([consulta, consultas[j]]);
+        }
+      }
+    },
+    opcoes,
+  );
+
+  return { conflitos, comparacoes, duracaoMs: Date.now() - inicio };
+}
+
+// A versao que a tela usa: algoritmo melhor e, alem disso, sem monopolizar a
+// thread. opcoes: { tamanhoDaFatia, aoProgredir, sinal }.
+export async function detectarConflitosAgrupadoEmFatias(consultas, opcoes = {}) {
+  const inicio = Date.now();
+  const agenda = agendaAgrupada(consultas);
+  const conflitos = [];
+  let comparacoes = 0;
+
+  await processarEmFatias(
+    agenda,
+    (consulta, i) => {
+      comparacoes += compararComAsSeguintes(agenda, i, conflitos);
+    },
+    opcoes,
+  );
 
   return { conflitos, comparacoes, duracaoMs: Date.now() - inicio };
 }
