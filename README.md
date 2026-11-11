@@ -48,7 +48,7 @@ front/
 └── src/
     ├── navigation/    AppNavigator (rotas) e permissoes (quem vê o quê)
     ├── screens/       uma tela por arquivo
-    └── services/      api, sessao, lembretes, bluetooth, localizacao, viacep, httpExterno, datas
+    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada
 ```
 
 ## Perfis de acesso
@@ -311,6 +311,40 @@ servidor fica para depois; quando for feito, deve seguir estas regras:
 
 Para testar à mão, sem o servidor: `node servidor/enviar-push.js` envia um aviso
 para um token, e `node servidor/consultar-recibo.js` confere o recibo.
+
+### Processamento sem travar a interface (Aula 10)
+
+A tela **Verificar agenda** (recepção: botão "+" → Cadastros → Agenda) busca todas
+as consultas e procura horários que se sobrepõem na agenda de cada profissional. A
+regra de conflito é a mesma que o servidor aplica ao gravar (`servidor/regras.js`):
+mesmo profissional, mesmo dia e intervalos que se cruzam, cada consulta ocupando 30
+minutos.
+
+O que pesa é conferir, não buscar. Buscar da API é espera, e esperar não trava a
+thread de JavaScript; conferir é cálculo, e cálculo ocupa a thread inteira. Por isso a
+conferência roda em fatias: entre uma fatia e outra o app devolve a vez ao event loop,
+que repinta a tela e atende toques. O tempo total não diminui; o que muda é que a
+interface continua respondendo, e é esse o critério de pronto, não "ficou rápido".
+
+| Arquivo | Papel |
+|---|---|
+| `front/src/services/processamento.js` | cancelar, ceder a vez (`setTimeout`, não `Promise.resolve`) e fatiar. Não conhece tela nem React. |
+| `front/src/services/conflitos.js` | a regra de conflito e as quatro formas de detectar (ver abaixo). |
+| `front/src/services/useTarefaPesada.js` | hook com progresso, cancelamento e proteção contra tela desmontada. |
+| `front/src/screens/SincronizarAgendaScreen.js` | a tela, com barra de progresso real e botão Cancelar. |
+| `servidor/gerar-consultas.js` | gera milhares de consultas para testar, sem mexer no `db_clinica.json`. |
+
+Para testar com volume:
+
+```bash
+node servidor/gerar-consultas.js 2500
+```
+
+O script grava um banco temporário fora do projeto, imprime o comando para subir o
+json-server com ele e diz quantos conflitos a regra do servidor espera (a resposta
+certa). Para voltar ao normal, pare esse json-server e suba o de sempre com
+`db_clinica.json`. Em desenvolvimento, a tela mostra também um bloco "Medição", que
+roda cada modo com o tamanho de fatia escolhido; ele não existe no app publicado.
 
 ## Fluxo de trabalho da equipe
 
