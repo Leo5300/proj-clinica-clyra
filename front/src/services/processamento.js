@@ -47,7 +47,7 @@ export function cederAVez() {
 // Quantos itens processar antes de ceder a vez. Fatia pequena demais desperdica
 // tempo cedendo; grande demais volta a travar a tela entre uma cessao e outra.
 // O valor foi escolhido medindo no aparelho (veja o README).
-export const TAMANHO_DA_FATIA_PADRAO = 500;
+export const TAMANHO_DA_FATIA_PADRAO = 100;
 
 // Percorre os itens chamando processarItem(item, indice). A cada fatia avisa o
 // progresso (de 0 a 1) e cede a vez. O tempo total nao cai: o que muda e que a
