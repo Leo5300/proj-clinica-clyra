@@ -361,6 +361,23 @@ compara as listas par a par, e o script de volume imprime o total esperado pela 
 servidor: são três respostas que precisam bater. Melhorar o algoritmo vem antes de
 qualquer técnica de concorrência; só depois entra o fatiamento.
 
+#### Medições
+
+Teste em celular Android com Expo Go. O comando `node servidor/gerar-consultas.js 5000`
+gerou 5.000 consultas com 349 pares em conflito pela regra do servidor.
+
+| Modo | Comparações | Tempo | Interface durante o cálculo |
+|---|---:|---:|---|
+| Todas × todas, bloqueando | 12.497.500 | 3.185 ms | Foi possível rolar a tela. |
+| Todas × todas, em fatias de 500 | 12.497.500 | 3.568 ms | A barra mostrou porcentagens intermediárias. |
+| Agrupada, bloqueando | 5.348 | 47 e 71 ms | Não percebi mudança na tela durante essas rodadas. |
+| Agrupada, em fatias (botão principal, padrão de 500 na medição) | 5.348 | 351 e 361 ms | Sem observação específica da interface nessas rodadas. |
+
+O modo **Conferir** confirmou que as duas versões encontraram os mesmos 349 pares.
+Agrupar por profissional reduziu as comparações de 12.497.500 para 5.348.
+Na versão todas × todas, dividir o cálculo em fatias manteve a contagem e permitiu
+acompanhar o progresso, embora a rodada de 3.568 ms tenha demorado mais que a de 3.185 ms.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
