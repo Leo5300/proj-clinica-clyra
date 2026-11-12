@@ -394,6 +394,29 @@ enquanto a agenda carregava. Com 5.000, a verificação terminou mais rápido, m
 não vi as etapas. O tamanho padrão é definido por `TAMANHO_DA_FATIA_PADRAO`
 em `front/src/services/processamento.js`.
 
+#### E o `react-native-worklets`?
+
+Ele roda código num runtime de JavaScript separado, fora da thread principal, mas a
+memória não é compartilhada: os dados precisam ser copiados de um lado para o outro.
+Seria justificável aqui se a conferência virasse cálculo pesado de verdade, como
+processar imagem de exame ou criptografar a agenda inteira, ou se o volume passasse de
+dezenas de milhares de consultas mesmo com o algoritmo agrupado.
+
+Hoje não é o caso: o algoritmo agrupado termina em milissegundos e, quando o trabalho é
+lento (todas contra todas), fatiar resolve a interface. O pacote já está no projeto por
+causa do Reanimated, mas a verificação não o usa.
+
+#### Preparando a Aula 11
+
+A mesma verificação vai rodar em segundo plano, sem tela. `processamento.js` e
+`conflitos.js` não dependem de React nem de tela, então servem como estão. O que muda:
+
+- Não há barra de progresso para mostrar: o progresso vira log, ou nada.
+- O cancelamento passa a vir do sistema, que interrompe tarefas em segundo plano; o
+  trabalho precisa aguentar parar no meio e recomeçar.
+- O resultado precisa ser guardado para a tela abrir mostrando o último valor enquanto
+  recalcula (fora do escopo desta entrega).
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
