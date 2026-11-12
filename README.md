@@ -378,6 +378,22 @@ Agrupar por profissional reduziu as comparações de 12.497.500 para 5.348.
 Na versão todas × todas, dividir o cálculo em fatias manteve a contagem e permitiu
 acompanhar o progresso, embora a rodada de 3.568 ms tenha demorado mais que a de 3.185 ms.
 
+#### Tamanho da fatia
+
+No mesmo Android, o modo **Todas × todas, em fatias** verificou as mesmas 5.000
+consultas com três tamanhos de fatia. Cada rodada encontrou 349 conflitos.
+
+| Consultas por fatia | Tempos medidos | O que se viu |
+|---:|---:|---|
+| 100 | 4.818 e 4.843 ms | Deu para acompanhar o avanço da barra. |
+| 500 | 3.568 e 3.620 ms | A barra mostrou porcentagens intermediárias. |
+| 5.000 | 2.898 ms | Não vi porcentagens intermediárias. |
+
+**Escolha: 100 consultas por fatia.** Escolhi 100 porque consegui ver o progresso
+enquanto a agenda carregava. Com 5.000, a verificação terminou mais rápido, mas
+não vi as etapas. O tamanho padrão é definido por `TAMANHO_DA_FATIA_PADRAO`
+em `front/src/services/processamento.js`.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
