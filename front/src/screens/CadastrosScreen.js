@@ -52,6 +52,15 @@ const CADASTROS = [
   },
 ];
 
+const DA_AGENDA = [
+  {
+    rota: 'SincronizarAgenda',
+    titulo: 'Verificar agenda',
+    texto: 'Procura horários sobrepostos na agenda de cada profissional',
+    icone: 'refresh-cw',
+  },
+];
+
 function Grupo({ titulo, itens, navigation }) {
   const { cores } = useTema();
 
@@ -129,6 +138,7 @@ export default function CadastrosScreen({ navigation }) {
 
             <Grupo titulo="Novo" itens={NOVOS} navigation={navigation} />
             <Grupo titulo="Da clínica" itens={CADASTROS} navigation={navigation} />
+            <Grupo titulo="Agenda" itens={DA_AGENDA} navigation={navigation} />
           </Animated.ScrollView>
         }
       >

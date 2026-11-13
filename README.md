@@ -48,7 +48,7 @@ front/
 └── src/
     ├── navigation/    AppNavigator (rotas) e permissoes (quem vê o quê)
     ├── screens/       uma tela por arquivo
-    └── services/      api, sessao, lembretes, bluetooth, localizacao, viacep, httpExterno, datas
+    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada
 ```
 
 ## Perfis de acesso
@@ -311,6 +311,111 @@ servidor fica para depois; quando for feito, deve seguir estas regras:
 
 Para testar à mão, sem o servidor: `node servidor/enviar-push.js` envia um aviso
 para um token, e `node servidor/consultar-recibo.js` confere o recibo.
+
+### Processamento sem travar a interface (Aula 10)
+
+A tela **Verificar agenda** (recepção: botão "+" → Cadastros → Agenda) busca todas
+as consultas e procura horários que se sobrepõem na agenda de cada profissional. A
+regra de conflito é a mesma que o servidor aplica ao gravar (`servidor/regras.js`):
+mesmo profissional, mesmo dia e intervalos que se cruzam, cada consulta ocupando 30
+minutos.
+
+O que pesa é conferir, não buscar. Buscar da API é espera, e esperar não trava a
+thread de JavaScript; conferir é cálculo, e cálculo ocupa a thread inteira. Por isso a
+conferência roda em fatias: entre uma fatia e outra o app devolve a vez ao event loop,
+que repinta a tela e atende toques. O tempo total não diminui; o que muda é que a
+interface continua respondendo, e é esse o critério de pronto, não "ficou rápido".
+
+| Arquivo | Papel |
+|---|---|
+| `front/src/services/processamento.js` | cancelar, ceder a vez (`setTimeout`, não `Promise.resolve`) e fatiar. Não conhece tela nem React. |
+| `front/src/services/conflitos.js` | a regra de conflito e as quatro formas de detectar (ver abaixo). |
+| `front/src/services/useTarefaPesada.js` | hook com progresso, cancelamento e proteção contra tela desmontada. |
+| `front/src/screens/SincronizarAgendaScreen.js` | a tela, com barra de progresso real e botão Cancelar. |
+| `servidor/gerar-consultas.js` | gera milhares de consultas para testar, sem mexer no `db_clinica.json`. |
+
+Para testar com volume:
+
+```bash
+node servidor/gerar-consultas.js 2500
+```
+
+O script grava um banco temporário fora do projeto, imprime o comando para subir o
+json-server com ele e diz quantos conflitos a regra do servidor espera (a resposta
+certa). Para voltar ao normal, pare esse json-server e suba o de sempre com
+`db_clinica.json`. Em desenvolvimento, a tela mostra também um bloco "Medição", que
+roda cada modo com o tamanho de fatia escolhido; ele não existe no app publicado.
+
+#### O algoritmo da verificação
+
+- **Todas contra todas** (`detectarConflitosIngenuo`): compara cada consulta com todas
+  as outras, n·(n−1)/2 comparações. Com 2.500 consultas são quase 3,1 milhões.
+- **Agrupada** (`detectarConflitosAgrupado`): agrupa por profissional e ordena cada
+  agenda por data e hora. Com a agenda ordenada, uma consulta só pode conflitar com as
+  que vêm logo depois dela: assim que uma não conflita, nenhuma mais adiante conflita, e
+  a busca daquela consulta para. No caso comum, cada consulta é comparada só com a
+  seguinte.
+
+As duas acham **exatamente os mesmos pares**. O modo "Conferir" do bloco de medição
+compara as listas par a par, e o script de volume imprime o total esperado pela regra do
+servidor: são três respostas que precisam bater. Melhorar o algoritmo vem antes de
+qualquer técnica de concorrência; só depois entra o fatiamento.
+
+#### Medições
+
+Teste em celular Android com Expo Go. O comando `node servidor/gerar-consultas.js 5000`
+gerou 5.000 consultas com 349 pares em conflito pela regra do servidor.
+
+| Modo | Comparações | Tempo | Interface durante o cálculo |
+|---|---:|---:|---|
+| Todas × todas, bloqueando | 12.497.500 | 3.185 ms | Foi possível rolar a tela. |
+| Todas × todas, em fatias de 500 | 12.497.500 | 3.568 ms | A barra mostrou porcentagens intermediárias. |
+| Agrupada, bloqueando | 5.348 | 47 e 71 ms | Não percebi mudança na tela durante essas rodadas. |
+| Agrupada, em fatias (botão principal, padrão de 500 na medição) | 5.348 | 351 e 361 ms | Sem observação específica da interface nessas rodadas. |
+
+O modo **Conferir** confirmou que as duas versões encontraram os mesmos 349 pares.
+Agrupar por profissional reduziu as comparações de 12.497.500 para 5.348.
+Na versão todas × todas, dividir o cálculo em fatias manteve a contagem e permitiu
+acompanhar o progresso, embora a rodada de 3.568 ms tenha demorado mais que a de 3.185 ms.
+
+#### Tamanho da fatia
+
+No mesmo Android, o modo **Todas × todas, em fatias** verificou as mesmas 5.000
+consultas com três tamanhos de fatia. Cada rodada encontrou 349 conflitos.
+
+| Consultas por fatia | Tempos medidos | O que se viu |
+|---:|---:|---|
+| 100 | 4.818 e 4.843 ms | Deu para acompanhar o avanço da barra. |
+| 500 | 3.568 e 3.620 ms | A barra mostrou porcentagens intermediárias. |
+| 5.000 | 2.898 ms | Não vi porcentagens intermediárias. |
+
+**Escolha: 100 consultas por fatia.** Escolhi 100 porque consegui ver o progresso
+enquanto a agenda carregava. Com 5.000, a verificação terminou mais rápido, mas
+não vi as etapas. O tamanho padrão é definido por `TAMANHO_DA_FATIA_PADRAO`
+em `front/src/services/processamento.js`.
+
+#### E o `react-native-worklets`?
+
+Ele roda código num runtime de JavaScript separado, fora da thread principal, mas a
+memória não é compartilhada: os dados precisam ser copiados de um lado para o outro.
+Seria justificável aqui se a conferência virasse cálculo pesado de verdade, como
+processar imagem de exame ou criptografar a agenda inteira, ou se o volume passasse de
+dezenas de milhares de consultas mesmo com o algoritmo agrupado.
+
+Hoje não é o caso: o algoritmo agrupado termina em milissegundos e, quando o trabalho é
+lento (todas contra todas), fatiar resolve a interface. O pacote já está no projeto por
+causa do Reanimated, mas a verificação não o usa.
+
+#### Preparando a Aula 11
+
+A mesma verificação vai rodar em segundo plano, sem tela. `processamento.js` e
+`conflitos.js` não dependem de React nem de tela, então servem como estão. O que muda:
+
+- Não há barra de progresso para mostrar: o progresso vira log, ou nada.
+- O cancelamento passa a vir do sistema, que interrompe tarefas em segundo plano; o
+  trabalho precisa aguentar parar no meio e recomeçar.
+- O resultado precisa ser guardado para a tela abrir mostrando o último valor enquanto
+  recalcula (fora do escopo desta entrega).
 
 ## Fluxo de trabalho da equipe
 
