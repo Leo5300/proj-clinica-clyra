@@ -550,6 +550,49 @@ sozinho não serve a quem usa leitor de tela, está sem rede ou não consegue ma
 | "Abrir no app de mapas" abre o app do aparelho já na clínica | PREENCHER | PREENCHER |
 | Sem Wi-Fi e sem dados: endereço, telefone e botões continuam na tela | PREENCHER | PREENCHER |
 
+#### Chave do Google Maps
+
+- **Expo Go não precisa de chave:** ele traz a dele. Por isso o mapa aparece em
+  desenvolvimento sem nenhuma configuração.
+- **Um build próprio para Android precisa de chave.** Sem ela, o mapa aparece como um
+  retângulo cinza, sem erro na tela. Isso vale quando o app for gerado (Aula 15).
+- **Onde a chave mora:** em `front/.env.local`, na linha `GOOGLE_MAPS_API_KEY=...`. Esse
+  arquivo não vai para o Git (o `.gitignore` cobre `.env*.local`). O modelo, sem valor, está
+  em `front/.env.example`. A chave **não** fica no `app.json` nem em nenhum arquivo versionado.
+- **Como ela chega ao app:** `front/app.config.js` lê `GOOGLE_MAPS_API_KEY` e, só se ela
+  existir, adiciona o plugin `react-native-maps` com `androidGoogleMapsApiKey`. A variável não
+  usa o prefixo `EXPO_PUBLIC_` de propósito, para a chave não ser copiada para o pacote
+  JavaScript.
+
+Como a chave foi criada (Google Cloud Console, `console.cloud.google.com`):
+
+1. Criar um projeto (por exemplo, `clyra`).
+2. Ativar o faturamento do projeto. O Google exige um meio de pagamento mesmo para uso
+   gratuito; no momento da criação, o uso do SDK de mapas para Android e iOS não era cobrado
+   segundo a tabela de preços do Google (a tabela muda, confira a vigente).
+3. Criar um alerta de orçamento (Faturamento → Orçamentos e alertas), para saber se algo
+   passar a ser cobrado.
+4. APIs e serviços → Biblioteca → ativar **Maps SDK for Android**.
+5. APIs e serviços → Credenciais → Criar credenciais → Chave de API.
+6. Em "Restrições de API", restringir a chave a **Maps SDK for Android**.
+7. Copiar a chave para `front/.env.local` (e só lá).
+
+| Item | Situação |
+|---|---|
+| Projeto, API ativada e chave criadas | PREENCHER |
+| Restrição por API (Maps SDK for Android) | PREENCHER |
+| Alerta de orçamento criado | PREENCHER |
+| Chave testada em um build Android | PREENCHER |
+
+**Pendência registrada (vai para a documentação da Aula 15):** a restrição por **aplicativo
+Android** (nome do pacote + impressão digital SHA-1) só pode ser concluída quando existir um
+build com a keystore definitiva. Hoje o `app.json` não define `android.package`. Enquanto isso,
+a chave só tem a restrição por API.
+
+**Se a chave vazar** (apareceu num commit, num print ou numa conversa): no console, crie uma
+nova chave, apague a antiga e troque o valor em `front/.env.local`. Apagar o commit não basta,
+porque o histórico do Git continua com a chave.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
