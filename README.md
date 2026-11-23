@@ -109,7 +109,8 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 - [ ] Processamento multithread para tarefas pesadas não travarem a interface
 - [x] Sincronização da agenda em segundo plano (tarefa/serviço background)
       (botão, volta ao app e tarefa periódica opcional; a tarefa só roda em development build)
-- [ ] Mapa exibindo a localização da clínica dentro do aplicativo
+- [x] Mapa exibindo a localização da clínica dentro do aplicativo
+      (no Expo Go; o build Android precisa da chave do Google, ver "Chave do Google Maps")
 - [ ] Confirmação/cancelamento de consulta enviado por SMS
 - [x] Funcionalidade de agendamento de consultas (paciente)
 - [x] Funcionalidade de listagem das consultas agendadas
@@ -140,7 +141,7 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Cadastro/Edição de médico | Cadastro com foto e criação do acesso ao app. | recepção | Médicos |
 | Horários | Horários de atendimento (médico: só os seus). | recepção, médico | Cadastro de horário |
 | Especialidades | Lista com cadastro, edição e exclusão. | recepção | Cadastro de especialidade |
-| Como chegar | Endereço da clínica e distância em linha reta pelo GPS. | paciente | — |
+| Como chegar | Mapa da clínica, endereço, telefone e distância em linha reta pelo GPS; abre o app de mapas do aparelho. | paciente | — |
 | Verificar agenda | Conferência da agenda inteira, status da sincronização, "Atualizar agora" e a chave da tarefa periódica. | recepção | Histórico de sincronização |
 | Histórico de sincronização | As 20 últimas sincronizações: quando, quem pediu e como terminaram. | recepção | Verificar agenda |
 | Sem acesso | Aparece quando o perfil não pode abrir uma tela. | todos | Home |
@@ -155,7 +156,7 @@ Ensino. Marcado conforme cada item é implementado pela squad.
   `expo-local-authentication` (biometria), `expo-location` (GPS),
   `expo-notifications` e `@react-native-async-storage/async-storage` (lembretes),
   `react-native-ble-plx` e `buffer` (Bluetooth), `expo-task-manager` e
-  `expo-background-task` (sincronização em segundo plano)
+  `expo-background-task` (sincronização em segundo plano) e `react-native-maps` (mapa da clínica)
 - `fetch` nativo para consumo da API (sem axios — decisão registrada em
   "Decisões técnicas")
 - API mock em Node puro (`servidor/auth-api.js`) com os dados no `db_clinica.json`,
@@ -506,6 +507,49 @@ O app abre normalmente em todos os casos: as bibliotecas da tarefa são carregad
 A decisão de usar o `AppState` como caminho principal e a tarefa periódica como opção está
 em [`docs/decisoes/004-atualizar-a-agenda-em-segundo-plano.md`](docs/decisoes/004-atualizar-a-agenda-em-segundo-plano.md).
 
+### Mapa da clínica (Aula 12)
+
+A tela **Como chegar** (paciente: atalho da Home e link no detalhe da consulta) tem agora
+um mapa da clínica no topo e, abaixo dele, o painel de texto que já existia. O mapa é um
+complemento: **nome, endereço e telefone continuam escritos na tela**, porque um mapa
+sozinho não serve a quem usa leitor de tela, está sem rede ou não consegue manipulá-lo.
+
+| Arquivo | Papel |
+|---|---|
+| `front/src/components/MapaDaClinica.js` | `MapView` com o marcador da clínica e o da pessoa. Pela `ref` expõe `enquadrar()` e `verClinica()`. |
+| `front/src/screens/ComoChegarScreen.js` | Layout (mapa em 40% da altura, painel de texto rolável embaixo), distância, permissão negada e botões. |
+| `front/src/services/localizacao.js` | Coordenadas da clínica, GPS, distância e os links para o app de mapas. |
+| `front/app.config.js` | Lê a chave do Google de variável de ambiente (veja "Chave do Google Maps"). |
+
+- **`initialRegion`, não `region`.** Com `region` o mapa volta ao ponto inicial a cada
+  render e a pessoa não consegue arrastar nem dar zoom.
+- **`latitudeDelta` e `longitudeDelta` são um zoom invertido:** o tamanho da janela em
+  graus. Quanto menor, mais perto. O app usa `0.01` (algumas quadras); `0.05` mostra um
+  bairro e `0.002`, uma rua.
+- **Marcador.** `title` e `description` formam o balão ao tocar; `pinColor` usa a lavanda
+  do tema. As coordenadas do marcador são memorizadas (`useMemo`): com um objeto novo a
+  cada render, uma lista de 200 marcadores seria redesenhada à toa.
+- **Posição da pessoa.** Vem do mesmo `obterPosicaoAtual()` da distância, só depois de a
+  pessoa tocar em "Calcular distância". É desenhada na tela e **nunca guardada**: posição é
+  dado sensível. `fitToCoordinates` ajusta o zoom para caberem os dois pontos e
+  `animateToRegion` leva de volta à clínica ("Ver a clínica").
+- **Sem GPS o mapa continua útil:** a permissão negada não esconde o mapa nem o endereço.
+- **"Abrir no app de mapas"** entrega o destino ao app do aparelho (`geo:` no Android,
+  `maps:` no iOS) com `Linking.openURL`. Sem app de mapas, cai para o navegador. **O app não
+  desenha rotas**: decisão registrada em
+  [`docs/decisoes/005-rotas-no-app-de-mapas-do-aparelho.md`](docs/decisoes/005-rotas-no-app-de-mapas-do-aparelho.md).
+- O tempo "cerca de X min" continua sendo uma estimativa em linha reta, com o aviso na tela.
+
+#### Como testei
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| O mapa abre na clínica; tocar no marcador mostra o balão com nome e endereço | PREENCHER | PREENCHER |
+| Permissão de localização negada: mapa e endereço continuam na tela | PREENCHER | PREENCHER |
+| "Calcular distância" mostra o marcador da pessoa e enquadra os dois pontos; "Ver a clínica" volta | PREENCHER | PREENCHER |
+| "Abrir no app de mapas" abre o app do aparelho já na clínica | PREENCHER | PREENCHER |
+| Sem Wi-Fi e sem dados: endereço, telefone e botões continuam na tela | PREENCHER | PREENCHER |
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
@@ -573,6 +617,7 @@ decisão em vez de apagá-la.
 | 9 | Notificações push | Felipe Augusto da Silva |
 | 10 | Processamento sem travar a interface (`processamento.js`, `conflitos.js`, tela Verificar agenda) | Gabriel Vinicius Martins |
 | 11 | Sincronização em segundo plano (`sincronizacao.js`, `useSincronizacao.js`, `tarefaBackground.js`, histórico) | Jean Vinicius Rodrigues de Oliveira |
+| 12 | Mapa da clínica (`MapaDaClinica.js`, tela Como chegar, `app.config.js`) | Jean Vinicius Rodrigues de Oliveira |
 
 ## Decisões técnicas
 
