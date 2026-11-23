@@ -16,7 +16,8 @@ import {
   mesmosConflitos,
 } from '../services/conflitos';
 import { dataDaConsulta } from '../services/lembretes';
-import { formatarDiaEMes } from '../services/datas';
+import { formatarDiaEMes, haQuantoTempo } from '../services/datas';
+import { useSincronizacao } from '../services/useSincronizacao';
 import { useTarefaPesada } from '../services/useTarefaPesada';
 import {
   Botao,
@@ -251,6 +252,62 @@ function Resumo({ resultado }) {
   );
 }
 
+// Re-renderiza de tempos em tempos para o "atualizado ha 5 min" nao ficar
+// parado numa tela deixada aberta. So o tique: a hora e lida na hora de pintar.
+function useRelogio(intervaloMs) {
+  const [, setTique] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTique((t) => t + 1), intervaloMs);
+
+    return () => clearInterval(id);
+  }, [intervaloMs]);
+}
+
+// O que a tela pode afirmar: quando foi a ULTIMA vez que deu certo e o que
+// ela achou. Se a tentativa mais recente falhou, diz isso e avisa que os
+// numeros sao da ultima que deu certo.
+function StatusDaSincronizacao({ ultima, ultimaTentativa, sincronizando }) {
+  useRelogio(30000);
+
+  const falhou =
+    ultimaTentativa !== null &&
+    !ultimaTentativa.ok &&
+    (!ultima || ultimaTentativa.quando > ultima.quando);
+
+  return (
+    <View style={{ gap: espaco.xs }}>
+      {ultima ? (
+        <>
+          <Selo
+            texto={rotuloDeConflitos(ultima.conflitos)}
+            tom={ultima.conflitos > 0 ? 'atencao' : 'papel'}
+            icone={ultima.conflitos > 0 ? 'alert-triangle' : 'check'}
+          />
+          <Texto variante="rotulo" cor="tinta2">
+            {`Atualizado ${haQuantoTempo(ultima.quando) ?? '(horário indisponível)'}`}
+          </Texto>
+          <Texto variante="pequeno" cor="apoio" tabular>
+            {`${formatarNumero(ultima.consultas)} consultas · pedida por: ${ultima.origem}`}
+          </Texto>
+        </>
+      ) : (
+        <Texto cor="tinta2">Ainda não sincronizado neste aparelho.</Texto>
+      )}
+      {sincronizando ? (
+        <Texto variante="rotulo" cor="apoio">
+          Sincronizando…
+        </Texto>
+      ) : null}
+      {falhou ? (
+        <Texto variante="rotulo" cor="alerta">
+          {`A última tentativa falhou (${ultimaTentativa.erro}). Os números acima são da última vez que deu certo.`}
+        </Texto>
+      ) : null}
+    </View>
+  );
+}
+
 const FATIAS = [
   { valor: 100, rotulo: '100' },
   { valor: 500, rotulo: '500' },
@@ -337,6 +394,7 @@ export default function SincronizarAgendaScreen({ navigation }) {
     iniciar,
     cancelar,
   } = useTarefaPesada(verificar);
+  const { ultima, ultimaTentativa, sincronizando } = useSincronizacao();
 
   // Sessao expirada no meio da busca: volta para o login, como as outras telas.
   useEffect(() => {
@@ -366,6 +424,25 @@ export default function SincronizarAgendaScreen({ navigation }) {
               <Texto variante="rotulo" cor="apoio">
                 Procura horários sobrepostos na agenda de cada profissional.
               </Texto>
+            </View>
+
+            <View style={estiloDoCartao(cores)}>
+              <View style={{ gap: 4 }}>
+                <Texto variante="secao" accessibilityRole="header">
+                  Sincronização
+                </Texto>
+                <Texto variante="legenda" cor="apoio">
+                  Guarda neste aparelho quantas consultas e quantos conflitos a
+                  agenda tinha na última conferência. Atualiza quando o app volta
+                  ao primeiro plano, no máximo a cada 15 minutos, enquanto esta
+                  tela estiver aberta.
+                </Texto>
+              </View>
+              <StatusDaSincronizacao
+                ultima={ultima}
+                ultimaTentativa={ultimaTentativa}
+                sincronizando={sincronizando}
+              />
             </View>
 
             <View style={estiloDoCartao(cores)}>
