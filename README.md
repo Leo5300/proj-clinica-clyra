@@ -550,6 +550,30 @@ sozinho não serve a quem usa leitor de tela, está sem rede ou não consegue ma
 | "Abrir no app de mapas" abre o app do aparelho já na clínica | PREENCHER | PREENCHER |
 | Sem Wi-Fi e sem dados: endereço, telefone e botões continuam na tela | PREENCHER | PREENCHER |
 
+#### Acessibilidade do mapa
+
+A aula trata isto como requisito, não como enfeite. O que o código faz:
+
+- O mapa é um único elemento para o leitor de tela, com `accessibilityLabel` que diz o que
+  ele mostra e manda para o endereço escrito logo abaixo.
+- Todo botão tem `accessibilityRole="button"` e rótulo que diz o que faz ("Ver a clínica no
+  mapa", "Abrir a clínica no aplicativo de mapas do aparelho"); o botão de voltar ganhou rótulo.
+- O título da tela é `header`; "Localizando você..." e o resultado da distância são
+  *live regions*, para o leitor anunciar quando aparecem.
+- Endereço e telefone são `selectable`: dá para copiar e colar em outro app.
+- A informação do mapa existe também como texto, e a tela funciona sem rede e sem permissão
+  de localização.
+
+**Teste com leitor de tela** (TalkBack no Android ou VoiceOver no iPhone):
+
+| Item | Resultado |
+|---|---|
+| Leitor e aparelho usados | PREENCHER |
+| O que o leitor anunciou ao chegar no mapa | PREENCHER |
+| O que foi possível fazer só com o leitor (voltar, localizar, abrir o app de mapas) | PREENCHER |
+| O que estava errado ou confuso no teste | PREENCHER |
+| O que foi corrigido por causa do teste | PREENCHER |
+
 #### Chave do Google Maps
 
 - **Expo Go não precisa de chave:** ele traz a dele. Por isso o mapa aparece em
