@@ -58,3 +58,66 @@ if (TaskManager && BackgroundTask) {
     // Defini-la duas vezes (recarga do Metro) nao pode derrubar o app.
   }
 }
+
+const MOTIVO_INDISPONIVEL =
+  'Este aparelho ou esta versão do app não permite tarefas em segundo plano (o Expo Go, por exemplo, tem limites aqui).';
+
+const MOTIVO_RESTRITO =
+  'O sistema restringiu tarefas em segundo plano para este app (economia de bateria ou ajustes do aparelho).';
+
+// O que a tela precisa saber: posso oferecer a opcao? Ela ja esta ligada?
+// Nunca lanca: qualquer falha ao perguntar vira "indisponivel".
+export async function estadoDaTarefa() {
+  const indisponivel = { disponivel: false, registrada: false };
+
+  if (!TaskManager || !BackgroundTask) {
+    return { ...indisponivel, motivo: MOTIVO_INDISPONIVEL };
+  }
+
+  try {
+    if (!(await TaskManager.isAvailableAsync())) {
+      return { ...indisponivel, motivo: MOTIVO_INDISPONIVEL };
+    }
+
+    const status = await BackgroundTask.getStatusAsync();
+
+    if (status !== BackgroundTask.BackgroundTaskStatus.Available) {
+      return { ...indisponivel, motivo: MOTIVO_RESTRITO };
+    }
+
+    const registrada = await TaskManager.isTaskRegisteredAsync(NOME_DA_TAREFA);
+
+    return { disponivel: true, registrada, motivo: null };
+  } catch (e) {
+    return { ...indisponivel, motivo: MOTIVO_INDISPONIVEL };
+  }
+}
+
+// Liga a tarefa periodica. Registrar duas vezes nao faz mal, mas perguntar
+// antes evita trabalho e deixa o estado devolvido sempre verdadeiro.
+export async function registrarTarefa() {
+  const estado = await estadoDaTarefa();
+
+  if (!estado.disponivel || estado.registrada) {
+    return estado;
+  }
+
+  await BackgroundTask.registerTaskAsync(NOME_DA_TAREFA, {
+    minimumInterval: INTERVALO_MINIMO_MIN,
+  });
+
+  return estadoDaTarefa();
+}
+
+// Desliga: o sistema deixa de acordar o app para isso.
+export async function cancelarTarefa() {
+  const estado = await estadoDaTarefa();
+
+  if (!estado.disponivel || !estado.registrada) {
+    return estado;
+  }
+
+  await BackgroundTask.unregisterTaskAsync(NOME_DA_TAREFA);
+
+  return estadoDaTarefa();
+}
