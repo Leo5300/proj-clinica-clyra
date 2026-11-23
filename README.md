@@ -417,6 +417,91 @@ A mesma verificação vai rodar em segundo plano, sem tela. `processamento.js` e
 - O resultado precisa ser guardado para a tela abrir mostrando o último valor enquanto
   recalcula (fora do escopo desta entrega).
 
+### Sincronização em segundo plano (Aula 11)
+
+A tela **Verificar agenda** (recepção: botão "+" → Cadastros → Agenda) ganhou o cartão
+**Sincronização**. Ele mostra quando a agenda foi conferida pela última vez **com sucesso**,
+quantas consultas havia e quantos conflitos foram achados, e guarda esse resultado no
+aparelho para a tela abrir já mostrando o último valor. Reaproveita a mesma conferência
+agrupada e em fatias da Aula 10 (`conflitos.js`, `processamento.js`).
+
+A sincronização pode ser pedida de três jeitos, e o histórico registra qual foi:
+
+| Origem | Quando acontece | Respeita o intervalo? |
+|---|---|---|
+| `manual` | A recepção toca em "Atualizar agora". | Não: foi uma pessoa que pediu. |
+| `voltou ao app` | O app volta do fundo para o primeiro plano **com a tela Verificar agenda aberta**. | Sim: só se a última que deu certo tem mais de 15 minutos. |
+| `background` | O sistema acorda a tarefa periódica, **se a chave "Atualizar em segundo plano" estiver ligada**. | Sim: a tarefa confere de novo antes de buscar. |
+
+| Arquivo | Papel |
+|---|---|
+| `front/src/services/sincronizacao.js` | `sincronizarAgenda(origem)`: busca, confere, guarda e nunca lança erro. Limite de 25 s, uma de cada vez, só para a recepção. Não conhece tela nem React. |
+| `front/src/services/useSincronizacao.js` | Hook: ouve o `AppState`, respeita o intervalo, entrega o último resultado à tela e remove o ouvinte ao sair. |
+| `front/src/services/tarefaBackground.js` | `defineTask` no escopo do módulo, registro e cancelamento da tarefa periódica, estado ("disponível? ligada?"). |
+| `front/src/screens/SincronizarAgendaScreen.js` | Cartão de status, "Atualizar agora" e a chave da tarefa periódica. |
+| `front/src/screens/HistoricoSincronizacaoScreen.js` | As 20 últimas tentativas: quando, quem pediu e como terminaram. |
+
+#### O que a tela promete e o que não promete
+
+O app promete só o que controla: ao voltar ao primeiro plano, não sincroniza mais de uma
+vez a cada 15 minutos. O resto é informado, não prometido. **Não existe** o texto
+"atualizado a cada 15 minutos": a tarefa em segundo plano é um pedido ao sistema, e ele
+decide quando (e se) roda.
+
+- O texto mostra "Atualizado há X min" com a hora real da última que deu certo.
+- Se a tentativa mais recente falhou, a tela diz isso e avisa que os números são da última
+  vez que deu certo. A falha **não** apaga o último resultado bom.
+- Onde a tarefa periódica não existe, a chave fica desativada e explica o motivo.
+
+#### Como a tarefa periódica funciona
+
+- `TaskManager.defineTask` roda no **escopo do módulo** (`tarefaBackground.js`) e esse
+  arquivo é importado no topo do `App.js`. Quando o sistema acorda o app em segundo plano,
+  nenhum componente é montado: só o JavaScript de nível de módulo roda. Definir a tarefa
+  dentro de um componente faria o sistema não encontrá-la.
+- `minimumInterval` é em **minutos**. O padrão da biblioteca é 720 (12 horas); o app pede
+  15, o menor valor que o Android aceita. É um **mínimo**: o sistema pode demorar mais, e
+  só roda com bateria e rede disponíveis. No iOS, intervalos curtos costumam ser ignorados.
+- O executor nunca lança erro: devolve `Success` ou `Failed`.
+- Duas coisas impedem trabalho repetido: a tarefa confere `precisaSincronizar` antes de
+  buscar, e `sincronizarAgenda` só deixa uma sincronização rodar por vez.
+- Só guarda números e datas (consultas, conflitos, quando, origem, duração, motivo da
+  falha). Nenhum nome e nenhuma consulta fica no aparelho por causa desta funcionalidade.
+
+#### Onde funciona
+
+| Ambiente | Sincronização manual e ao voltar | Tarefa periódica |
+|---|---|---|
+| Expo Go no Android | Funciona | A documentação do TaskManager diz que não está disponível; o app confere em tempo de execução e, se não estiver, desativa a chave e explica o motivo |
+| Expo Go no iOS | Funciona | A documentação do Expo diz que não há execução em segundo plano no Expo Go |
+| Development build | Funciona | Funciona; no desenvolvimento, o botão "Disparar a tarefa agora (teste)" aciona o sistema na hora |
+
+O app abre normalmente em todos os casos: as bibliotecas da tarefa são carregadas com
+`try/catch`, e a ausência delas só desativa a chave.
+
+#### Como testei
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| "Atualizar agora" grava o resultado e uma linha no histórico | PREENCHER | PREENCHER |
+| Voltar ao app depois de mais de 15 minutos sincroniza; antes disso, não | PREENCHER | PREENCHER |
+| Servidor desligado: a falha é registrada e o último valor bom continua na tela | PREENCHER | PREENCHER |
+| A chave "Atualizar em segundo plano" | PREENCHER | PREENCHER |
+| Tarefa periódica rodando sozinha (só em development build) | PREENCHER | PREENCHER |
+
+#### Limites conhecidos
+
+- O "voltou ao app" só vale enquanto a tela Verificar agenda está aberta; o hook fica preso
+  à tela. Montá-lo no `App.js` seria o próximo passo, com o cuidado de não buscar nada
+  para quem não é da recepção (a sincronização já confere isso).
+- A tarefa periódica pode demorar ou não rodar: depende de bateria, rede e das regras do
+  sistema. Por isso o histórico é a fonte da verdade sobre o que aconteceu.
+- Ainda não observado: com o aparelho bloqueado, o sistema pode não liberar o token do
+  cofre (`expo-secure-store`) para a tarefa. Se isso ocorrer, a sincronização é pulada.
+
+A decisão de usar o `AppState` como caminho principal e a tarefa periódica como opção está
+em [`docs/decisoes/004-atualizar-a-agenda-em-segundo-plano.md`](docs/decisoes/004-atualizar-a-agenda-em-segundo-plano.md).
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
