@@ -30,6 +30,7 @@ import ComoChegarScreen from "../screens/ComoChegarScreen";
 import SinaisVitaisScreen from "../screens/SinaisVitaisScreen";
 import CadastrosScreen from "../screens/CadastrosScreen";
 import SincronizarAgendaScreen from "../screens/SincronizarAgendaScreen";
+import HistoricoSincronizacaoScreen from "../screens/HistoricoSincronizacaoScreen";
 import SemAcessoScreen from "../screens/SemAcessoScreen";
 
 import { estaLogado, useUsuario } from "../services/sessao";
@@ -106,6 +107,10 @@ const TELAS = {
   SinaisVitais: protegida(SinaisVitaisScreen, "SinaisVitais"),
   Cadastros: protegida(CadastrosScreen, "Cadastros"),
   SincronizarAgenda: protegida(SincronizarAgendaScreen, "SincronizarAgenda"),
+  HistoricoSincronizacao: protegida(
+    HistoricoSincronizacaoScreen,
+    "HistoricoSincronizacao",
+  ),
 };
 
 export default function AppNavigator() {
@@ -256,6 +261,10 @@ export default function AppNavigator() {
           <Stack.Screen
             name="SincronizarAgenda"
             component={TELAS.SincronizarAgenda}
+          />
+          <Stack.Screen
+            name="HistoricoSincronizacao"
+            component={TELAS.HistoricoSincronizacao}
           />
         </Stack.Navigator>
       </NavigationContainer>

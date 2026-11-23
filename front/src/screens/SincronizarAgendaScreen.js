@@ -554,6 +554,12 @@ export default function SincronizarAgendaScreen({ navigation }) {
                 onPress={sincronizarAgora}
               />
               <TarefaEmSegundoPlano />
+              <Botao
+                titulo="Ver histórico"
+                icone="clock"
+                variante="texto"
+                onPress={() => navigation.navigate('HistoricoSincronizacao')}
+              />
             </View>
 
             <View style={estiloDoCartao(cores)}>
