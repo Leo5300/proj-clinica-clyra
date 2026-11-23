@@ -566,6 +566,14 @@ Trabalho já integrado à `main` que a squad decida descartar é removido por
 `git revert` dentro de um PR, com a justificativa escrita. O histórico registra a
 decisão em vez de apagá-la.
 
+### Quem implementou cada parte
+
+| Aula | Entrega | Quem implementou |
+|---|---|---|
+| 9 | Notificações push | Felipe Augusto da Silva |
+| 10 | Processamento sem travar a interface (`processamento.js`, `conflitos.js`, tela Verificar agenda) | Gabriel Vinicius Martins |
+| 11 | Sincronização em segundo plano (`sincronizacao.js`, `useSincronizacao.js`, `tarefaBackground.js`, histórico) | Jean Vinicius Rodrigues de Oliveira |
+
 ## Decisões técnicas
 
 Registro das escolhas da squad e do motivo de cada uma. As decisões maiores ficam em
