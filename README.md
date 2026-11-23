@@ -48,7 +48,7 @@ front/
 └── src/
     ├── navigation/    AppNavigator (rotas) e permissoes (quem vê o quê)
     ├── screens/       uma tela por arquivo
-    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada
+    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada, sincronizacao, useSincronizacao, tarefaBackground
 ```
 
 ## Perfis de acesso
@@ -107,7 +107,8 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 - [ ] Notificação local/push como lembrete de consulta agendada
       (notificação local pronta; push previsto para a Aula 9)
 - [ ] Processamento multithread para tarefas pesadas não travarem a interface
-- [ ] Sincronização da agenda em segundo plano (tarefa/serviço background)
+- [x] Sincronização da agenda em segundo plano (tarefa/serviço background)
+      (botão, volta ao app e tarefa periódica opcional; a tarefa só roda em development build)
 - [ ] Mapa exibindo a localização da clínica dentro do aplicativo
 - [ ] Confirmação/cancelamento de consulta enviado por SMS
 - [x] Funcionalidade de agendamento de consultas (paciente)
@@ -140,18 +141,21 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Horários | Horários de atendimento (médico: só os seus). | recepção, médico | Cadastro de horário |
 | Especialidades | Lista com cadastro, edição e exclusão. | recepção | Cadastro de especialidade |
 | Como chegar | Endereço da clínica e distância em linha reta pelo GPS. | paciente | — |
+| Verificar agenda | Conferência da agenda inteira, status da sincronização, "Atualizar agora" e a chave da tarefa periódica. | recepção | Histórico de sincronização |
+| Histórico de sincronização | As 20 últimas sincronizações: quando, quem pediu e como terminaram. | recepção | Verificar agenda |
 | Sem acesso | Aparece quando o perfil não pode abrir uma tela. | todos | Home |
 
 ## Tecnologias
 
-- [React Native](https://reactnative.dev/) com [Expo](https://expo.dev/) SDK 57
+- [React Native](https://reactnative.dev/) com [Expo](https://expo.dev/) SDK 58
 - [React Navigation](https://reactnavigation.org/) — `@react-navigation/native` e
   `@react-navigation/native-stack`
 - `@expo/vector-icons` — famílias Feather e MaterialCommunityIcons
 - `expo-secure-store` (token e sessão), `expo-image-picker` (câmera),
   `expo-local-authentication` (biometria), `expo-location` (GPS),
   `expo-notifications` e `@react-native-async-storage/async-storage` (lembretes),
-  `react-native-ble-plx` e `buffer` (Bluetooth)
+  `react-native-ble-plx` e `buffer` (Bluetooth), `expo-task-manager` e
+  `expo-background-task` (sincronização em segundo plano)
 - `fetch` nativo para consumo da API (sem axios — decisão registrada em
   "Decisões técnicas")
 - API mock em Node puro (`servidor/auth-api.js`) com os dados no `db_clinica.json`,
