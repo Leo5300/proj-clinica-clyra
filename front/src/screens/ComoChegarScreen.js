@@ -130,11 +130,11 @@ export default function ComoChegarScreen({ navigation }) {
             {CLINICA.nome}
           </Text>
 
-          <Text style={styles.cardText}>
+          <Text style={styles.cardText} selectable>
             {CLINICA.endereco}
           </Text>
 
-          <Text style={styles.cardText}>
+          <Text style={styles.cardText} selectable>
             {CLINICA.telefone}
           </Text>
         </View>
