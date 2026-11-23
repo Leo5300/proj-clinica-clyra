@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Linking,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +24,10 @@ import {
 export default function ComoChegarScreen({ navigation }) {
   const { cores } = useTema();
   const styles = useMemo(() => criarEstilos(cores), [cores]);
+  const { height } = useWindowDimensions();
+  // O mapa ocupa cerca de 40% da tela e nunca menos de 240: o resto e do
+  // painel de texto, que rola por baixo dele.
+  const alturaDoMapa = Math.max(240, Math.round(height * 0.4));
   // Estados separados, mesmo padrao das listas da Aula 3: carregando,
   // erro e dados sao dimensoes independentes. Aqui ha um quarto caso --
   // permissao negada -- que NAO e erro: e resposta do usuario, e merece
@@ -75,7 +80,7 @@ export default function ComoChegarScreen({ navigation }) {
 
       {/* O mapa fica FORA do ScrollView: um mapa dentro de uma lista que
           rola disputa o gesto de arrastar com ela (no Android, principalmente). */}
-      <MapaDaClinica clinica={CLINICA} style={{ height: 280 }} />
+      <MapaDaClinica clinica={CLINICA} style={{ height: alturaDoMapa }} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* O endereco vem PRIMEIRO e fica sempre visivel, independente do
