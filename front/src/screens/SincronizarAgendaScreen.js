@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Switch, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -18,6 +18,12 @@ import {
 import { dataDaConsulta } from '../services/lembretes';
 import { formatarDiaEMes, haQuantoTempo } from '../services/datas';
 import { useSincronizacao } from '../services/useSincronizacao';
+import {
+  INTERVALO_MINIMO_MIN,
+  cancelarTarefa,
+  estadoDaTarefa,
+  registrarTarefa,
+} from '../services/tarefaBackground';
 import { useTarefaPesada } from '../services/useTarefaPesada';
 import {
   Botao,
@@ -308,6 +314,83 @@ function StatusDaSincronizacao({ ultima, ultimaTentativa, sincronizando }) {
   );
 }
 
+// A tarefa periodica e opcional: o sistema decide quando rodar e em alguns
+// aparelhos (Expo Go no Android, economia de bateria) ela nem existe. Por
+// isso a chave nasce desativada e explica o motivo em vez de sumir ou de
+// prometer algo que o aparelho nao entrega.
+function TarefaEmSegundoPlano() {
+  const { cores } = useTema();
+  // null = ainda descobrindo.
+  const [estado, setEstado] = useState(null);
+  const [trocando, setTrocando] = useState(false);
+  const [falhou, setFalhou] = useState(false);
+  const montado = useRef(true);
+
+  useEffect(() => {
+    montado.current = true;
+
+    estadoDaTarefa().then((atual) => {
+      if (montado.current) setEstado(atual);
+    });
+
+    return () => {
+      montado.current = false;
+    };
+  }, []);
+
+  async function alternar(ligar) {
+    setTrocando(true);
+    setFalhou(false);
+
+    try {
+      const novo = ligar ? await registrarTarefa() : await cancelarTarefa();
+
+      if (montado.current) setEstado(novo);
+    } catch (e) {
+      if (montado.current) setFalhou(true);
+    } finally {
+      if (montado.current) setTrocando(false);
+    }
+  }
+
+  const disponivel = estado?.disponivel === true;
+
+  let explicacao = 'Verificando se este aparelho permite…';
+
+  if (estado) {
+    explicacao = disponivel
+      ? `O sistema decide quando rodar: no mínimo a cada ${INTERVALO_MINIMO_MIN} minutos, e só com bateria e rede disponíveis. Pode demorar mais, ou nem rodar.`
+      : estado.motivo;
+  }
+
+  return (
+    <View style={{ gap: espaco.xs }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Texto variante="corpoForte">Atualizar em segundo plano</Texto>
+          <Texto variante="legenda" cor="apoio">
+            {explicacao}
+          </Texto>
+        </View>
+        <Switch
+          value={estado?.registrada === true}
+          disabled={!disponivel || trocando}
+          onValueChange={alternar}
+          trackColor={{ true: cores.lavanda, false: cores.linhaForte }}
+          thumbColor={cores.chave}
+          ios_backgroundColor={cores.linhaForte}
+          accessibilityLabel="Atualizar em segundo plano"
+        />
+      </View>
+      {falhou ? (
+        <Texto variante="legenda" cor="alerta">
+          Não foi possível alterar. Tente de novo.
+        </Texto>
+      ) : null}
+    </View>
+  );
+}
+
 const FATIAS = [
   { valor: 100, rotulo: '100' },
   { valor: 500, rotulo: '500' },
@@ -451,6 +534,7 @@ export default function SincronizarAgendaScreen({ navigation }) {
                 carregando={sincronizando}
                 onPress={sincronizarAgora}
               />
+              <TarefaEmSegundoPlano />
             </View>
 
             <View style={estiloDoCartao(cores)}>
