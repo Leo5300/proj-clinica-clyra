@@ -10,6 +10,9 @@ import { StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useTema } from '../theme';
 
+// Cor do marcador da pessoa, diferente da lavanda da clinica.
+const COR_DA_PESSOA = '#2F80ED';
+
 // "Delta" e o tamanho da janela do mapa, em graus: e um zoom ao contrario.
 // Quanto MENOR, mais perto. 0.05 mostra um bairro, 0.01 algumas quadras e
 // 0.002 uma rua.
@@ -24,7 +27,7 @@ function regiaoEm(ponto, delta = DELTA_PADRAO) {
   };
 }
 
-export default function MapaDaClinica({ clinica, style }) {
+export default function MapaDaClinica({ clinica, posicao, style }) {
   const { cores } = useTema();
 
   // Objeto novo a cada render faz o Marker achar que a posicao mudou. Com um
@@ -33,6 +36,14 @@ export default function MapaDaClinica({ clinica, style }) {
   const coordenadaDaClinica = useMemo(
     () => ({ latitude: clinica.latitude, longitude: clinica.longitude }),
     [clinica.latitude, clinica.longitude],
+  );
+
+  // So desenhada na tela, nunca guardada: a posicao da pessoa e dado sensivel.
+  const latitude = posicao?.latitude;
+  const longitude = posicao?.longitude;
+  const coordenadaDaPessoa = useMemo(
+    () => (latitude === undefined ? null : { latitude, longitude }),
+    [latitude, longitude],
   );
 
   return (
@@ -49,6 +60,14 @@ export default function MapaDaClinica({ clinica, style }) {
         description={clinica.endereco}
         pinColor={cores.lavanda}
       />
+
+      {coordenadaDaPessoa ? (
+        <Marker
+          coordinate={coordenadaDaPessoa}
+          title="Você está aqui"
+          pinColor={COR_DA_PESSOA}
+        />
+      ) : null}
     </MapView>
   );
 }

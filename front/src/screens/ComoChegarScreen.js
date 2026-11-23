@@ -80,7 +80,11 @@ export default function ComoChegarScreen({ navigation }) {
 
       {/* O mapa fica FORA do ScrollView: um mapa dentro de uma lista que
           rola disputa o gesto de arrastar com ela (no Android, principalmente). */}
-      <MapaDaClinica clinica={CLINICA} style={{ height: alturaDoMapa }} />
+      <MapaDaClinica
+        clinica={CLINICA}
+        posicao={posicao}
+        style={{ height: alturaDoMapa }}
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* O endereco vem PRIMEIRO e fica sempre visivel, independente do
