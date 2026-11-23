@@ -10,6 +10,8 @@
 // quem pediu). Nenhum nome e nenhuma consulta: o AsyncStorage nao e cofre.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { buscarConsultas } from './api';
+import { detectarConflitosAgrupadoEmFatias } from './conflitos';
 
 const CHAVE_ULTIMA = '@clyra/sincronizacao/ultima';
 const CHAVE_HISTORICO = '@clyra/sincronizacao/historico';
@@ -77,4 +79,47 @@ export async function registrarNoHistorico(registro) {
   }
 
   return novo;
+}
+
+// Origem fora da lista e erro de quem chamou, nao do servidor: falha alto, em
+// vez de gravar um registro que a leitura depois descartaria em silencio.
+function conferirOrigem(origem) {
+  if (!ORIGENS.includes(origem)) {
+    throw new Error(`Origem de sincronizacao desconhecida: ${origem}`);
+  }
+}
+
+// O trabalho em si: busca e confere. E a mesma conferencia agrupada, em
+// fatias, que a tela da Aula 10 usa -- aqui sem barra de progresso, porque
+// ninguem esta olhando.
+async function conferirAgenda() {
+  const consultas = await buscarConsultas();
+  const { conflitos } = await detectarConflitosAgrupadoEmFatias(consultas);
+
+  return { consultas: consultas.length, conflitos: conflitos.length };
+}
+
+function montarRegistro(origem, inicio, resultado) {
+  return {
+    quando: new Date().toISOString(),
+    origem,
+    ok: !resultado.erro,
+    consultas: resultado.consultas ?? 0,
+    conflitos: resultado.conflitos ?? 0,
+    duracaoMs: Date.now() - inicio,
+    erro: resultado.erro ?? null,
+  };
+}
+
+// Sincroniza e devolve { pulada, registro }.
+export async function sincronizarAgenda(origem) {
+  conferirOrigem(origem);
+
+  const inicio = Date.now();
+  const resultado = await conferirAgenda();
+  const registro = montarRegistro(origem, inicio, resultado);
+
+  await registrarNoHistorico(registro);
+
+  return { pulada: false, registro };
 }
