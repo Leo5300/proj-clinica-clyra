@@ -18,6 +18,7 @@ import {
 } from './api';
 import { detectarConflitosAgrupadoEmFatias } from './conflitos';
 import { criarSinalDeCancelamento } from './processamento';
+import { obterUsuario } from './sessao';
 
 const CHAVE_ULTIMA = '@clyra/sincronizacao/ultima';
 const CHAVE_HISTORICO = '@clyra/sincronizacao/historico';
@@ -172,6 +173,15 @@ async function executarSincronizacao(
   { limiteMs = LIMITE_DE_TEMPO_MS } = {},
 ) {
   conferirOrigem(origem);
+
+  // So a recepcao ve todas as consultas (servidor/regras.js). Para os outros
+  // perfis, ou sem sessao, nao ha o que sincronizar: nao e erro e nao entra
+  // no historico.
+  const usuario = await obterUsuario();
+
+  if (usuario?.perfil !== 'recepcao') {
+    return { pulada: true, motivo: 'sem-recepcao', registro: null };
+  }
 
   const inicio = Date.now();
   let resultado;
