@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+// Importado so pelo efeito colateral: define a tarefa em segundo plano no
+// escopo do modulo, antes de qualquer componente existir. Veja o cabecalho
+// de tarefaBackground.js.
+import './src/services/tarefaBackground';
 import AppNavigator from './src/navigation/AppNavigator';
 import { configurarHandler, prepararCanal } from './src/services/lembretes';
 import { manterRegistroAtualizado } from './src/services/push';
