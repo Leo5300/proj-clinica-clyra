@@ -10,7 +10,12 @@
 // quem pediu). Nenhum nome e nenhuma consulta: o AsyncStorage nao e cofre.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { buscarConsultas } from './api';
+import {
+  ErroDaApi,
+  SemPermissao,
+  SessaoExpirada,
+  buscarConsultas,
+} from './api';
 import { detectarConflitosAgrupadoEmFatias } from './conflitos';
 
 const CHAVE_ULTIMA = '@clyra/sincronizacao/ultima';
@@ -111,12 +116,32 @@ function montarRegistro(origem, inicio, resultado) {
   };
 }
 
+// Texto curto e sem dado pessoal: vai para o historico e aparece na tela.
+// A mensagem original de um erro de rede pode trazer o endereco do servidor;
+// so o tipo do problema interessa. SemPermissao e uma ErroDaApi, por isso
+// vem antes dela.
+function descreverErro(erro) {
+  if (erro instanceof SessaoExpirada) return 'sessão expirada';
+  if (erro instanceof SemPermissao) return 'sem permissão';
+  if (erro instanceof ErroDaApi) return `erro ${erro.status} no servidor`;
+
+  return 'sem conexão com o servidor';
+}
+
 // Sincroniza e devolve { pulada, registro }.
 export async function sincronizarAgenda(origem) {
   conferirOrigem(origem);
 
   const inicio = Date.now();
-  const resultado = await conferirAgenda();
+  let resultado;
+
+  try {
+    resultado = await conferirAgenda();
+  } catch (erro) {
+    // Quem chama nao precisa de try/catch: a falha vira um registro. E a
+    // tarefa em segundo plano nao pode lancar erro para o sistema.
+    resultado = { erro: descreverErro(erro) };
+  }
   const registro = montarRegistro(origem, inicio, resultado);
 
   await registrarNoHistorico(registro);
