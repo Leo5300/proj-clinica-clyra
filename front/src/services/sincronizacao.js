@@ -17,6 +17,7 @@ import {
   buscarConsultas,
 } from './api';
 import { detectarConflitosAgrupadoEmFatias } from './conflitos';
+import { criarSinalDeCancelamento } from './processamento';
 
 const CHAVE_ULTIMA = '@clyra/sincronizacao/ultima';
 const CHAVE_HISTORICO = '@clyra/sincronizacao/historico';
@@ -94,12 +95,49 @@ function conferirOrigem(origem) {
   }
 }
 
+// O sistema da pouco tempo para uma tarefa em segundo plano e depois a
+// interrompe. Melhor parar antes, de proposito, e registrar "passou do limite
+// de tempo" do que ser cortado no meio sem deixar rastro.
+export const LIMITE_DE_TEMPO_MS = 25000;
+
+class TempoEsgotado extends Error {
+  constructor() {
+    super('Tempo esgotado.');
+    this.name = 'TempoEsgotado';
+  }
+}
+
+// Corre contra o relogio. Estourou: avisa o laco de conferencia (sinal de
+// cancelamento da Aula 10) para parar e devolve TempoEsgotado. O fetch nao e
+// cancelavel aqui -- ele so e abandonado.
+function comLimiteDeTempo(criarTrabalho, limiteMs) {
+  const sinal = criarSinalDeCancelamento();
+  let relogio;
+
+  const estouro = new Promise((_, rejeitar) => {
+    relogio = setTimeout(() => {
+      sinal.cancelar();
+      rejeitar(new TempoEsgotado());
+    }, limiteMs);
+  });
+
+  const trabalho = criarTrabalho(sinal);
+
+  // Se o relogio ganhar, o trabalho ainda termina depois (com
+  // TrabalhoCancelado). Sem este catch seria uma rejeicao sem dono.
+  trabalho.catch(() => {});
+
+  return Promise.race([trabalho, estouro]).finally(() => clearTimeout(relogio));
+}
+
 // O trabalho em si: busca e confere. E a mesma conferencia agrupada, em
 // fatias, que a tela da Aula 10 usa -- aqui sem barra de progresso, porque
 // ninguem esta olhando.
-async function conferirAgenda() {
+async function conferirAgenda(sinal) {
   const consultas = await buscarConsultas();
-  const { conflitos } = await detectarConflitosAgrupadoEmFatias(consultas);
+  const { conflitos } = await detectarConflitosAgrupadoEmFatias(consultas, {
+    sinal,
+  });
 
   return { consultas: consultas.length, conflitos: conflitos.length };
 }
@@ -121,6 +159,7 @@ function montarRegistro(origem, inicio, resultado) {
 // so o tipo do problema interessa. SemPermissao e uma ErroDaApi, por isso
 // vem antes dela.
 function descreverErro(erro) {
+  if (erro instanceof TempoEsgotado) return 'passou do limite de tempo';
   if (erro instanceof SessaoExpirada) return 'sessão expirada';
   if (erro instanceof SemPermissao) return 'sem permissão';
   if (erro instanceof ErroDaApi) return `erro ${erro.status} no servidor`;
@@ -129,14 +168,17 @@ function descreverErro(erro) {
 }
 
 // Sincroniza e devolve { pulada, registro }.
-export async function sincronizarAgenda(origem) {
+export async function sincronizarAgenda(
+  origem,
+  { limiteMs = LIMITE_DE_TEMPO_MS } = {},
+) {
   conferirOrigem(origem);
 
   const inicio = Date.now();
   let resultado;
 
   try {
-    resultado = await conferirAgenda();
+    resultado = await comLimiteDeTempo(conferirAgenda, limiteMs);
   } catch (erro) {
     // Quem chama nao precisa de try/catch: a falha vira um registro. E a
     // tarefa em segundo plano nao pode lancar erro para o sistema.
