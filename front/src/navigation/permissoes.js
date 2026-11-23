@@ -31,6 +31,7 @@ export const ROTAS_POR_PERFIL = {
   CadastroEspecialidade: ['recepcao'],
   // Verificacao da agenda inteira: so a recepcao ve todas as consultas.
   SincronizarAgenda: ['recepcao'],
+  HistoricoSincronizacao: ['recepcao'],
   Horarios: ['recepcao', 'medico'],
   CadastroHorario: ['recepcao', 'medico'],
   SinaisVitais: ['medico', 'paciente'],

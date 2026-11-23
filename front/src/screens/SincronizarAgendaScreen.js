@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Switch, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -16,7 +16,15 @@ import {
   mesmosConflitos,
 } from '../services/conflitos';
 import { dataDaConsulta } from '../services/lembretes';
-import { formatarDiaEMes } from '../services/datas';
+import { formatarDiaEMes, haQuantoTempo } from '../services/datas';
+import { useSincronizacao } from '../services/useSincronizacao';
+import {
+  INTERVALO_MINIMO_MIN,
+  cancelarTarefa,
+  dispararTarefaParaTeste,
+  estadoDaTarefa,
+  registrarTarefa,
+} from '../services/tarefaBackground';
 import { useTarefaPesada } from '../services/useTarefaPesada';
 import {
   Botao,
@@ -251,6 +259,157 @@ function Resumo({ resultado }) {
   );
 }
 
+// Re-renderiza de tempos em tempos para o "atualizado ha 5 min" nao ficar
+// parado numa tela deixada aberta. So o tique: a hora e lida na hora de pintar.
+function useRelogio(intervaloMs) {
+  const [, setTique] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTique((t) => t + 1), intervaloMs);
+
+    return () => clearInterval(id);
+  }, [intervaloMs]);
+}
+
+// O que a tela pode afirmar: quando foi a ULTIMA vez que deu certo e o que
+// ela achou. Se a tentativa mais recente falhou, diz isso e avisa que os
+// numeros sao da ultima que deu certo.
+function StatusDaSincronizacao({ ultima, ultimaTentativa, sincronizando }) {
+  useRelogio(30000);
+
+  const falhou =
+    ultimaTentativa !== null &&
+    !ultimaTentativa.ok &&
+    (!ultima || ultimaTentativa.quando > ultima.quando);
+
+  return (
+    <View style={{ gap: espaco.xs }}>
+      {ultima ? (
+        <>
+          <Selo
+            texto={rotuloDeConflitos(ultima.conflitos)}
+            tom={ultima.conflitos > 0 ? 'atencao' : 'papel'}
+            icone={ultima.conflitos > 0 ? 'alert-triangle' : 'check'}
+          />
+          <Texto variante="rotulo" cor="tinta2">
+            {`Atualizado ${haQuantoTempo(ultima.quando) ?? '(horário indisponível)'}`}
+          </Texto>
+          <Texto variante="pequeno" cor="apoio" tabular>
+            {`${formatarNumero(ultima.consultas)} consultas · pedida por: ${ultima.origem}`}
+          </Texto>
+        </>
+      ) : (
+        <Texto cor="tinta2">Ainda não sincronizado neste aparelho.</Texto>
+      )}
+      {sincronizando ? (
+        <Texto variante="rotulo" cor="apoio">
+          Sincronizando…
+        </Texto>
+      ) : null}
+      {falhou ? (
+        <Texto variante="rotulo" cor="alerta">
+          {`A última tentativa falhou (${ultimaTentativa.erro}). Os números acima são da última vez que deu certo.`}
+        </Texto>
+      ) : null}
+    </View>
+  );
+}
+
+// A tarefa periodica e opcional: o sistema decide quando rodar e em alguns
+// aparelhos (Expo Go no Android, economia de bateria) ela nem existe. Por
+// isso a chave nasce desativada e explica o motivo em vez de sumir ou de
+// prometer algo que o aparelho nao entrega.
+function TarefaEmSegundoPlano() {
+  const { cores } = useTema();
+  // null = ainda descobrindo.
+  const [estado, setEstado] = useState(null);
+  const [trocando, setTrocando] = useState(false);
+  const [falhou, setFalhou] = useState(false);
+  const [disparo, setDisparo] = useState(null);
+  const montado = useRef(true);
+
+  useEffect(() => {
+    montado.current = true;
+
+    estadoDaTarefa().then((atual) => {
+      if (montado.current) setEstado(atual);
+    });
+
+    return () => {
+      montado.current = false;
+    };
+  }, []);
+
+  async function alternar(ligar) {
+    setTrocando(true);
+    setFalhou(false);
+
+    try {
+      const novo = ligar ? await registrarTarefa() : await cancelarTarefa();
+
+      if (montado.current) setEstado(novo);
+    } catch (e) {
+      if (montado.current) setFalhou(true);
+    } finally {
+      if (montado.current) setTrocando(false);
+    }
+  }
+
+  const disponivel = estado?.disponivel === true;
+
+  let explicacao = 'Verificando se este aparelho permite…';
+
+  if (estado) {
+    explicacao = disponivel
+      ? `O sistema decide quando rodar: no mínimo a cada ${INTERVALO_MINIMO_MIN} minutos, e só com bateria e rede disponíveis. Pode demorar mais, ou nem rodar.`
+      : estado.motivo;
+  }
+
+  return (
+    <View style={{ gap: espaco.xs }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: espaco.sm }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Texto variante="corpoForte">Atualizar em segundo plano</Texto>
+          <Texto variante="legenda" cor="apoio">
+            {explicacao}
+          </Texto>
+        </View>
+        <Switch
+          value={estado?.registrada === true}
+          disabled={!disponivel || trocando}
+          onValueChange={alternar}
+          trackColor={{ true: cores.lavanda, false: cores.linhaForte }}
+          thumbColor={cores.chave}
+          ios_backgroundColor={cores.linhaForte}
+          accessibilityLabel="Atualizar em segundo plano"
+        />
+      </View>
+      {falhou ? (
+        <Texto variante="legenda" cor="alerta">
+          Não foi possível alterar. Tente de novo.
+        </Texto>
+      ) : null}
+      {__DEV__ && estado?.registrada ? (
+        <>
+          <Botao
+            titulo="Disparar a tarefa agora (teste)"
+            variante="contorno"
+            compacto
+            onPress={async () => setDisparo(await dispararTarefaParaTeste())}
+          />
+          {disparo !== null ? (
+            <Texto variante="legenda" cor="apoio">
+              {disparo
+                ? 'O sistema aceitou o disparo. Abra o histórico para ver o registro "background".'
+                : 'O sistema não aceitou o disparo.'}
+            </Texto>
+          ) : null}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 const FATIAS = [
   { valor: 100, rotulo: '100' },
   { valor: 500, rotulo: '500' },
@@ -337,6 +496,8 @@ export default function SincronizarAgendaScreen({ navigation }) {
     iniciar,
     cancelar,
   } = useTarefaPesada(verificar);
+  const { ultima, ultimaTentativa, sincronizando, sincronizarAgora } =
+    useSincronizacao();
 
   // Sessao expirada no meio da busca: volta para o login, como as outras telas.
   useEffect(() => {
@@ -366,6 +527,39 @@ export default function SincronizarAgendaScreen({ navigation }) {
               <Texto variante="rotulo" cor="apoio">
                 Procura horários sobrepostos na agenda de cada profissional.
               </Texto>
+            </View>
+
+            <View style={estiloDoCartao(cores)}>
+              <View style={{ gap: 4 }}>
+                <Texto variante="secao" accessibilityRole="header">
+                  Sincronização
+                </Texto>
+                <Texto variante="legenda" cor="apoio">
+                  Guarda neste aparelho quantas consultas e quantos conflitos a
+                  agenda tinha na última conferência. Atualiza quando o app volta
+                  ao primeiro plano, no máximo a cada 15 minutos, enquanto esta
+                  tela estiver aberta.
+                </Texto>
+              </View>
+              <StatusDaSincronizacao
+                ultima={ultima}
+                ultimaTentativa={ultimaTentativa}
+                sincronizando={sincronizando}
+              />
+              <Botao
+                titulo="Atualizar agora"
+                icone="rotate-cw"
+                variante="contorno"
+                carregando={sincronizando}
+                onPress={sincronizarAgora}
+              />
+              <TarefaEmSegundoPlano />
+              <Botao
+                titulo="Ver histórico"
+                icone="clock"
+                variante="texto"
+                onPress={() => navigation.navigate('HistoricoSincronizacao')}
+              />
             </View>
 
             <View style={estiloDoCartao(cores)}>

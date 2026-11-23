@@ -146,3 +146,22 @@ export function faixaDeMeses(datas) {
 
   return `${nomeDoMes(primeira)} – ${nomeDoMes(ultima)} ${ano}`;
 }
+
+// "agora há pouco", "há 5 min", "há 3 h", "há 2 dias". Devolve null quando a
+// data nao existe ou esta no futuro (relogio do aparelho mudou): melhor nao
+// dizer nada do que inventar um numero.
+export function haQuantoTempo(quandoIso, agora = Date.now()) {
+  const minutos = Math.floor((agora - Date.parse(quandoIso)) / (60 * 1000));
+
+  if (!Number.isFinite(minutos) || minutos < 0) return null;
+  if (minutos < 1) return 'agora há pouco';
+  if (minutos < 60) return `há ${minutos} min`;
+
+  const horas = Math.floor(minutos / 60);
+
+  if (horas < 24) return `há ${horas} h`;
+
+  const dias = Math.floor(horas / 24);
+
+  return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+}
