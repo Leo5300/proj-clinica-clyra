@@ -5,7 +5,7 @@
 // (rede) e sessao.js (cofre do sistema): o periferico fica atras de um
 // service, e a tela fala a linguagem do dominio.
 
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import * as Location from 'expo-location';
 
 // Coordenadas e endereco da clinica ficam aqui, no mesmo arquivo do
@@ -135,6 +135,23 @@ function montarLinkWeb(destino) {
   return `https://www.google.com/maps/search/?api=1&query=${destino.latitude},${destino.longitude}`;
 }
 
+// Abre a clinica no app de mapas. Devolve true se algum app aceitou o link.
+// Sem app de mapas (ou sem permissao do sistema), tenta o navegador antes de
+// desistir: a pessoa precisa chegar ao mapa de algum jeito.
+async function abrirNoAppDeMapas(destino) {
+  try {
+    await Linking.openURL(montarLinkDoMapa(destino));
+    return true;
+  } catch (e) {
+    try {
+      await Linking.openURL(montarLinkWeb(destino));
+      return true;
+    } catch (e2) {
+      return false;
+    }
+  }
+}
+
 export {
   CLINICA,
   PermissaoNegada,
@@ -144,4 +161,5 @@ export {
   estimarMinutos,
   montarLinkDoMapa,
   montarLinkWeb,
+  abrirNoAppDeMapas,
 };

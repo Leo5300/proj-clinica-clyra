@@ -19,6 +19,7 @@ import {
   distanciaKm,
   formatarDistancia,
   estimarMinutos,
+  abrirNoAppDeMapas,
 } from '../services/localizacao';
 
 export default function ComoChegarScreen({ navigation }) {
@@ -37,6 +38,7 @@ export default function ComoChegarScreen({ navigation }) {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
   const [permissaoNegada, setPermissaoNegada] = useState(null);
+  const [mapaFalhou, setMapaFalhou] = useState(false);
 
   const localizar = useCallback(async () => {
     setErro(null);
@@ -60,6 +62,14 @@ export default function ComoChegarScreen({ navigation }) {
       // finally sempre: sem ele a tela fica presa em "Localizando..."
       // quando algo da errado.
       setCarregando(false);
+    }
+  }, []);
+
+  const abrirNoMapa = useCallback(async () => {
+    setMapaFalhou(false);
+
+    if (!(await abrirNoAppDeMapas(CLINICA))) {
+      setMapaFalhou(true);
     }
   }, []);
 
@@ -114,7 +124,23 @@ export default function ComoChegarScreen({ navigation }) {
             <Text style={styles.botaoDoMapaTexto}>Ver você e a clínica</Text>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity
+          style={styles.botaoDoMapa}
+          onPress={abrirNoMapa}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir a clínica no aplicativo de mapas do aparelho"
+        >
+          <Text style={styles.botaoDoMapaTexto}>Abrir no app de mapas</Text>
+        </TouchableOpacity>
       </View>
+
+      {mapaFalhou && (
+        <Text style={[styles.erroTexto, styles.avisoDoMapa]}>
+          Não foi possível abrir um aplicativo de mapas neste aparelho. O
+          endereço está logo abaixo.
+        </Text>
+      )}
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* O endereco vem PRIMEIRO e fica sempre visivel, independente do
@@ -399,5 +425,11 @@ const criarEstilos = (cores) =>
       fontFamily: fontes.textoSemi,
       fontSize: 13,
       color: cores.tinta,
+    },
+
+    avisoDoMapa: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      marginBottom: 0,
     },
   });
