@@ -8,8 +8,9 @@
 import * as Location from 'expo-location';
 
 // Coordenadas e endereco da clinica ficam aqui, no mesmo arquivo do
-// calculo, porque hoje sao fixos. Na Aula 12 (Mapas) eles podem passar a
-// vir do geocoding do endereco -- ate la, isto e divida tecnica
+// calculo, porque hoje sao fixos. O mapa da Aula 12 usa estas mesmas
+// coordenadas. Se a clinica passar a ter varias unidades, a lista vem da
+// API e o mapa recebe uma por vez; ate la, isto e divida tecnica
 // consciente, nao descuido.
 const CLINICA = {
   nome: 'Clyra',

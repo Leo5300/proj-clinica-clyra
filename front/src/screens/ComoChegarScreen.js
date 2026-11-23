@@ -11,6 +11,7 @@ import {
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import MapaDaClinica from '../components/MapaDaClinica';
 import {
   CLINICA,
   obterPosicaoAtual,
@@ -71,6 +72,10 @@ export default function ComoChegarScreen({ navigation }) {
 
         <View style={styles.headerSpacer} />
       </View>
+
+      {/* O mapa fica FORA do ScrollView: um mapa dentro de uma lista que
+          rola disputa o gesto de arrastar com ela (no Android, principalmente). */}
+      <MapaDaClinica clinica={CLINICA} style={{ height: 280 }} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* O endereco vem PRIMEIRO e fica sempre visivel, independente do
