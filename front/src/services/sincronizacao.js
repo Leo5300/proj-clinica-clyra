@@ -215,3 +215,26 @@ export function sincronizarAgenda(origem, opcoes) {
 
   return emAndamento;
 }
+
+const MS_POR_MINUTO = 60 * 1000;
+
+// "Ja passou tempo suficiente desde a ultima que deu certo?" Serve ao hook (app
+// voltando ao primeiro plano) e a tarefa em segundo plano, para nenhum dos dois
+// repetir o trabalho que o outro acabou de fazer.
+export async function precisaSincronizar(intervaloMinutos) {
+  const ultima = await lerUltima();
+
+  if (!ultima) {
+    return true;
+  }
+
+  const passou = Date.now() - Date.parse(ultima.quando);
+
+  // Data ilegivel ou relogio do aparelho que voltou no tempo: na duvida,
+  // sincroniza.
+  if (!Number.isFinite(passou) || passou < 0) {
+    return true;
+  }
+
+  return passou >= intervaloMinutos * MS_POR_MINUTO;
+}
