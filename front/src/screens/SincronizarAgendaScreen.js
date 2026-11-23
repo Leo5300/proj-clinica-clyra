@@ -21,6 +21,7 @@ import { useSincronizacao } from '../services/useSincronizacao';
 import {
   INTERVALO_MINIMO_MIN,
   cancelarTarefa,
+  dispararTarefaParaTeste,
   estadoDaTarefa,
   registrarTarefa,
 } from '../services/tarefaBackground';
@@ -324,6 +325,7 @@ function TarefaEmSegundoPlano() {
   const [estado, setEstado] = useState(null);
   const [trocando, setTrocando] = useState(false);
   const [falhou, setFalhou] = useState(false);
+  const [disparo, setDisparo] = useState(null);
   const montado = useRef(true);
 
   useEffect(() => {
@@ -386,6 +388,23 @@ function TarefaEmSegundoPlano() {
         <Texto variante="legenda" cor="alerta">
           Não foi possível alterar. Tente de novo.
         </Texto>
+      ) : null}
+      {__DEV__ && estado?.registrada ? (
+        <>
+          <Botao
+            titulo="Disparar a tarefa agora (teste)"
+            variante="contorno"
+            compacto
+            onPress={async () => setDisparo(await dispararTarefaParaTeste())}
+          />
+          {disparo !== null ? (
+            <Texto variante="legenda" cor="apoio">
+              {disparo
+                ? 'O sistema aceitou o disparo. Abra o histórico para ver o registro "background".'
+                : 'O sistema não aceitou o disparo.'}
+            </Texto>
+          ) : null}
+        </>
       ) : null}
     </View>
   );

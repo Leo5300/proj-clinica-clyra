@@ -121,3 +121,16 @@ export async function cancelarTarefa() {
 
   return estadoDaTarefa();
 }
+
+// So em build de desenvolvimento: pede ao sistema para rodar a tarefa agora,
+// sem esperar os 15 minutos. Em producao o sistema recusa. Devolve true se o
+// sistema aceitou o pedido.
+export async function dispararTarefaParaTeste() {
+  const estado = await estadoDaTarefa();
+
+  if (!estado.disponivel || !estado.registrada) {
+    return false;
+  }
+
+  return BackgroundTask.triggerTaskWorkerForTestingAsync();
+}
