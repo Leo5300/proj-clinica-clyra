@@ -167,8 +167,7 @@ function descreverErro(erro) {
   return 'sem conexão com o servidor';
 }
 
-// Sincroniza e devolve { pulada, registro }.
-export async function sincronizarAgenda(
+async function executarSincronizacao(
   origem,
   { limiteMs = LIMITE_DE_TEMPO_MS } = {},
 ) {
@@ -189,4 +188,20 @@ export async function sincronizarAgenda(
   await registrarNoHistorico(registro);
 
   return { pulada: false, registro };
+}
+
+// Sincroniza e devolve { pulada, registro }. Uma de cada vez: se ja ha uma
+// rodando (o app voltou ao primeiro plano no mesmo instante em que a tarefa
+// acordou, ou alguem tocou duas vezes), quem chega depois recebe a MESMA
+// promessa em vez de disparar outra busca igual.
+let emAndamento = null;
+
+export function sincronizarAgenda(origem, opcoes) {
+  if (!emAndamento) {
+    emAndamento = executarSincronizacao(origem, opcoes).finally(() => {
+      emAndamento = null;
+    });
+  }
+
+  return emAndamento;
 }
