@@ -394,7 +394,8 @@ export default function SincronizarAgendaScreen({ navigation }) {
     iniciar,
     cancelar,
   } = useTarefaPesada(verificar);
-  const { ultima, ultimaTentativa, sincronizando } = useSincronizacao();
+  const { ultima, ultimaTentativa, sincronizando, sincronizarAgora } =
+    useSincronizacao();
 
   // Sessao expirada no meio da busca: volta para o login, como as outras telas.
   useEffect(() => {
@@ -442,6 +443,13 @@ export default function SincronizarAgendaScreen({ navigation }) {
                 ultima={ultima}
                 ultimaTentativa={ultimaTentativa}
                 sincronizando={sincronizando}
+              />
+              <Botao
+                titulo="Atualizar agora"
+                icone="rotate-cw"
+                variante="contorno"
+                carregando={sincronizando}
+                onPress={sincronizarAgora}
               />
             </View>
 
