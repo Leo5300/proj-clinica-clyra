@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -24,6 +24,7 @@ import {
 export default function ComoChegarScreen({ navigation }) {
   const { cores } = useTema();
   const styles = useMemo(() => criarEstilos(cores), [cores]);
+  const mapaRef = useRef(null);
   const { height } = useWindowDimensions();
   // O mapa ocupa cerca de 40% da tela e nunca menos de 240: o resto e do
   // painel de texto, que rola por baixo dele.
@@ -81,10 +82,29 @@ export default function ComoChegarScreen({ navigation }) {
       {/* O mapa fica FORA do ScrollView: um mapa dentro de uma lista que
           rola disputa o gesto de arrastar com ela (no Android, principalmente). */}
       <MapaDaClinica
+        ref={mapaRef}
         clinica={CLINICA}
         posicao={posicao}
         style={{ height: alturaDoMapa }}
       />
+
+      <View style={styles.acoesDoMapa}>
+        <TouchableOpacity
+          style={styles.botaoDoMapa}
+          onPress={() => mapaRef.current?.verClinica()}
+        >
+          <Text style={styles.botaoDoMapaTexto}>Ver a clínica</Text>
+        </TouchableOpacity>
+
+        {posicao && (
+          <TouchableOpacity
+            style={styles.botaoDoMapa}
+            onPress={() => mapaRef.current?.enquadrar()}
+          >
+            <Text style={styles.botaoDoMapaTexto}>Ver você e a clínica</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* O endereco vem PRIMEIRO e fica sempre visivel, independente do
@@ -343,5 +363,27 @@ const criarEstilos = (cores) =>
       color: cores.sobreAcao,
       fontFamily: fontes.textoForte,
       fontSize: 14,
+    },
+
+    acoesDoMapa: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+    },
+
+    botaoDoMapa: {
+      borderWidth: 1,
+      borderColor: cores.linhaForte,
+      borderRadius: 999,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+    },
+
+    botaoDoMapaTexto: {
+      fontFamily: fontes.textoSemi,
+      fontSize: 13,
+      color: cores.tinta,
     },
   });

@@ -73,7 +73,16 @@ export default function MapaDaClinica({ clinica, posicao, ref, style }) {
     enquadrar();
   }, [enquadrar]);
 
-  useImperativeHandle(ref, () => ({ enquadrar }), [enquadrar]);
+  // Volta o mapa para a clinica com uma animacao de 600 ms, mesmo depois de
+  // a pessoa ter arrastado para longe.
+  const verClinica = useCallback(() => {
+    mapa.current?.animateToRegion(regiaoEm(clinica), 600);
+  }, [clinica]);
+
+  useImperativeHandle(ref, () => ({ enquadrar, verClinica }), [
+    enquadrar,
+    verClinica,
+  ]);
 
   return (
     <MapView
