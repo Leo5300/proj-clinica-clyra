@@ -8,9 +8,14 @@
 // ouvinte e removido -- sem isso ele continuaria vivo e dispararia
 // sincronizacoes sem ninguem para mostra-las.
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { precisaSincronizar, sincronizarAgenda } from './sincronizacao';
+import {
+  lerHistorico,
+  lerUltima,
+  precisaSincronizar,
+  sincronizarAgenda,
+} from './sincronizacao';
 
 // A tarefa em segundo plano nunca roda em menos de 15 minutos (minimo do
 // Android), e voltar ao app tambem nao deve sincronizar mais que isso.
@@ -19,6 +24,16 @@ export const INTERVALO_PADRAO_MIN = 15;
 export function useSincronizacao({
   intervaloMinutos = INTERVALO_PADRAO_MIN,
 } = {}) {
+  // ultima = a ultima que deu certo; ultimaTentativa = a mais recente, deu
+  // certo ou nao. A tela precisa das duas para ser honesta.
+  const [estado, setEstado] = useState({
+    ultima: null,
+    ultimaTentativa: null,
+    sincronizando: false,
+  });
+  // Sem isto, uma sincronizacao que termina depois de a tela sair tentaria
+  // atualizar um estado que nao existe mais.
+  const montado = useRef(true);
   // Ref: o ouvinte do AppState e criado uma vez so e precisa ler o valor de
   // AGORA, nao o do primeiro render.
   const intervalo = useRef(intervaloMinutos);
@@ -26,6 +41,44 @@ export function useSincronizacao({
   useEffect(() => {
     intervalo.current = intervaloMinutos;
   });
+
+  const atualizar = useCallback((parte) => {
+    if (montado.current) {
+      setEstado((atual) => ({ ...atual, ...parte }));
+    }
+  }, []);
+
+  const recarregar = useCallback(async () => {
+    const [ultima, historico] = await Promise.all([
+      lerUltima(),
+      lerHistorico(),
+    ]);
+
+    atualizar({ ultima, ultimaTentativa: historico[0] ?? null });
+  }, [atualizar]);
+
+  const executar = useCallback(
+    async (origem) => {
+      atualizar({ sincronizando: true });
+
+      try {
+        return await sincronizarAgenda(origem);
+      } finally {
+        await recarregar();
+        atualizar({ sincronizando: false });
+      }
+    },
+    [atualizar, recarregar],
+  );
+
+  useEffect(() => {
+    montado.current = true;
+    recarregar();
+
+    return () => {
+      montado.current = false;
+    };
+  }, [recarregar]);
 
   useEffect(() => {
     let anterior = AppState.currentState;
@@ -43,16 +96,16 @@ export function useSincronizacao({
       // notificacoes ou o seletor de apps, sem ir para o fundo. E o
       // intervalo que impede sincronizar a cada uma dessas voltas.
       if (voltou && (await precisaSincronizar(intervalo.current))) {
-        sincronizarAgenda('voltou ao app');
+        executar('voltou ao app');
       }
     });
 
     return () => assinatura.remove();
-  }, []);
+  }, [executar]);
 
   // Sob pedido (botao "Atualizar agora"): ignora o intervalo, porque foi uma
   // pessoa quem pediu.
-  const sincronizarAgora = useCallback(() => sincronizarAgenda('manual'), []);
+  const sincronizarAgora = useCallback(() => executar('manual'), [executar]);
 
-  return { sincronizarAgora };
+  return { ...estado, sincronizarAgora, recarregar };
 }
