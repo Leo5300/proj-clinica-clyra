@@ -55,3 +55,26 @@ export async function lerHistorico() {
     return [];
   }
 }
+
+// O historico nao pode crescer para sempre: guarda as 20 mais recentes.
+export const LIMITE_DO_HISTORICO = 20;
+
+// Acrescenta o registro no topo do historico. Se foi bem-sucedido, vira
+// tambem a "ultima". Sem armazenamento nao ha o que guardar -- a
+// sincronizacao em si ja aconteceu, entao o erro de gravar nao sobe.
+export async function registrarNoHistorico(registro) {
+  const historico = await lerHistorico();
+  const novo = [registro, ...historico].slice(0, LIMITE_DO_HISTORICO);
+
+  try {
+    await AsyncStorage.setItem(CHAVE_HISTORICO, JSON.stringify(novo));
+
+    if (registro.ok) {
+      await AsyncStorage.setItem(CHAVE_ULTIMA, JSON.stringify(registro));
+    }
+  } catch (e) {
+    // Nada a fazer.
+  }
+
+  return novo;
+}
