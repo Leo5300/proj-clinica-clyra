@@ -5,9 +5,10 @@
 // texto: um mapa sozinho nao serve a quem usa leitor de tela, esta sem rede
 // ou nao consegue manipular o mapa.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
+import { useTema } from '../theme';
 
 // "Delta" e o tamanho da janela do mapa, em graus: e um zoom ao contrario.
 // Quanto MENOR, mais perto. 0.05 mostra um bairro, 0.01 algumas quadras e
@@ -24,13 +25,31 @@ function regiaoEm(ponto, delta = DELTA_PADRAO) {
 }
 
 export default function MapaDaClinica({ clinica, style }) {
+  const { cores } = useTema();
+
+  // Objeto novo a cada render faz o Marker achar que a posicao mudou. Com um
+  // marcador tanto faz; com 200 pesa (o mesmo raciocinio do objeto novo a cada
+  // render da Aula 10). Por isso ja nasce memorizado.
+  const coordenadaDaClinica = useMemo(
+    () => ({ latitude: clinica.latitude, longitude: clinica.longitude }),
+    [clinica.latitude, clinica.longitude],
+  );
+
   return (
     <MapView
       style={[estilos.mapa, style]}
       // initialRegion, e nao region: com region o mapa volta para ca a cada
       // render e a pessoa nao consegue arrastar nem dar zoom.
       initialRegion={regiaoEm(clinica)}
-    />
+    >
+      {/* title e description formam o balao que abre ao tocar no marcador. */}
+      <Marker
+        coordinate={coordenadaDaClinica}
+        title={clinica.nome}
+        description={clinica.endereco}
+        pinColor={cores.lavanda}
+      />
+    </MapView>
   );
 }
 
