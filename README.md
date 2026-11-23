@@ -477,7 +477,7 @@ decide quando (e se) roda.
 | Ambiente | Sincronização manual e ao voltar | Tarefa periódica |
 |---|---|---|
 | Expo Go no Android | Funciona | A documentação do TaskManager diz que não está disponível; o app confere em tempo de execução e, se não estiver, desativa a chave e explica o motivo |
-| Expo Go no iOS | Funciona | A documentação do Expo diz que não há execução em segundo plano no Expo Go |
+| Expo Go no iOS | Funciona | A documentação do Expo diz que não há execução em segundo plano no Expo Go; no iPhone 13 (iOS 27.2) a chave ficou desativada, com o aviso de que o sistema restringiu tarefas em segundo plano |
 | Development build | Funciona | Funciona; no desenvolvimento, o botão "Disparar a tarefa agora (teste)" aciona o sistema na hora |
 
 O app abre normalmente em todos os casos: as bibliotecas da tarefa são carregadas com
@@ -487,11 +487,11 @@ O app abre normalmente em todos os casos: as bibliotecas da tarefa são carregad
 
 | Teste | Onde | Resultado |
 |---|---|---|
-| "Atualizar agora" grava o resultado e uma linha no histórico | PREENCHER | PREENCHER |
-| Voltar ao app depois de mais de 15 minutos sincroniza; antes disso, não | PREENCHER | PREENCHER |
-| Servidor desligado: a falha é registrada e o último valor bom continua na tela | PREENCHER | PREENCHER |
-| A chave "Atualizar em segundo plano" | PREENCHER | PREENCHER |
-| Tarefa periódica rodando sozinha (só em development build) | PREENCHER | PREENCHER |
+| "Atualizar agora" grava o resultado e uma linha no histórico | iPhone 13, iOS 27.2, Expo Go | Mostrou "Atualizado agora há pouco" e nenhum conflito; cada toque em "Atualizar agora" gerou uma linha `manual` no histórico. |
+| Voltar ao app depois de mais de 15 minutos sincroniza; antes disso, não | iPhone 13, iOS 27.2, Expo Go, na tela Verificar agenda | Com cerca de 30 s no fundo, o histórico só tinha linhas `manual`; depois de mais de 15 min no fundo, entrou uma linha `voltou ao app`. |
+| Servidor desligado: a falha é registrada e o último valor bom continua na tela | iPhone 13, iOS 27.2, Expo Go; só o json-server foi parado (a auth-api ficou no ar) | A tela mostrou "A última tentativa falhou (erro 500 no servidor)" e que os números eram da última vez que deu certo, que continuaram visíveis; a verificação da agenda disse "Não conseguimos falar com a clínica". O histórico ganhou uma linha de falha ("erro 500 no servidor"). |
+| A chave "Atualizar em segundo plano" | iPhone 13, iOS 27.2, Expo Go | Não foi possível ativar: a chave ficou desativada com o texto "O sistema restringiu tarefas em segundo plano para este app (economia de bateria ou ajustes do aparelho)". A Atualização em Segundo Plano do iPhone estava desativada por causa da pouca energia. |
+| Tarefa periódica rodando sozinha (só em development build) | não testado | não testado: sem development build. |
 
 #### Limites conhecidos
 
