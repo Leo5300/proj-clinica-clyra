@@ -70,11 +70,17 @@ export default function ComoChegarScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Feather name="chevron-left" size={26} color={cores.tinta} />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Como chegar</Text>
+        <Text style={styles.title} accessibilityRole="header">
+          Como chegar
+        </Text>
 
         <View style={styles.headerSpacer} />
       </View>
@@ -92,6 +98,8 @@ export default function ComoChegarScreen({ navigation }) {
         <TouchableOpacity
           style={styles.botaoDoMapa}
           onPress={() => mapaRef.current?.verClinica()}
+          accessibilityRole="button"
+          accessibilityLabel="Ver a clínica no mapa"
         >
           <Text style={styles.botaoDoMapaTexto}>Ver a clínica</Text>
         </TouchableOpacity>
@@ -100,6 +108,8 @@ export default function ComoChegarScreen({ navigation }) {
           <TouchableOpacity
             style={styles.botaoDoMapa}
             onPress={() => mapaRef.current?.enquadrar()}
+            accessibilityRole="button"
+            accessibilityLabel="Ver você e a clínica no mapa"
           >
             <Text style={styles.botaoDoMapaTexto}>Ver você e a clínica</Text>
           </TouchableOpacity>
@@ -135,7 +145,7 @@ export default function ComoChegarScreen({ navigation }) {
                 posicao. Sem indicador, parece que o app travou. */}
             <ActivityIndicator color={cores.link} />
 
-            <Text style={styles.loadingText}>
+            <Text style={styles.loadingText} accessibilityLiveRegion="polite">
               Localizando você...
             </Text>
           </View>
@@ -158,6 +168,7 @@ export default function ComoChegarScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.botao}
                   onPress={localizar}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.botaoTexto}>
                     Permitir localização
@@ -179,6 +190,7 @@ export default function ComoChegarScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.botao}
                   onPress={() => Linking.openSettings()}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.botaoTexto}>
                     Abrir os ajustes do aparelho
@@ -198,6 +210,7 @@ export default function ComoChegarScreen({ navigation }) {
             <TouchableOpacity
               style={styles.botao}
               onPress={localizar}
+              accessibilityRole="button"
             >
               <Text style={styles.botaoTexto}>
                 Tentar de novo
@@ -207,7 +220,7 @@ export default function ComoChegarScreen({ navigation }) {
         )}
 
         {posicao && distancia !== null && (
-          <View style={styles.card}>
+          <View style={styles.card} accessibilityLiveRegion="polite">
             <Text style={styles.cardEyebrow}>
               Distância
             </Text>
@@ -241,6 +254,7 @@ export default function ComoChegarScreen({ navigation }) {
           <TouchableOpacity
             style={styles.botao}
             onPress={localizar}
+            accessibilityRole="button"
           >
             <Text style={styles.botaoTexto}>
               Calcular distância até a clínica

@@ -88,6 +88,10 @@ export default function MapaDaClinica({ clinica, posicao, ref, style }) {
     <MapView
       ref={mapa}
       style={[estilos.mapa, style]}
+      // Um unico elemento para o leitor de tela, com o que o mapa mostra. O que
+      // ele nao consegue dizer (as ruas) esta escrito no painel logo abaixo.
+      accessible
+      accessibilityLabel={`Mapa com a localização da clínica ${clinica.nome}. O endereço completo está escrito logo abaixo.`}
       // initialRegion, e nao region: com region o mapa volta para ca a cada
       // render e a pessoa nao consegue arrastar nem dar zoom.
       initialRegion={regiaoEm(clinica)}
