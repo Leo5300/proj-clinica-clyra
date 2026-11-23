@@ -5,13 +5,22 @@
 // texto: um mapa sozinho nao serve a quem usa leitor de tela, esta sem rede
 // ou nao consegue manipular o mapa.
 
-import React, { useMemo } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from 'react';
 import { StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useTema } from '../theme';
 
 // Cor do marcador da pessoa, diferente da lavanda da clinica.
 const COR_DA_PESSOA = '#2F80ED';
+
+// Folga para os marcadores nao ficarem colados na borda do mapa.
+const MARGEM = { top: 60, right: 60, bottom: 60, left: 60 };
 
 // "Delta" e o tamanho da janela do mapa, em graus: e um zoom ao contrario.
 // Quanto MENOR, mais perto. 0.05 mostra um bairro, 0.01 algumas quadras e
@@ -27,8 +36,10 @@ function regiaoEm(ponto, delta = DELTA_PADRAO) {
   };
 }
 
-export default function MapaDaClinica({ clinica, posicao, style }) {
+// "ref" e uma prop comum no React 19: a tela usa mapaRef.current.enquadrar().
+export default function MapaDaClinica({ clinica, posicao, ref, style }) {
   const { cores } = useTema();
+  const mapa = useRef(null);
 
   // Objeto novo a cada render faz o Marker achar que a posicao mudou. Com um
   // marcador tanto faz; com 200 pesa (o mesmo raciocinio do objeto novo a cada
@@ -46,8 +57,27 @@ export default function MapaDaClinica({ clinica, posicao, style }) {
     [latitude, longitude],
   );
 
+  // Ajusta o zoom para caberem a clinica e a pessoa, o que nenhum delta
+  // fixo faria: a distancia entre os dois muda a cada pessoa.
+  const enquadrar = useCallback(() => {
+    if (!coordenadaDaPessoa) return;
+
+    mapa.current?.fitToCoordinates([coordenadaDaClinica, coordenadaDaPessoa], {
+      edgePadding: MARGEM,
+      animated: true,
+    });
+  }, [coordenadaDaClinica, coordenadaDaPessoa]);
+
+  // Quando a posicao chega, mostra os dois juntos.
+  useEffect(() => {
+    enquadrar();
+  }, [enquadrar]);
+
+  useImperativeHandle(ref, () => ({ enquadrar }), [enquadrar]);
+
   return (
     <MapView
+      ref={mapa}
       style={[estilos.mapa, style]}
       // initialRegion, e nao region: com region o mapa volta para ca a cada
       // render e a pessoa nao consegue arrastar nem dar zoom.
