@@ -56,9 +56,82 @@ function normalizarNumero(numero) {
   return `+${digitos}`;
 }
 
+// ------------------------------------------------------------- SEGMENTOS
+
+// Alfabeto padrao do SMS (GSM 7-bit). Texto so com estes caracteres cabe
+// 160 por mensagem. Qualquer outro (a maioria dos acentos do portugues,
+// emoji) troca a codificacao para UCS-2, e o limite cai para 70.
+const GSM_BASICO =
+  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?' +
+  '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+
+// Estes tambem sao GSM, mas ocupam dois espacos cada.
+const GSM_EXTENSAO = '^{}\\[~]|€\f';
+
+function codificacao(texto) {
+  for (const letra of String(texto)) {
+    if (!GSM_BASICO.includes(letra) && !GSM_EXTENSAO.includes(letra)) {
+      return 'UCS-2';
+    }
+  }
+
+  return 'GSM-7';
+}
+
+// Quantas mensagens o texto vira. Uma mensagem leva 160 (GSM) ou 70
+// (UCS-2); texto maior e dividido em partes de 153 ou 67, porque cada parte
+// guarda um cabecalho para o celular remontar o texto.
+function contarSegmentos(texto) {
+  const conteudo = String(texto ?? '');
+
+  if (codificacao(conteudo) === 'GSM-7') {
+    let unidades = 0;
+
+    for (const letra of conteudo) {
+      unidades += GSM_EXTENSAO.includes(letra) ? 2 : 1;
+    }
+
+    return unidades <= 160 ? 1 : Math.ceil(unidades / 153);
+  }
+
+  // UCS-2 conta em unidades de 16 bits: um emoji ocupa duas.
+  return conteudo.length <= 70 ? 1 : Math.ceil(conteudo.length / 67);
+}
+
+// ------------------------------------------------------- CONTEUDO SEGURO
+
+// SMS nao e criptografado, passa pela operadora e aparece na tela
+// bloqueada. Numa clinica de psicologia e psiquiatria, a especialidade ja
+// e dado de saude (LGPD). Estes termos nunca vao num SMS.
+const TERMOS_DE_SAUDE = [
+  'psicolog',
+  'psiquiatr',
+  'terapia',
+  'terapeut',
+  'diagnost',
+  'transtorno',
+  'medicament',
+  'remedio',
+  'receita',
+  'exame',
+  'laudo',
+];
+
+function termosDeSaude(texto) {
+  const comparavel = String(texto ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  return TERMOS_DE_SAUDE.filter((termo) => comparavel.includes(termo));
+}
+
 module.exports = {
   URL_DO_GATEWAY,
   LIMITE_DE_TEMPO_MS,
   TIPOS,
   normalizarNumero,
+  codificacao,
+  contarSegmentos,
+  termosDeSaude,
 };
