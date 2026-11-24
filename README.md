@@ -212,6 +212,14 @@ node servidor/auth-api.js
 O `json-server` guarda os dados; só a API (`auth-api.js`) conversa com ele, e o app só
 conversa com a API. Assim toda requisição passa pelas regras de cada perfil.
 
+Para o SMS (Aula 13), um terceiro terminal sobe o gateway, que só a API chama:
+
+```bash
+cd front
+npm run gateway          # simulado: nada sai de verdade
+npm run gateway:twilio   # real, pelo Twilio (precisa de servidor/.env, ver "Envio real pelo Twilio")
+```
+
 > **Bloqueie a porta 3000 no firewall.** Na versão do json-server usada
 > (1.0.0-beta.15), a opção `--host` não tem efeito e ele aceita conexões da rede. Sem o
 > bloqueio, um aparelho no mesmo Wi-Fi acessa os dados sem passar pelas regras da API.
@@ -824,6 +832,7 @@ decisão em vez de apagá-la.
 | 10 | Processamento sem travar a interface (`processamento.js`, `conflitos.js`, tela Verificar agenda) | Gabriel Vinicius Martins |
 | 11 | Sincronização em segundo plano (`sincronizacao.js`, `useSincronizacao.js`, `tarefaBackground.js`, histórico) | Jean Vinicius Rodrigues de Oliveira |
 | 12 | Mapa da clínica (`MapaDaClinica.js`, tela Como chegar, `app.config.js`) | Jean Vinicius Rodrigues de Oliveira |
+| 13 | SMS ao paciente (`sms.js` no app e no servidor, tela Enviar SMS, gateways simulado e Twilio) e matriz de consolidação | Felipe Augusto da Silva |
 
 ## Decisões técnicas
 
@@ -883,8 +892,9 @@ GPS, Bluetooth ou notificações: elas ficam em `localizacao.js`, `bluetooth.js`
 
 ## Testes
 
-Teste automático das permissões da API (80 casos: login, perfis, dados de cada um,
-regras de agendamento, autocadastro e especialidade do médico). Com os dois servidores no ar:
+Teste automático das permissões da API (92 casos: login, perfis, dados de cada um,
+regras de agendamento, autocadastro, especialidade do médico e SMS). Com o json-server e a
+API no ar, e o gateway de SMS também (sem ele, o caso de envio confere o `503` e são 89 casos):
 
 ```bash
 node servidor/testes-permissoes.js
