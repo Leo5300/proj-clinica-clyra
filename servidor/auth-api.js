@@ -22,6 +22,7 @@
 const http = require('http');
 const crypto = require('crypto');
 const regras = require('./regras');
+const sms = require('./sms');
 
 const PORTA = 3001;
 
@@ -70,6 +71,8 @@ class ErroHttp extends Error {
 
 const ok = (corpo) => ({ status: 200, corpo });
 const criado = (corpo) => ({ status: 201, corpo });
+// 202: o pedido foi aceito, mas o trabalho termina depois (SMS na fila).
+const aceito = (corpo) => ({ status: 202, corpo });
 
 function json(res, status, corpo) {
   const texto = JSON.stringify(corpo);
@@ -1264,6 +1267,91 @@ async function registrarSinaisVitais({ usuario, corpo }) {
 }
 
 // =====================================================================
+// SMS (Aula 13)
+// =====================================================================
+//
+// A recepcao pede, a API envia. O app manda o tipo e o texto; o numero sai
+// do cadastro do paciente, nunca do pedido. Assim ninguem usa a conta da
+// clinica para mandar SMS a um numero qualquer, e a chave do gateway nunca
+// sai deste computador.
+
+// Teto de custo por envio: texto que vira mais de 2 mensagens e recusado.
+const LIMITE_DE_SEGMENTOS = 2;
+
+// Traduz a falha do gateway para a resposta da API.
+async function pedirAoGateway(chamada) {
+  try {
+    return await chamada();
+  } catch (e) {
+    if (e instanceof sms.ErroDoGateway) {
+      throw new ErroHttp(e.status, e.message);
+    }
+
+    throw e;
+  }
+}
+
+// Registro do envio: quem pediu, para qual paciente, que tipo e como
+// terminou. Nunca o numero nem o texto (LGPD).
+function registrarSms(usuario, pacienteId, tipo, resultado) {
+  console.log(
+    `[sms] ${new Date().toISOString()} usuario=${usuario.id} paciente=${pacienteId} tipo=${tipo} -> ${resultado}`,
+  );
+}
+
+async function enviarSmsAoPaciente({ usuario, params, corpo }) {
+  if (!sms.TIPOS.includes(corpo.tipo)) {
+    throw new ErroHttp(400, 'Tipo de aviso inválido.');
+  }
+
+  if (!texto(corpo.texto)) {
+    throw new ErroHttp(400, 'Escreva o texto da mensagem.');
+  }
+
+  const termos = sms.termosDeSaude(corpo.texto);
+
+  if (termos.length > 0) {
+    throw new ErroHttp(
+      400,
+      `O texto cita dado de saúde (${termos.join(', ')}). O SMS aparece na tela bloqueada: tire isso do texto.`,
+    );
+  }
+
+  const segmentos = sms.contarSegmentos(corpo.texto);
+
+  if (segmentos > LIMITE_DE_SEGMENTOS) {
+    throw new ErroHttp(
+      400,
+      `O texto vira ${segmentos} mensagens, e o limite é ${LIMITE_DE_SEGMENTOS}. Encurte o texto.`,
+    );
+  }
+
+  const paciente = await pacienteVisivel(usuario, params.id);
+  const para = sms.normalizarNumero(paciente.telefone);
+
+  if (!para) {
+    throw new ErroHttp(
+      400,
+      'O telefone do paciente não é um celular válido. Corrija o cadastro antes de enviar.',
+    );
+  }
+
+  let enviada;
+
+  try {
+    enviada = await pedirAoGateway(() => sms.enviarAoGateway(para, corpo.texto));
+  } catch (e) {
+    registrarSms(usuario, paciente.id, corpo.tipo, `falhou (${e.status ?? 500})`);
+    throw e;
+  }
+
+  registrarSms(usuario, paciente.id, corpo.tipo, `${enviada.status} segmentos=${segmentos}`);
+
+  // 202, e nao 200: o gateway aceitou, mas o SMS ainda nao chegou.
+  return aceito({ id: enviada.id, status: enviada.status, segmentos });
+}
+
+// =====================================================================
 // DISPOSITIVOS (token de push do aparelho)
 // =====================================================================
 
@@ -1347,6 +1435,8 @@ const ROTAS = [
 
   { metodo: 'GET', caminho: '/sinaisVitais', perfis: [M, P], acao: listarSinaisVitais },
   { metodo: 'POST', caminho: '/sinaisVitais', perfis: [M, P], acao: registrarSinaisVitais },
+
+  { metodo: 'POST', caminho: '/pacientes/:id/sms', perfis: [R], acao: enviarSmsAoPaciente },
 
   { metodo: 'POST', caminho: '/dispositivos', perfis: TODOS, acao: registrarDispositivo },
 ];
