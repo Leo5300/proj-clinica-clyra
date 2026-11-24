@@ -619,6 +619,98 @@ orçamento. Isso precisa ser feito no console antes de qualquer build que a use.
 nova chave, apague a antiga e troque o valor em `front/.env.local`. Apagar o commit não basta,
 porque o histórico do Git continua com a chave.
 
+### SMS ao paciente (Aula 13)
+
+A recepção avisa o paciente por SMS em três momentos: **lembrete** (no detalhe de uma
+consulta futura), **confirmação ou remarcação** (logo depois de agendar ou remarcar) e
+**cancelamento** (logo depois de cancelar). A tela **Enviar SMS** oferece dois caminhos,
+lado a lado, e diz em cada um quem envia e quem paga.
+
+| | Do meu celular (`expo-sms`) | Pela clínica (gateway) |
+|---|---|---|
+| Quem envia | Quem está com o celular na mão, tocando em "enviar" | O servidor da clínica |
+| De qual número | Do celular de quem atende | Do número da clínica |
+| Quem paga | Ninguém (é o plano do celular) | A clínica, por mensagem |
+| Chega com o app do paciente fechado? | Sim, é SMS comum | Sim, mesmo sem app nenhum |
+| O app fica sabendo se saiu? | **Não.** No Android o retorno é quase sempre `unknown` | Fica sabendo que entrou na fila; a entrega é conferida depois |
+
+Por isso a tela nunca diz "enviado". Pelo celular, ela diz "confira no seu app de
+mensagens". Pela clínica, ela diz que o SMS está **na fila** (a API responde `202` com
+status `enfileirada`) e oferece "Conferir entrega", que pergunta à API como está a mensagem:
+`enfileirada`, `enviada`, `entregue` ou `falhou`. É a mesma lição dos recibos do push (Aula 9):
+aceito não é entregue.
+
+#### Como o envio pela clínica funciona
+
+```
+app ──POST /pacientes/:id/sms { tipo, texto }──► API da clínica (3001) ──► gateway (3002) ──► operadora
+```
+
+- **O app nunca fala com o gateway.** Quem tem a chave do gateway tem a conta, e app
+  instalado pode ser aberto e inspecionado. A chave fica só no computador da API, e o
+  gateway escuta só em `127.0.0.1`.
+- **O número sai do cadastro, não do pedido.** O app manda só o tipo e o texto; a API lê o
+  telefone do paciente e o normaliza para o formato internacional (`(31) 91111-1111` vira
+  `+5531911111111`). Ninguém usa a conta da clínica para mandar SMS a um número qualquer.
+- **A rota é por paciente, não por consulta.** O cancelamento apaga a consulta no servidor:
+  depois de cancelar, uma rota `/consultas/:id/sms` não acharia mais nada. A tela já tem a
+  data e a hora em memória e manda o texto pronto.
+- **A API confere antes de gastar.** Recusa com `400`, sem chamar o gateway: tipo de aviso
+  inválido, texto vazio, texto com dado de saúde, texto que vira mais de 2 mensagens e
+  telefone que não é celular. Gateway fora do ar responde `503` com uma frase para a
+  recepção, e recusa do Twilio chega ao app com o motivo em português.
+- **Só a recepção envia** (`403` para médico e paciente), e o registro de acessos guarda quem
+  pediu, para qual paciente, o tipo e o resultado. Nunca o número nem o texto.
+
+#### O que vai no texto
+
+- Modelos prontos para os quatro avisos, todos começando com "Clyra:" e cabendo em **uma**
+  mensagem. A recepção pode editar.
+- **Sem acento:** com acento, a codificação muda (GSM 7-bit para UCS-2) e cada mensagem cabe
+  70 caracteres, não 160. A tela avisa quando isso acontece.
+- **Contador de caracteres e mensagens** embaixo do texto, em destaque quando passa de uma
+  (160 caracteres = 1 mensagem; 161 = 2). Antes de enviar pela clínica, uma folha de
+  confirmação diz quantas mensagens serão cobradas.
+- **Nenhum dado de saúde.** O SMS não é criptografado, passa pela operadora e aparece na tela
+  bloqueada. Numa clínica de psicologia e psiquiatria, até a especialidade é dado de saúde.
+  A tela mostra esse aviso a quem digita, aponta termos como "psicologia", "remédio" ou
+  "exame" e bloqueia o envio; a API recusa a mesma lista.
+
+#### Três canais, uma regra
+
+| Situação | Lembrete local (Aula 8) | Push (Aula 9) | SMS (Aula 13) |
+|---|---|---|---|
+| Lembrete de uma hora antes | Sim | Não | Não |
+| Consulta cancelada pela clínica | O aparelho do paciente cancela quando ele abre o app | Contrato pronto; o envio pelo servidor ainda não existe | **Sim**, a recepção envia na hora |
+| Consulta remarcada pela recepção | O aparelho do paciente reagenda quando ele abre o app | Idem | Opcional |
+| Agendamento feito pela recepção | Não (o aparelho é da clínica) | Não | Opcional |
+| Paciente sem o app | Não chega | Não chega | **Sim**, é o único que chega |
+
+SMS é para quem não tem o app ou para o que não pode falhar. Mandar os três canais para a
+mesma consulta é desperdício de dinheiro e de paciência.
+
+#### Como testei
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| "Do meu celular" abre o app de mensagens com número e texto prontos | PREENCHER | PREENCHER |
+| O que a tela mostrou ao voltar do app de mensagens (com e sem enviar) | PREENCHER | PREENCHER |
+| "Pela clínica" com o gateway simulado: folha de custo, fila e "Conferir entrega" | PREENCHER | PREENCHER |
+| Texto com mais de 160 caracteres e texto com acento | PREENCHER | PREENCHER |
+| Texto com termo de saúde | PREENCHER | PREENCHER |
+| Gateway desligado | PREENCHER | PREENCHER |
+| Cancelar como recepção e avisar por SMS | PREENCHER | PREENCHER |
+| `node servidor/testes-permissoes.js` (com o gateway no ar) | PREENCHER | PREENCHER |
+
+#### Limites conhecidos
+
+- O gateway guarda o histórico em memória: reiniciá-lo apaga os status, e "Conferir entrega"
+  passa a responder que a mensagem não foi encontrada.
+- Não há SMS automático na véspera (exigiria um agendador no servidor) nem resposta do
+  paciente ("SIM para confirmar" exigiria receber SMS). Os modelos não pedem resposta.
+- Pelo celular, o SMS sai do número de quem atende: se o paciente responder, a resposta
+  chega nesse celular.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
