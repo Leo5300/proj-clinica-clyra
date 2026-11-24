@@ -16,6 +16,7 @@
 // Regras do texto: sem acento (acento derruba o limite de 160 para 70
 // caracteres) e sem dado de saude (SMS aparece na tela bloqueada).
 
+import * as SMS from 'expo-sms';
 import { CLINICA } from './localizacao';
 
 // Rotulo de cada tipo de aviso, para a tela.
@@ -183,4 +184,46 @@ export function termosDeSaude(texto) {
     .toLowerCase();
 
   return TERMOS_DE_SAUDE.filter((termo) => comparavel.includes(termo));
+}
+
+// ------------------------------------------------------- PELO APARELHO
+
+export class SmsIndisponivel extends Error {
+  constructor() {
+    super('Este aparelho não envia SMS.');
+    this.name = 'SmsIndisponivel';
+  }
+}
+
+// Tablet sem chip, emulador e aparelho so com dados nao enviam SMS. A tela
+// confere ANTES de oferecer o botao, como as tres checagens da biometria.
+export async function smsDisponivelNoAparelho() {
+  try {
+    return await SMS.isAvailableAsync();
+  } catch (e) {
+    return false;
+  }
+}
+
+// NAO envia nada: abre o app de mensagens com numero e texto prontos, e a
+// pessoa decide. Devolve o result do expo-sms ('sent', 'cancelled' ou
+// 'unknown') sem interpretar como sucesso: no Android ele quase sempre
+// volta 'unknown', porque o sistema nao conta ao app o que a pessoa fez.
+export async function pedirEnvioPeloAparelho(numeros, texto) {
+  if (!(await smsDisponivelNoAparelho())) {
+    throw new SmsIndisponivel();
+  }
+
+  const { result } = await SMS.sendSMSAsync(numeros, texto);
+  return result;
+}
+
+// O que a tela diz depois de voltar do app de mensagens. Nunca "enviado":
+// a clinica nao pode registrar que avisou com base nisso.
+export function textoDoResultadoDoAparelho(resultado) {
+  if (resultado === 'cancelled') {
+    return 'Você voltou sem enviar. Nada saiu do seu celular.';
+  }
+
+  return 'Confira no seu app de mensagens se a mensagem saiu: o celular não informa isso ao app.';
 }
