@@ -544,11 +544,11 @@ sozinho não serve a quem usa leitor de tela, está sem rede ou não consegue ma
 
 | Teste | Onde | Resultado |
 |---|---|---|
-| O mapa abre na clínica; tocar no marcador mostra o balão com nome e endereço | PREENCHER | PREENCHER |
-| Permissão de localização negada: mapa e endereço continuam na tela | PREENCHER | PREENCHER |
-| "Calcular distância" mostra o marcador da pessoa e enquadra os dois pontos; "Ver a clínica" volta | PREENCHER | PREENCHER |
-| "Abrir no app de mapas" abre o app do aparelho já na clínica | PREENCHER | PREENCHER |
-| Sem Wi-Fi e sem dados: endereço, telefone e botões continuam na tela | PREENCHER | PREENCHER |
+| O mapa abre na clínica; tocar no marcador mostra o balão com nome e endereço | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| Permissão de localização negada: mapa e endereço continuam na tela | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| "Calcular distância" mostra o marcador da pessoa e enquadra os dois pontos; "Ver a clínica" volta | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| "Abrir no app de mapas" abre o app do aparelho já na clínica | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| Sem Wi-Fi e sem dados: endereço, telefone e botões continuam na tela | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
 
 #### Acessibilidade do mapa
 
@@ -568,11 +568,11 @@ A aula trata isto como requisito, não como enfeite. O que o código faz:
 
 | Item | Resultado |
 |---|---|
-| Leitor e aparelho usados | PREENCHER |
-| O que o leitor anunciou ao chegar no mapa | PREENCHER |
-| O que foi possível fazer só com o leitor (voltar, localizar, abrir o app de mapas) | PREENCHER |
-| O que estava errado ou confuso no teste | PREENCHER |
-| O que foi corrigido por causa do teste | PREENCHER |
+| Leitor e aparelho usados | VoiceOver, no iPhone 13 (iOS 27.2) |
+| O que o leitor anunciou ao chegar no mapa | Leu o mapa. |
+| O que foi possível fazer só com o leitor (voltar, localizar, abrir o app de mapas) | Foi possível fazer tudo usando só o leitor. |
+| O que estava errado ou confuso no teste | Nada. |
+| O que foi corrigido por causa do teste | Nada. |
 
 #### Chave do Google Maps
 
@@ -603,10 +603,10 @@ Como a chave foi criada (Google Cloud Console, `console.cloud.google.com`):
 
 | Item | Situação |
 |---|---|
-| Projeto, API ativada e chave criadas | PREENCHER |
-| Restrição por API (Maps SDK for Android) | PREENCHER |
-| Alerta de orçamento criado | PREENCHER |
-| Chave testada em um build Android | PREENCHER |
+| Projeto, API ativada e chave criadas | Sim. A chave foi trocada depois de aparecer por engano numa conversa. |
+| Restrição por API (Maps SDK for Android) | Não: a chave ainda não está restrita ao Maps SDK for Android. |
+| Alerta de orçamento criado | Não: o alerta de orçamento não foi criado. |
+| Chave testada em um build Android | Não testada: não há build Android. |
 
 **Pendência registrada (vai para a documentação da Aula 15):** a restrição por **aplicativo
 Android** (nome do pacote + impressão digital SHA-1) só pode ser concluída quando existir um
