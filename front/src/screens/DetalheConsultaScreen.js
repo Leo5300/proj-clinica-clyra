@@ -409,6 +409,21 @@ export default function DetalheConsultaScreen({ navigation, route }) {
             }}
           />
         </View>
+        {perfil === 'recepcao' ? (
+          <Botao
+            titulo="Lembrar o paciente por SMS"
+            variante="contorno"
+            icone="message-square"
+            onPress={() =>
+              navigation.navigate('EnviarSms', {
+                pacienteId: String(consulta.pacienteId),
+                tipo: 'lembrete',
+                data: consulta.data,
+                hora: consulta.hora,
+              })
+            }
+          />
+        ) : null}
       </View>
     );
   };
