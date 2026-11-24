@@ -588,7 +588,8 @@ A aula trata isto como requisito, não como enfeite. O que o código faz:
   usa o prefixo `EXPO_PUBLIC_` de propósito, para a chave não ser copiada para o pacote
   JavaScript.
 
-Como a chave foi criada (Google Cloud Console, `console.cloud.google.com`):
+Passo a passo para criar a chave (Google Cloud Console, `console.cloud.google.com`). Os passos 3 e 6
+ainda **não foram feitos** nesta chave; veja a tabela abaixo:
 
 1. Criar um projeto (por exemplo, `clyra`).
 2. Ativar o faturamento do projeto. O Google exige um meio de pagamento mesmo para uso
@@ -611,7 +612,8 @@ Como a chave foi criada (Google Cloud Console, `console.cloud.google.com`):
 **Pendência registrada (vai para a documentação da Aula 15):** a restrição por **aplicativo
 Android** (nome do pacote + impressão digital SHA-1) só pode ser concluída quando existir um
 build com a keystore definitiva. Hoje o `app.json` não define `android.package`. Enquanto isso,
-a chave só tem a restrição por API.
+a chave está **sem nenhuma restrição** (nem por API, nem por aplicativo) e sem alerta de
+orçamento. Isso precisa ser feito no console antes de qualquer build que a use.
 
 **Se a chave vazar** (apareceu num commit, num print ou numa conversa): no console, crie uma
 nova chave, apague a antiga e troque o valor em `front/.env.local`. Apagar o commit não basta,
