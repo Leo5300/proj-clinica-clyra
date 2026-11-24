@@ -34,7 +34,7 @@ proj-clinica-clyra/
 ├── back/              API em Spring Boot (Java) — prevista para depois; não sobe neste momento
 ├── docs/              wireframes (Figma), logos e decisoes/ (registros de decisão)
 ├── front/             aplicação mobile em React Native + Expo
-├── servidor/          API mock da clínica em Node (auth-api.js), regras e testes de permissão
+├── servidor/          API mock da clínica em Node (auth-api.js), regras, testes de permissão e gateways de SMS
 ├── db_clinica.json    dados mock, servidos pelo json-server
 └── README.md
 ```
@@ -48,7 +48,7 @@ front/
 └── src/
     ├── navigation/    AppNavigator (rotas) e permissoes (quem vê o quê)
     ├── screens/       uma tela por arquivo
-    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada, sincronizacao, useSincronizacao, tarefaBackground
+    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada, sincronizacao, useSincronizacao, tarefaBackground, sms
 ```
 
 ## Perfis de acesso
@@ -111,7 +111,8 @@ Ensino. Marcado conforme cada item é implementado pela squad.
       (botão, volta ao app e tarefa periódica opcional; a tarefa só roda em development build)
 - [x] Mapa exibindo a localização da clínica dentro do aplicativo
       (no Expo Go; o build Android precisa da chave do Google, ver "Chave do Google Maps")
-- [ ] Confirmação/cancelamento de consulta enviado por SMS
+- [x] Confirmação/cancelamento de consulta enviado por SMS
+      (pelo celular com `expo-sms` e pela clínica com gateway; envio real pelo Twilio em conta de teste)
 - [x] Funcionalidade de agendamento de consultas (paciente)
 - [x] Funcionalidade de listagem das consultas agendadas
 - [x] Funcionalidade de cancelamento de consulta
@@ -131,9 +132,9 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Trocar senha | Obrigatória no primeiro acesso do médico; voluntária pelo perfil. | todos | Home, Meu perfil |
 | Home | Saudação, cartão do dia (próxima consulta, agenda de hoje ou movimento da clínica) e atalhos do perfil. | todos | atalhos do perfil, Meu perfil |
 | Meu perfil | Foto, dados de acesso, trocar senha e sair. | todos | Meus dados, Trocar senha, Login |
-| Agendar | Escolha de especialidade, médico, dia e horário livre. | recepção, paciente | Consultas |
+| Agendar | Escolha de especialidade, médico, dia e horário livre. | recepção, paciente | Consultas, Enviar SMS (recepção) |
 | Consultas | Lista em Hoje, Próximas e Anteriores. | todos | Detalhe da consulta, Agendar |
-| Detalhe da consulta | Dados da consulta, sinais vitais, remarcar e cancelar. | todos | Agendar, Sinais vitais |
+| Detalhe da consulta | Dados da consulta, sinais vitais, remarcar e cancelar. | todos | Agendar, Sinais vitais, Enviar SMS (recepção) |
 | Sinais vitais | Leitura por Bluetooth ou digitação manual, gravada no prontuário. | médico, paciente | Detalhe da consulta |
 | Pacientes | Lista de pacientes (médico: só os seus, em modo leitura). | recepção, médico | Cadastro/Edição de paciente |
 | Cadastro/Edição de paciente | Cadastro com CEP (ViaCEP) e foto; "Meus dados" para o paciente. | todos | — |
@@ -144,6 +145,7 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Como chegar | Mapa da clínica, endereço, telefone e distância em linha reta pelo GPS; abre o app de mapas do aparelho. | paciente | — |
 | Verificar agenda | Conferência da agenda inteira, status da sincronização, "Atualizar agora" e a chave da tarefa periódica. | recepção | Histórico de sincronização |
 | Histórico de sincronização | As 20 últimas sincronizações: quando, quem pediu e como terminaram. | recepção | Verificar agenda |
+| Enviar SMS | Lembrete, confirmação, remarcação ou cancelamento ao paciente, pelo celular de quem atende ou pela clínica, com contador de mensagens e status da entrega. | recepção | Detalhe da consulta |
 | Sem acesso | Aparece quando o perfil não pode abrir uma tela. | todos | Home |
 
 ## Tecnologias
@@ -156,11 +158,14 @@ Ensino. Marcado conforme cada item é implementado pela squad.
   `expo-local-authentication` (biometria), `expo-location` (GPS),
   `expo-notifications` e `@react-native-async-storage/async-storage` (lembretes),
   `react-native-ble-plx` e `buffer` (Bluetooth), `expo-task-manager` e
-  `expo-background-task` (sincronização em segundo plano) e `react-native-maps` (mapa da clínica)
+  `expo-background-task` (sincronização em segundo plano), `react-native-maps` (mapa da clínica)
+  e `expo-sms` (SMS pelo celular de quem atende)
 - `fetch` nativo para consumo da API (sem axios — decisão registrada em
   "Decisões técnicas")
 - API mock em Node puro (`servidor/auth-api.js`) com os dados no `db_clinica.json`,
   servidos pelo `json-server`
+- Gateway de SMS em Node puro: simulado (`servidor/gateway-sms.js`) e real, pelo
+  [Twilio](https://www.twilio.com/) (`servidor/gateway-sms-twilio.js`, só com `fetch`, sem pacote)
 
 ## Pré-requisitos
 
@@ -253,6 +258,7 @@ Escaneie o QR Code com o Expo Go, ou pressione `a` / `i` para abrir em um emulad
 | Localização (GPS) | Ao tocar em "Calcular distância até a clínica" (só em primeiro plano). | O endereço da clínica continua visível. Se a permissão foi negada para sempre, o app oferece abrir os ajustes do aparelho. |
 | Bluetooth | Ao procurar aparelhos na tela de sinais vitais (modo real, Android). | O app avisa e o link "Digitar os valores manualmente" continua disponível. |
 | Notificações | Quando o paciente agenda uma consulta pela primeira vez. | A consulta é agendada mesmo assim; o app avisa que não haverá lembrete e a lista de consultas mostra o aviso. |
+| SMS (pelo celular) | Não pede permissão: o app só abre o app de mensagens com o texto pronto. | Sem chip (tablet, emulador), o botão fica desativado e a tela diz o motivo. |
 
 ### Texto do lembrete de consulta (Aula 8)
 
