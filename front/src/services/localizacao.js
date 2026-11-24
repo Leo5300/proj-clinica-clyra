@@ -5,11 +5,13 @@
 // (rede) e sessao.js (cofre do sistema): o periferico fica atras de um
 // service, e a tela fala a linguagem do dominio.
 
+import { Linking, Platform } from 'react-native';
 import * as Location from 'expo-location';
 
 // Coordenadas e endereco da clinica ficam aqui, no mesmo arquivo do
-// calculo, porque hoje sao fixos. Na Aula 12 (Mapas) eles podem passar a
-// vir do geocoding do endereco -- ate la, isto e divida tecnica
+// calculo, porque hoje sao fixos. O mapa da Aula 12 usa estas mesmas
+// coordenadas. Se a clinica passar a ter varias unidades, a lista vem da
+// API e o mapa recebe uma por vez; ate la, isto e divida tecnica
 // consciente, nao descuido.
 const CLINICA = {
   nome: 'Clyra',
@@ -110,6 +112,46 @@ function estimarMinutos(km) {
   );
 }
 
+// Link que abre o app de mapas do aparelho ja apontado para a clinica. O
+// app NAO desenha rota: quem sabe o caminho, o transito e o meio de
+// transporte e o app de mapas (decisao 005).
+//   Android: esquema "geo:", entregue ao app de mapas que a pessoa escolheu.
+//   iOS:     esquema "maps:", que abre o Apple Maps.
+// O nome vai com encodeURIComponent: espaco e acento quebram a URL.
+function montarLinkDoMapa(destino, sistema = Platform.OS) {
+  const { nome, latitude, longitude } = destino;
+  const rotulo = encodeURIComponent(nome);
+
+  if (sistema === 'ios') {
+    return `maps:?q=${rotulo}&ll=${latitude},${longitude}`;
+  }
+
+  return `geo:${latitude},${longitude}?q=${latitude},${longitude}(${rotulo})`;
+}
+
+// Plano B para aparelho sem app de mapas: o mesmo destino no navegador.
+// Formato documentado do Google Maps; nao precisa de chave.
+function montarLinkWeb(destino) {
+  return `https://www.google.com/maps/search/?api=1&query=${destino.latitude},${destino.longitude}`;
+}
+
+// Abre a clinica no app de mapas. Devolve true se algum app aceitou o link.
+// Sem app de mapas (ou sem permissao do sistema), tenta o navegador antes de
+// desistir: a pessoa precisa chegar ao mapa de algum jeito.
+async function abrirNoAppDeMapas(destino) {
+  try {
+    await Linking.openURL(montarLinkDoMapa(destino));
+    return true;
+  } catch (e) {
+    try {
+      await Linking.openURL(montarLinkWeb(destino));
+      return true;
+    } catch (e2) {
+      return false;
+    }
+  }
+}
+
 export {
   CLINICA,
   PermissaoNegada,
@@ -117,4 +159,7 @@ export {
   distanciaKm,
   formatarDistancia,
   estimarMinutos,
+  montarLinkDoMapa,
+  montarLinkWeb,
+  abrirNoAppDeMapas,
 };

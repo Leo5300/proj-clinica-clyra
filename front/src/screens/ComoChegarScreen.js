@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -7,21 +7,29 @@ import {
   ActivityIndicator,
   Linking,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { useTema, fontes } from '../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import MapaDaClinica from '../components/MapaDaClinica';
 import {
   CLINICA,
   obterPosicaoAtual,
   distanciaKm,
   formatarDistancia,
   estimarMinutos,
+  abrirNoAppDeMapas,
 } from '../services/localizacao';
 
 export default function ComoChegarScreen({ navigation }) {
   const { cores } = useTema();
   const styles = useMemo(() => criarEstilos(cores), [cores]);
+  const mapaRef = useRef(null);
+  const { height } = useWindowDimensions();
+  // O mapa ocupa cerca de 40% da tela e nunca menos de 240: o resto e do
+  // painel de texto, que rola por baixo dele.
+  const alturaDoMapa = Math.max(240, Math.round(height * 0.4));
   // Estados separados, mesmo padrao das listas da Aula 3: carregando,
   // erro e dados sao dimensoes independentes. Aqui ha um quarto caso --
   // permissao negada -- que NAO e erro: e resposta do usuario, e merece
@@ -30,6 +38,7 @@ export default function ComoChegarScreen({ navigation }) {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
   const [permissaoNegada, setPermissaoNegada] = useState(null);
+  const [mapaFalhou, setMapaFalhou] = useState(false);
 
   const localizar = useCallback(async () => {
     setErro(null);
@@ -56,6 +65,14 @@ export default function ComoChegarScreen({ navigation }) {
     }
   }, []);
 
+  const abrirNoMapa = useCallback(async () => {
+    setMapaFalhou(false);
+
+    if (!(await abrirNoAppDeMapas(CLINICA))) {
+      setMapaFalhou(true);
+    }
+  }, []);
+
   const distancia = posicao
     ? distanciaKm(posicao, CLINICA)
     : null;
@@ -63,14 +80,67 @@ export default function ComoChegarScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Feather name="chevron-left" size={26} color={cores.tinta} />
         </TouchableOpacity>
 
-        <Text style={styles.title}>Como chegar</Text>
+        <Text style={styles.title} accessibilityRole="header">
+          Como chegar
+        </Text>
 
         <View style={styles.headerSpacer} />
       </View>
+
+      {/* O mapa fica FORA do ScrollView: um mapa dentro de uma lista que
+          rola disputa o gesto de arrastar com ela (no Android, principalmente). */}
+      <MapaDaClinica
+        ref={mapaRef}
+        clinica={CLINICA}
+        posicao={posicao}
+        style={{ height: alturaDoMapa }}
+      />
+
+      <View style={styles.acoesDoMapa}>
+        <TouchableOpacity
+          style={styles.botaoDoMapa}
+          onPress={() => mapaRef.current?.verClinica()}
+          accessibilityRole="button"
+          accessibilityLabel="Ver a clínica no mapa"
+        >
+          <Text style={styles.botaoDoMapaTexto}>Ver a clínica</Text>
+        </TouchableOpacity>
+
+        {posicao && (
+          <TouchableOpacity
+            style={styles.botaoDoMapa}
+            onPress={() => mapaRef.current?.enquadrar()}
+            accessibilityRole="button"
+            accessibilityLabel="Ver você e a clínica no mapa"
+          >
+            <Text style={styles.botaoDoMapaTexto}>Ver você e a clínica</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.botaoDoMapa}
+          onPress={abrirNoMapa}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir a clínica no aplicativo de mapas do aparelho"
+        >
+          <Text style={styles.botaoDoMapaTexto}>Abrir no app de mapas</Text>
+        </TouchableOpacity>
+      </View>
+
+      {mapaFalhou && (
+        <Text style={[styles.erroTexto, styles.avisoDoMapa]}>
+          Não foi possível abrir um aplicativo de mapas neste aparelho. O
+          endereço está logo abaixo.
+        </Text>
+      )}
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* O endereco vem PRIMEIRO e fica sempre visivel, independente do
@@ -86,11 +156,11 @@ export default function ComoChegarScreen({ navigation }) {
             {CLINICA.nome}
           </Text>
 
-          <Text style={styles.cardText}>
+          <Text style={styles.cardText} selectable>
             {CLINICA.endereco}
           </Text>
 
-          <Text style={styles.cardText}>
+          <Text style={styles.cardText} selectable>
             {CLINICA.telefone}
           </Text>
         </View>
@@ -101,7 +171,7 @@ export default function ComoChegarScreen({ navigation }) {
                 posicao. Sem indicador, parece que o app travou. */}
             <ActivityIndicator color={cores.link} />
 
-            <Text style={styles.loadingText}>
+            <Text style={styles.loadingText} accessibilityLiveRegion="polite">
               Localizando você...
             </Text>
           </View>
@@ -124,6 +194,7 @@ export default function ComoChegarScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.botao}
                   onPress={localizar}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.botaoTexto}>
                     Permitir localização
@@ -145,6 +216,7 @@ export default function ComoChegarScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.botao}
                   onPress={() => Linking.openSettings()}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.botaoTexto}>
                     Abrir os ajustes do aparelho
@@ -164,6 +236,7 @@ export default function ComoChegarScreen({ navigation }) {
             <TouchableOpacity
               style={styles.botao}
               onPress={localizar}
+              accessibilityRole="button"
             >
               <Text style={styles.botaoTexto}>
                 Tentar de novo
@@ -173,7 +246,7 @@ export default function ComoChegarScreen({ navigation }) {
         )}
 
         {posicao && distancia !== null && (
-          <View style={styles.card}>
+          <View style={styles.card} accessibilityLiveRegion="polite">
             <Text style={styles.cardEyebrow}>
               Distância
             </Text>
@@ -207,6 +280,7 @@ export default function ComoChegarScreen({ navigation }) {
           <TouchableOpacity
             style={styles.botao}
             onPress={localizar}
+            accessibilityRole="button"
           >
             <Text style={styles.botaoTexto}>
               Calcular distância até a clínica
@@ -329,5 +403,33 @@ const criarEstilos = (cores) =>
       color: cores.sobreAcao,
       fontFamily: fontes.textoForte,
       fontSize: 14,
+    },
+
+    acoesDoMapa: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+    },
+
+    botaoDoMapa: {
+      borderWidth: 1,
+      borderColor: cores.linhaForte,
+      borderRadius: 999,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+    },
+
+    botaoDoMapaTexto: {
+      fontFamily: fontes.textoSemi,
+      fontSize: 13,
+      color: cores.tinta,
+    },
+
+    avisoDoMapa: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      marginBottom: 0,
     },
   });

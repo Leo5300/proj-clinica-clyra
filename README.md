@@ -109,7 +109,8 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 - [ ] Processamento multithread para tarefas pesadas não travarem a interface
 - [x] Sincronização da agenda em segundo plano (tarefa/serviço background)
       (botão, volta ao app e tarefa periódica opcional; a tarefa só roda em development build)
-- [ ] Mapa exibindo a localização da clínica dentro do aplicativo
+- [x] Mapa exibindo a localização da clínica dentro do aplicativo
+      (no Expo Go; o build Android precisa da chave do Google, ver "Chave do Google Maps")
 - [ ] Confirmação/cancelamento de consulta enviado por SMS
 - [x] Funcionalidade de agendamento de consultas (paciente)
 - [x] Funcionalidade de listagem das consultas agendadas
@@ -140,7 +141,7 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Cadastro/Edição de médico | Cadastro com foto e criação do acesso ao app. | recepção | Médicos |
 | Horários | Horários de atendimento (médico: só os seus). | recepção, médico | Cadastro de horário |
 | Especialidades | Lista com cadastro, edição e exclusão. | recepção | Cadastro de especialidade |
-| Como chegar | Endereço da clínica e distância em linha reta pelo GPS. | paciente | — |
+| Como chegar | Mapa da clínica, endereço, telefone e distância em linha reta pelo GPS; abre o app de mapas do aparelho. | paciente | — |
 | Verificar agenda | Conferência da agenda inteira, status da sincronização, "Atualizar agora" e a chave da tarefa periódica. | recepção | Histórico de sincronização |
 | Histórico de sincronização | As 20 últimas sincronizações: quando, quem pediu e como terminaram. | recepção | Verificar agenda |
 | Sem acesso | Aparece quando o perfil não pode abrir uma tela. | todos | Home |
@@ -155,7 +156,7 @@ Ensino. Marcado conforme cada item é implementado pela squad.
   `expo-local-authentication` (biometria), `expo-location` (GPS),
   `expo-notifications` e `@react-native-async-storage/async-storage` (lembretes),
   `react-native-ble-plx` e `buffer` (Bluetooth), `expo-task-manager` e
-  `expo-background-task` (sincronização em segundo plano)
+  `expo-background-task` (sincronização em segundo plano) e `react-native-maps` (mapa da clínica)
 - `fetch` nativo para consumo da API (sem axios — decisão registrada em
   "Decisões técnicas")
 - API mock em Node puro (`servidor/auth-api.js`) com os dados no `db_clinica.json`,
@@ -506,6 +507,118 @@ O app abre normalmente em todos os casos: as bibliotecas da tarefa são carregad
 A decisão de usar o `AppState` como caminho principal e a tarefa periódica como opção está
 em [`docs/decisoes/004-atualizar-a-agenda-em-segundo-plano.md`](docs/decisoes/004-atualizar-a-agenda-em-segundo-plano.md).
 
+### Mapa da clínica (Aula 12)
+
+A tela **Como chegar** (paciente: atalho da Home e link no detalhe da consulta) tem agora
+um mapa da clínica no topo e, abaixo dele, o painel de texto que já existia. O mapa é um
+complemento: **nome, endereço e telefone continuam escritos na tela**, porque um mapa
+sozinho não serve a quem usa leitor de tela, está sem rede ou não consegue manipulá-lo.
+
+| Arquivo | Papel |
+|---|---|
+| `front/src/components/MapaDaClinica.js` | `MapView` com o marcador da clínica e o da pessoa. Pela `ref` expõe `enquadrar()` e `verClinica()`. |
+| `front/src/screens/ComoChegarScreen.js` | Layout (mapa em 40% da altura, painel de texto rolável embaixo), distância, permissão negada e botões. |
+| `front/src/services/localizacao.js` | Coordenadas da clínica, GPS, distância e os links para o app de mapas. |
+| `front/app.config.js` | Lê a chave do Google de variável de ambiente (veja "Chave do Google Maps"). |
+
+- **`initialRegion`, não `region`.** Com `region` o mapa volta ao ponto inicial a cada
+  render e a pessoa não consegue arrastar nem dar zoom.
+- **`latitudeDelta` e `longitudeDelta` são um zoom invertido:** o tamanho da janela em
+  graus. Quanto menor, mais perto. O app usa `0.01` (algumas quadras); `0.05` mostra um
+  bairro e `0.002`, uma rua.
+- **Marcador.** `title` e `description` formam o balão ao tocar; `pinColor` usa a lavanda
+  do tema. As coordenadas do marcador são memorizadas (`useMemo`): com um objeto novo a
+  cada render, uma lista de 200 marcadores seria redesenhada à toa.
+- **Posição da pessoa.** Vem do mesmo `obterPosicaoAtual()` da distância, só depois de a
+  pessoa tocar em "Calcular distância". É desenhada na tela e **nunca guardada**: posição é
+  dado sensível. `fitToCoordinates` ajusta o zoom para caberem os dois pontos e
+  `animateToRegion` leva de volta à clínica ("Ver a clínica").
+- **Sem GPS o mapa continua útil:** a permissão negada não esconde o mapa nem o endereço.
+- **"Abrir no app de mapas"** entrega o destino ao app do aparelho (`geo:` no Android,
+  `maps:` no iOS) com `Linking.openURL`. Sem app de mapas, cai para o navegador. **O app não
+  desenha rotas**: decisão registrada em
+  [`docs/decisoes/005-rotas-no-app-de-mapas-do-aparelho.md`](docs/decisoes/005-rotas-no-app-de-mapas-do-aparelho.md).
+- O tempo "cerca de X min" continua sendo uma estimativa em linha reta, com o aviso na tela.
+
+#### Como testei
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| O mapa abre na clínica; tocar no marcador mostra o balão com nome e endereço | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| Permissão de localização negada: mapa e endereço continuam na tela | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| "Calcular distância" mostra o marcador da pessoa e enquadra os dois pontos; "Ver a clínica" volta | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| "Abrir no app de mapas" abre o app do aparelho já na clínica | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+| Sem Wi-Fi e sem dados: endereço, telefone e botões continuam na tela | iPhone 13, iOS 27.2, Expo Go | Funcionou como esperado. |
+
+#### Acessibilidade do mapa
+
+A aula trata isto como requisito, não como enfeite. O que o código faz:
+
+- O mapa é um único elemento para o leitor de tela, com `accessibilityLabel` que diz o que
+  ele mostra e manda para o endereço escrito logo abaixo.
+- Todo botão tem `accessibilityRole="button"` e rótulo que diz o que faz ("Ver a clínica no
+  mapa", "Abrir a clínica no aplicativo de mapas do aparelho"); o botão de voltar ganhou rótulo.
+- O título da tela é `header`; "Localizando você..." e o resultado da distância são
+  *live regions*, para o leitor anunciar quando aparecem.
+- Endereço e telefone são `selectable`: dá para copiar e colar em outro app.
+- A informação do mapa existe também como texto, e a tela funciona sem rede e sem permissão
+  de localização.
+
+**Teste com leitor de tela** (TalkBack no Android ou VoiceOver no iPhone):
+
+| Item | Resultado |
+|---|---|
+| Leitor e aparelho usados | VoiceOver, no iPhone 13 (iOS 27.2) |
+| O que o leitor anunciou ao chegar no mapa | Leu o mapa. |
+| O que foi possível fazer só com o leitor (voltar, localizar, abrir o app de mapas) | Foi possível fazer tudo usando só o leitor. |
+| O que estava errado ou confuso no teste | Nada. |
+| O que foi corrigido por causa do teste | Nada. |
+
+#### Chave do Google Maps
+
+- **Expo Go não precisa de chave:** ele traz a dele. Por isso o mapa aparece em
+  desenvolvimento sem nenhuma configuração.
+- **Um build próprio para Android precisa de chave.** Sem ela, o mapa aparece como um
+  retângulo cinza, sem erro na tela. Isso vale quando o app for gerado (Aula 15).
+- **Onde a chave mora:** em `front/.env.local`, na linha `GOOGLE_MAPS_API_KEY=...`. Esse
+  arquivo não vai para o Git (o `.gitignore` cobre `.env*.local`). O modelo, sem valor, está
+  em `front/.env.example`. A chave **não** fica no `app.json` nem em nenhum arquivo versionado.
+- **Como ela chega ao app:** `front/app.config.js` lê `GOOGLE_MAPS_API_KEY` e, só se ela
+  existir, adiciona o plugin `react-native-maps` com `androidGoogleMapsApiKey`. A variável não
+  usa o prefixo `EXPO_PUBLIC_` de propósito, para a chave não ser copiada para o pacote
+  JavaScript.
+
+Passo a passo para criar a chave (Google Cloud Console, `console.cloud.google.com`). Os passos 3 e 6
+ainda **não foram feitos** nesta chave; veja a tabela abaixo:
+
+1. Criar um projeto (por exemplo, `clyra`).
+2. Ativar o faturamento do projeto. O Google exige um meio de pagamento mesmo para uso
+   gratuito; no momento da criação, o uso do SDK de mapas para Android e iOS não era cobrado
+   segundo a tabela de preços do Google (a tabela muda, confira a vigente).
+3. Criar um alerta de orçamento (Faturamento → Orçamentos e alertas), para saber se algo
+   passar a ser cobrado.
+4. APIs e serviços → Biblioteca → ativar **Maps SDK for Android**.
+5. APIs e serviços → Credenciais → Criar credenciais → Chave de API.
+6. Em "Restrições de API", restringir a chave a **Maps SDK for Android**.
+7. Copiar a chave para `front/.env.local` (e só lá).
+
+| Item | Situação |
+|---|---|
+| Projeto, API ativada e chave criadas | Sim. A chave foi trocada depois de aparecer por engano numa conversa. |
+| Restrição por API (Maps SDK for Android) | Não: a chave ainda não está restrita ao Maps SDK for Android. |
+| Alerta de orçamento criado | Não: o alerta de orçamento não foi criado. |
+| Chave testada em um build Android | Não testada: não há build Android. |
+
+**Pendência registrada (vai para a documentação da Aula 15):** a restrição por **aplicativo
+Android** (nome do pacote + impressão digital SHA-1) só pode ser concluída quando existir um
+build com a keystore definitiva. Hoje o `app.json` não define `android.package`. Enquanto isso,
+a chave está **sem nenhuma restrição** (nem por API, nem por aplicativo) e sem alerta de
+orçamento. Isso precisa ser feito no console antes de qualquer build que a use.
+
+**Se a chave vazar** (apareceu num commit, num print ou numa conversa): no console, crie uma
+nova chave, apague a antiga e troque o valor em `front/.env.local`. Apagar o commit não basta,
+porque o histórico do Git continua com a chave.
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
@@ -573,6 +686,7 @@ decisão em vez de apagá-la.
 | 9 | Notificações push | Felipe Augusto da Silva |
 | 10 | Processamento sem travar a interface (`processamento.js`, `conflitos.js`, tela Verificar agenda) | Gabriel Vinicius Martins |
 | 11 | Sincronização em segundo plano (`sincronizacao.js`, `useSincronizacao.js`, `tarefaBackground.js`, histórico) | Jean Vinicius Rodrigues de Oliveira |
+| 12 | Mapa da clínica (`MapaDaClinica.js`, tela Como chegar, `app.config.js`) | Jean Vinicius Rodrigues de Oliveira |
 
 ## Decisões técnicas
 
