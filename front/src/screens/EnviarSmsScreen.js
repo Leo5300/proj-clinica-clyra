@@ -13,6 +13,8 @@ import {
   pedirEnvioPeloAparelho,
   textoDoResultadoDoAparelho,
   SmsIndisponivel,
+  pedirEnvioPeloServidor,
+  textoDoStatus,
 } from '../services/sms';
 import {
   Botao,
@@ -21,6 +23,7 @@ import {
   ComVidro,
   Esqueleto,
   EstadoErro,
+  FolhaDecisao,
   Texto,
   useRolagem,
 } from '../components';
@@ -73,6 +76,11 @@ export default function EnviarSmsScreen({ navigation, route }) {
   const [abrindo, setAbrindo] = useState(false);
   const [resultadoAparelho, setResultadoAparelho] = useState(null);
   const [erroAparelho, setErroAparelho] = useState(null);
+
+  const [confirmando, setConfirmando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [envio, setEnvio] = useState(null);
+  const [erroEnvio, setErroEnvio] = useState(null);
 
   const irParaLogin = useCallback(() => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -139,6 +147,29 @@ export default function EnviarSmsScreen({ navigation, route }) {
       );
     } finally {
       setAbrindo(false);
+    }
+  };
+
+  const enviarPelaClinica = async () => {
+    setEnviando(true);
+    setErroEnvio(null);
+
+    try {
+      setEnvio(await pedirEnvioPeloServidor(pacienteId, tipo, texto));
+      setConfirmando(false);
+    } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        irParaLogin();
+        return;
+      }
+
+      setErroEnvio(
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível pedir o envio agora. Confira a internet e tente de novo.',
+      );
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -279,6 +310,30 @@ export default function EnviarSmsScreen({ navigation, route }) {
             </Texto>
           ) : null}
         </Cartao>
+
+        <Cartao>
+          <Texto variante="secao" accessibilityRole="header">
+            Pela clínica
+          </Texto>
+          <Texto variante="legenda" cor="tinta2">
+            O servidor da clínica envia, do número da clínica, e o SMS chega mesmo com o app do
+            paciente fechado. Cada mensagem é cobrada da clínica.
+          </Texto>
+          <Botao
+            titulo={envio ? 'Enviar de novo pela clínica' : 'Enviar pela clínica'}
+            icone="send"
+            desativado={!podeEnviar}
+            onPress={() => {
+              setErroEnvio(null);
+              setConfirmando(true);
+            }}
+          />
+          {envio ? (
+            <Texto testID="status-envio" variante="rotulo" accessibilityLiveRegion="polite">
+              {textoDoStatus(envio.status)}
+            </Texto>
+          ) : null}
+        </Cartao>
       </>
     );
   };
@@ -314,6 +369,33 @@ export default function EnviarSmsScreen({ navigation, route }) {
           />
         </ComVidro>
       </KeyboardAvoidingView>
+
+      <FolhaDecisao
+        visivel={confirmando}
+        aoFechar={() => !enviando && setConfirmando(false)}
+        titulo={
+          avaliacao.segmentos === 1
+            ? 'Enviar 1 SMS pela clínica?'
+            : `Enviar ${avaliacao.segmentos} SMS pela clínica?`
+        }
+        texto={`Vai para ${paciente?.nome ?? 'o paciente'}, no celular do cadastro. ${
+          avaliacao.segmentos === 1
+            ? 'Será cobrada 1 mensagem'
+            : `Serão cobradas ${avaliacao.segmentos} mensagens`
+        } da conta da clínica, e o envio não pode ser desfeito.`}
+        acaoPrincipal={{
+          titulo: 'Enviar e cobrar',
+          carregando: enviando,
+          onPress: enviarPelaClinica,
+        }}
+        acaoSecundaria={{ titulo: 'Voltar', onPress: () => setConfirmando(false) }}
+      >
+        {erroEnvio ? (
+          <Texto variante="legenda" cor="alerta" selectable>
+            {erroEnvio}
+          </Texto>
+        ) : null}
+      </FolhaDecisao>
     </View>
   );
 }
