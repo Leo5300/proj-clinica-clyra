@@ -462,9 +462,31 @@ export default function DetalheConsultaScreen({ navigation, route }) {
         <View style={{ paddingTop: topo + espaco.xl, paddingHorizontal: margemTela + 2, gap: espaco.lg }}>
           <SeloSucesso
             titulo="Consulta cancelada"
-            texto="O horário voltou para a agenda da clínica e o lembrete deste aparelho foi cancelado."
+            texto={
+              perfil === 'recepcao'
+                ? 'O horário voltou para a agenda da clínica. O paciente só fica sabendo quando abrir o app: avise por SMS.'
+                : 'O horário voltou para a agenda da clínica e o lembrete deste aparelho foi cancelado.'
+            }
           />
-          <Botao titulo="Voltar" onPress={() => navigation.goBack()} />
+          {perfil === 'recepcao' && consulta ? (
+            <Botao
+              titulo="Avisar o paciente por SMS"
+              icone="message-square"
+              onPress={() =>
+                navigation.replace('EnviarSms', {
+                  pacienteId: String(consulta.pacienteId),
+                  tipo: 'cancelamento',
+                  data: consulta.data,
+                  hora: consulta.hora,
+                })
+              }
+            />
+          ) : null}
+          <Botao
+            titulo="Voltar"
+            variante={perfil === 'recepcao' ? 'contorno' : undefined}
+            onPress={() => navigation.goBack()}
+          />
         </View>
       );
     }
