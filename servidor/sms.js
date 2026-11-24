@@ -126,6 +126,91 @@ function termosDeSaude(texto) {
   return TERMOS_DE_SAUDE.filter((termo) => comparavel.includes(termo));
 }
 
+// --------------------------------------------------------------- GATEWAY
+
+// Codigos do Twilio que mais aparecem na conta trial, explicados para quem
+// esta na recepcao. O gateway do Twilio devolve o codigo junto do erro.
+const CODIGOS_DO_TWILIO = {
+  20003: 'as credenciais do Twilio no servidor/.env estão erradas',
+  21211: 'o número do paciente é inválido',
+  21408: 'o envio para o Brasil não está liberado na conta do Twilio',
+  21608: 'na conta de teste do Twilio, o número do paciente precisa estar verificado',
+  21614: 'o número do paciente não é celular',
+};
+
+// Falha do gateway, ja com o status HTTP que a API deve devolver ao app.
+class ErroDoGateway extends Error {
+  constructor(status, mensagem) {
+    super(mensagem);
+    this.status = status;
+  }
+}
+
+async function chamarGateway(caminho, opcoes = {}) {
+  const controle = new AbortController();
+  const relogio = setTimeout(() => controle.abort(), LIMITE_DE_TEMPO_MS);
+
+  let resposta;
+
+  try {
+    resposta = await fetch(`${URL_DO_GATEWAY}${caminho}`, {
+      ...opcoes,
+      signal: controle.signal,
+    });
+  } catch (e) {
+    // Recusou a conexao ou passou do limite: para quem usa o app, as duas
+    // coisas significam "o SMS nao saiu".
+    throw new ErroDoGateway(
+      503,
+      'O serviço de SMS está fora do ar. Tente de novo em instantes ou avise o paciente por telefone.',
+    );
+  } finally {
+    clearTimeout(relogio);
+  }
+
+  let corpo;
+
+  try {
+    corpo = await resposta.json();
+  } catch (e) {
+    corpo = null;
+  }
+
+  if (resposta.status === 404) {
+    throw new ErroDoGateway(404, 'Mensagem não encontrada no serviço de SMS.');
+  }
+
+  if (!resposta.ok) {
+    // 400 do gateway: o pedido estava errado (numero, texto). 502: o
+    // gateway recusou do lado dele (ex.: o Twilio). Os dois chegam ao app
+    // com o motivo escrito pelo gateway.
+    const explicacao = CODIGOS_DO_TWILIO[corpo?.codigo];
+
+    throw new ErroDoGateway(
+      resposta.status === 400 ? 400 : 502,
+      explicacao
+        ? `O serviço de SMS recusou a mensagem: ${explicacao} (código ${corpo.codigo}).`
+        : corpo?.erro ?? `O serviço de SMS recusou a mensagem (HTTP ${resposta.status}).`,
+    );
+  }
+
+  return corpo;
+}
+
+// Entrega ao gateway. Volta { id, status } com status 'enfileirada':
+// aceita nao e entregue.
+function enviarAoGateway(para, texto) {
+  return chamarGateway('/mensagens', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ para, texto }),
+  });
+}
+
+function consultarNoGateway(id) {
+  return chamarGateway(`/mensagens/${encodeURIComponent(id)}`);
+}
+
 module.exports = {
   URL_DO_GATEWAY,
   LIMITE_DE_TEMPO_MS,
@@ -134,4 +219,7 @@ module.exports = {
   codificacao,
   contarSegmentos,
   termosDeSaude,
+  ErroDoGateway,
+  enviarAoGateway,
+  consultarNoGateway,
 };
