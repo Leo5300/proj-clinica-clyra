@@ -119,3 +119,41 @@ export function avaliarTexto(texto) {
       : 'O texto tem acento ou símbolo fora do padrão do SMS: cada mensagem cabe 70 caracteres, não 160.',
   };
 }
+
+// ------------------------------------------------------------------- NUMERO
+
+// "(31) 91111-1111" -> "+5531911111111" (formato internacional, E.164).
+// Devolve null quando nao da: numero incompleto ou telefone fixo, que nao
+// recebe SMS. Numero mal formatado e a causa numero 1 de SMS que some.
+export function normalizarNumero(numero) {
+  const texto = String(numero ?? '').trim();
+
+  if (!texto) return null;
+
+  let digitos = texto.replace(/\D/g, '');
+
+  if (texto.startsWith('+')) {
+    // Numero de fora do Brasil: so confere o formato.
+    if (!digitos.startsWith('55')) {
+      return /^\d{10,15}$/.test(digitos) ? `+${digitos}` : null;
+    }
+  } else {
+    // "0 16 99999-8888": o zero de discagem nao faz parte do numero.
+    digitos = digitos.replace(/^0+/, '');
+
+    if (digitos.length === 10 || digitos.length === 11) {
+      digitos = `55${digitos}`;
+    }
+  }
+
+  if (!/^55\d{11}$/.test(digitos)) return null;
+
+  const ddd = digitos.slice(2, 4);
+  const assinante = digitos.slice(4);
+
+  // DDD vai de 11 a 99 e nunca termina em 0; celular tem 9 digitos e
+  // comeca com 9.
+  if (ddd[0] === '0' || ddd[1] === '0' || assinante[0] !== '9') return null;
+
+  return `+${digitos}`;
+}
