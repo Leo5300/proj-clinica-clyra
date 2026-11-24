@@ -157,3 +157,30 @@ export function normalizarNumero(numero) {
 
   return `+${digitos}`;
 }
+
+// --------------------------------------------------------- CONTEUDO SEGURO
+
+// Termos de saude que nunca vao num SMS (a API recusa os mesmos). Numa
+// clinica de psicologia e psiquiatria, a especialidade ja e dado de saude.
+const TERMOS_DE_SAUDE = [
+  'psicolog',
+  'psiquiatr',
+  'terapia',
+  'terapeut',
+  'diagnost',
+  'transtorno',
+  'medicament',
+  'remedio',
+  'receita',
+  'exame',
+  'laudo',
+];
+
+export function termosDeSaude(texto) {
+  const comparavel = String(texto ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+
+  return TERMOS_DE_SAUDE.filter((termo) => comparavel.includes(termo));
+}
