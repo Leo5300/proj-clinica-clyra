@@ -15,6 +15,7 @@ import {
   SmsIndisponivel,
   pedirEnvioPeloServidor,
   textoDoStatus,
+  conferirEntrega,
 } from '../services/sms';
 import {
   Botao,
@@ -24,6 +25,7 @@ import {
   Esqueleto,
   EstadoErro,
   FolhaDecisao,
+  Selo,
   Texto,
   useRolagem,
 } from '../components';
@@ -57,6 +59,14 @@ function Cartao({ children }) {
   );
 }
 
+// Cor do selo de cada status. Entregue e lavanda (confirmacao), nunca verde.
+const TOM_DO_STATUS = {
+  enfileirada: 'atencao',
+  enviada: 'atencao',
+  entregue: 'lavanda',
+  falhou: 'alerta',
+};
+
 export default function EnviarSmsScreen({ navigation, route }) {
   const { pacienteId, tipo, data, hora } = route.params ?? {};
   const { cores } = useTema();
@@ -81,6 +91,8 @@ export default function EnviarSmsScreen({ navigation, route }) {
   const [enviando, setEnviando] = useState(false);
   const [envio, setEnvio] = useState(null);
   const [erroEnvio, setErroEnvio] = useState(null);
+  const [conferindo, setConferindo] = useState(false);
+  const [erroConferir, setErroConferir] = useState(null);
 
   const irParaLogin = useCallback(() => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
@@ -153,6 +165,7 @@ export default function EnviarSmsScreen({ navigation, route }) {
   const enviarPelaClinica = async () => {
     setEnviando(true);
     setErroEnvio(null);
+    setErroConferir(null);
 
     try {
       setEnvio(await pedirEnvioPeloServidor(pacienteId, tipo, texto));
@@ -170,6 +183,30 @@ export default function EnviarSmsScreen({ navigation, route }) {
       );
     } finally {
       setEnviando(false);
+    }
+  };
+
+  // Pergunta a API como esta a mensagem: a entrega e confirmada depois.
+  const conferir = async () => {
+    setConferindo(true);
+    setErroConferir(null);
+
+    try {
+      const atual = await conferirEntrega(envio.id);
+      setEnvio((anterior) => ({ ...anterior, ...atual }));
+    } catch (e) {
+      if (e instanceof SessaoExpirada) {
+        irParaLogin();
+        return;
+      }
+
+      setErroConferir(
+        e instanceof ErroDaApi && e.mensagem
+          ? e.mensagem
+          : 'Não foi possível conferir agora. Tente de novo em instantes.',
+      );
+    } finally {
+      setConferindo(false);
     }
   };
 
@@ -329,9 +366,31 @@ export default function EnviarSmsScreen({ navigation, route }) {
             }}
           />
           {envio ? (
-            <Texto testID="status-envio" variante="rotulo" accessibilityLiveRegion="polite">
-              {textoDoStatus(envio.status)}
-            </Texto>
+            <View style={{ gap: espaco.xs }} accessibilityLiveRegion="polite">
+              <Selo
+                texto={envio.status}
+                tom={TOM_DO_STATUS[envio.status] ?? 'neutro'}
+                icone={envio.status === 'entregue' ? 'check' : 'clock'}
+              />
+              <Texto testID="status-envio" variante="rotulo">
+                {textoDoStatus(envio.status)}
+              </Texto>
+              {envio.status !== 'entregue' && envio.status !== 'falhou' ? (
+                <Botao
+                  titulo="Conferir entrega"
+                  variante="contorno"
+                  icone="refresh-cw"
+                  compacto
+                  carregando={conferindo}
+                  onPress={conferir}
+                />
+              ) : null}
+              {erroConferir ? (
+                <Texto variante="legenda" cor="alerta">
+                  {erroConferir}
+                </Texto>
+              ) : null}
+            </View>
           ) : null}
         </Cartao>
       </>
