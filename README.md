@@ -711,6 +711,45 @@ mesma consulta é desperdício de dinheiro e de paciência.
 - Pelo celular, o SMS sai do número de quem atende: se o paciente responder, a resposta
   chega nesse celular.
 
+#### Envio real pelo Twilio
+
+O gateway simulado (`npm run gateway`) não envia nada: imprime no terminal e responde como um
+gateway de verdade. Para o SMS chegar a um celular, o mesmo contrato roda sobre o Twilio
+(`servidor/gateway-sms-twilio.js`): mesma porta, mesmas rotas, mesmo `202`. A API e o app não
+mudam uma linha; muda só o comando.
+
+1. Criar a conta de teste (trial) em `twilio.com/try-twilio`, confirmar o e-mail e verificar
+   o próprio celular (Brasil, +55).
+2. No Console do Twilio, copiar o **Account SID**, o **Auth Token** e o número de envio do
+   trial.
+3. Copiar `servidor/.env.exemplo` para `servidor/.env` e preencher os três valores. Na conta
+   de teste, descomentar `TWILIO_MODELO_TRIAL`.
+4. Parar o gateway simulado e rodar, na pasta `front`, `npm run gateway:twilio` (o
+   `--env-file` exige Node 20.6 ou mais novo).
+5. No app, enviar pela clínica para um paciente cujo telefone no cadastro seja um celular
+   **verificado** no Twilio.
+
+Regras da conta de teste (conferidas na documentação do Twilio em novembro de 2026; elas mudam):
+
+- é grátis e não pede cartão, mas expira (30 dias) e tem um número limitado de mensagens;
+- só envia para números verificados na conta (o Twilio recusa os outros com o código
+  `21608`, que o app mostra em português);
+- **não aceita texto livre**, só os modelos prontos do Twilio. Com `TWILIO_MODELO_TRIAL`
+  preenchido, todo SMS sai com o modelo `sms_appointment_reminders`: o que chega ao celular é
+  o texto do Twilio, não o da tela. Com a conta paga, apaga-se essa linha e o texto da tela
+  sai como foi escrito.
+
+`servidor/.env` está no `.gitignore`. Quem tem o Auth Token tem a conta: se ele aparecer num
+commit, num print ou numa conversa, gere outro no Console e troque no `.env`. Apagar o commit
+não basta.
+
+| Item | Situação |
+|---|---|
+| Conta de teste criada e celular verificado | PREENCHER |
+| SMS real recebido no celular verificado, enviado pelo app | PREENCHER |
+| Recusa de número não verificado (código 21608) | PREENCHER |
+| Validade da conta de teste | PREENCHER |
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
