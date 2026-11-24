@@ -50,3 +50,72 @@ export const MODELOS = {
 export function textoPadrao(tipo, consulta) {
   return MODELOS[tipo](dataDoSms(consulta.data), consulta.hora);
 }
+
+// ---------------------------------------------------------------- SEGMENTOS
+
+// Alfabeto padrao do SMS (GSM 7-bit): ate 160 caracteres por mensagem.
+// Qualquer outro caractere (a maioria dos acentos do portugues, emoji)
+// muda a codificacao para UCS-2, e o limite cai para 70.
+const GSM_BASICO =
+  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?' +
+  '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+
+// Tambem sao GSM, mas ocupam dois espacos cada.
+const GSM_EXTENSAO = '^{}\\[~]|€\f';
+
+export function codificacao(texto) {
+  for (const letra of String(texto)) {
+    if (!GSM_BASICO.includes(letra) && !GSM_EXTENSAO.includes(letra)) {
+      return 'UCS-2';
+    }
+  }
+
+  return 'GSM-7';
+}
+
+// Quanto o texto ocupa, nas unidades da codificacao dele.
+function unidades(texto) {
+  if (codificacao(texto) === 'UCS-2') return texto.length;
+
+  let total = 0;
+
+  for (const letra of texto) {
+    total += GSM_EXTENSAO.includes(letra) ? 2 : 1;
+  }
+
+  return total;
+}
+
+// Uma mensagem leva 160 (GSM) ou 70 (UCS-2). Texto maior vira partes de
+// 153 ou 67, porque cada parte guarda um cabecalho para o celular remontar
+// o texto. 160 caracteres = 1 mensagem; 161 = 2. E a conta chega dobrada.
+export function contarSegmentos(texto) {
+  const conteudo = String(texto ?? '');
+  const gsm = codificacao(conteudo) === 'GSM-7';
+  const usado = unidades(conteudo);
+
+  if (usado <= (gsm ? 160 : 70)) return 1;
+
+  return Math.ceil(usado / (gsm ? 153 : 67));
+}
+
+// Tudo o que a tela mostra embaixo do texto, ja pronto.
+export function avaliarTexto(texto) {
+  const conteudo = String(texto ?? '');
+  const segmentos = contarSegmentos(conteudo);
+  const gsm = codificacao(conteudo) === 'GSM-7';
+
+  return {
+    caracteres: conteudo.length,
+    segmentos,
+    codificacao: gsm ? 'GSM-7' : 'UCS-2',
+    limitePorMensagem: gsm ? 160 : 70,
+    alerta:
+      segmentos > 1
+        ? `Este texto será cobrado como ${segmentos} mensagens.`
+        : null,
+    avisoDeAcento: gsm
+      ? null
+      : 'O texto tem acento ou símbolo fora do padrão do SMS: cada mensagem cabe 70 caracteres, não 160.',
+  };
+}
