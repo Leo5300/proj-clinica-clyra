@@ -9,6 +9,10 @@ import {
   normalizarNumero,
   termosDeSaude,
   textoPadrao,
+  smsDisponivelNoAparelho,
+  pedirEnvioPeloAparelho,
+  textoDoResultadoDoAparelho,
+  SmsIndisponivel,
 } from '../services/sms';
 import {
   Botao,
@@ -64,6 +68,12 @@ export default function EnviarSmsScreen({ navigation, route }) {
   const [erroCarga, setErroCarga] = useState(null);
   const [texto, setTexto] = useState(modelo);
 
+  // null = ainda conferindo se o aparelho envia SMS.
+  const [disponivel, setDisponivel] = useState(null);
+  const [abrindo, setAbrindo] = useState(false);
+  const [resultadoAparelho, setResultadoAparelho] = useState(null);
+  const [erroAparelho, setErroAparelho] = useState(null);
+
   const irParaLogin = useCallback(() => {
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   }, [navigation]);
@@ -93,11 +103,44 @@ export default function EnviarSmsScreen({ navigation, route }) {
     carregar();
   }, [carregar]);
 
+  // Confere ANTES de oferecer o botao: tablet sem chip e emulador nao
+  // enviam SMS.
+  useEffect(() => {
+    let ativo = true;
+
+    smsDisponivelNoAparelho().then((resposta) => {
+      if (ativo) setDisponivel(resposta);
+    });
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
   const avaliacao = avaliarTexto(texto);
   // O mesmo numero que o servidor vai usar: o do cadastro, normalizado.
   const numero = normalizarNumero(paciente?.telefone);
   const termos = termosDeSaude(texto);
   const podeEnviar = Boolean(numero) && texto.trim() !== '' && termos.length === 0;
+
+  const enviarPeloAparelho = async () => {
+    setResultadoAparelho(null);
+    setErroAparelho(null);
+    setAbrindo(true);
+
+    try {
+      const resultado = await pedirEnvioPeloAparelho([numero], texto);
+      setResultadoAparelho(textoDoResultadoDoAparelho(resultado));
+    } catch (e) {
+      setErroAparelho(
+        e instanceof SmsIndisponivel
+          ? 'Este aparelho não envia SMS: sem chip, tablet ou emulador.'
+          : 'Não foi possível abrir o app de mensagens.',
+      );
+    } finally {
+      setAbrindo(false);
+    }
+  };
 
   const renderConteudo = () => {
     if (carregando) {
@@ -198,6 +241,44 @@ export default function EnviarSmsScreen({ navigation, route }) {
             </Texto>
           ) : null}
         </View>
+
+        <Cartao>
+          <Texto variante="secao" accessibilityRole="header">
+            Do meu celular
+          </Texto>
+          <Texto variante="legenda" cor="tinta2">
+            Abre o app de mensagens deste celular com o texto pronto. Sai do número deste
+            aparelho, quem toca em enviar é você, e não custa nada à clínica. O app não fica
+            sabendo se a mensagem saiu.
+          </Texto>
+          <Botao
+            titulo="Abrir app de mensagens"
+            variante="contorno"
+            icone="smartphone"
+            desativado={!disponivel || !podeEnviar}
+            carregando={abrindo}
+            onPress={enviarPeloAparelho}
+          />
+          {disponivel === false ? (
+            <Texto variante="legenda" cor="apoio">
+              Este aparelho não envia SMS: sem chip, tablet ou emulador.
+            </Texto>
+          ) : null}
+          {resultadoAparelho ? (
+            <Texto
+              testID="resultado-aparelho"
+              variante="rotulo"
+              accessibilityLiveRegion="polite"
+            >
+              {resultadoAparelho}
+            </Texto>
+          ) : null}
+          {erroAparelho ? (
+            <Texto variante="legenda" cor="alerta">
+              {erroAparelho}
+            </Texto>
+          ) : null}
+        </Cartao>
       </>
     );
   };
