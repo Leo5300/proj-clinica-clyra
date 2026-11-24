@@ -17,6 +17,7 @@
 // caracteres) e sem dado de saude (SMS aparece na tela bloqueada).
 
 import * as SMS from 'expo-sms';
+import { enviarSmsAoPaciente, buscarSms } from './api';
 import { CLINICA } from './localizacao';
 
 // Rotulo de cada tipo de aviso, para a tela.
@@ -226,4 +227,34 @@ export function textoDoResultadoDoAparelho(resultado) {
   }
 
   return 'Confira no seu app de mensagens se a mensagem saiu: o celular não informa isso ao app.';
+}
+
+// ------------------------------------------------------- PELO SERVIDOR
+
+// Pede a API da clinica, nunca ao gateway. O numero sai do cadastro do
+// paciente, la no servidor. Volta { id, status: 'enfileirada', segmentos }:
+// aceita nao e entregue.
+export function pedirEnvioPeloServidor(pacienteId, tipo, texto) {
+  return enviarSmsAoPaciente(pacienteId, { tipo, texto });
+}
+
+// A confirmacao de entrega chega depois, como os recibos do push.
+export function conferirEntrega(id) {
+  return buscarSms(id);
+}
+
+// O que cada status significa para quem esta na recepcao.
+export function textoDoStatus(status) {
+  switch (status) {
+    case 'enfileirada':
+      return 'Na fila do serviço de SMS. Ainda não chegou ao celular do paciente.';
+    case 'enviada':
+      return 'A operadora aceitou. Falta o celular do paciente confirmar.';
+    case 'entregue':
+      return 'Entregue no celular do paciente.';
+    case 'falhou':
+      return 'Não foi entregue. Confira o telefone no cadastro ou ligue para o paciente.';
+    default:
+      return `Situação informada pelo serviço de SMS: ${status}.`;
+  }
 }

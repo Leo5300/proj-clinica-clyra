@@ -321,6 +321,18 @@ const buscarSinaisVitais = ({ pacienteId, consultaId } = {}) =>
   get(`/sinaisVitais${parametros({ pacienteId, consultaId })}`);
 
 // =====================================================================
+// SMS (Aula 13)
+// =====================================================================
+
+// O app pede, a API envia: o gateway e a chave dele ficam no servidor. O
+// pedido leva so tipo e texto; o numero sai do cadastro, la na API.
+const enviarSmsAoPaciente = (pacienteId, pedido) =>
+  post(`/pacientes/${pacienteId}/sms`, pedido);
+
+const buscarSms = (id) =>
+  get(`/sms/${encodeURIComponent(id)}`);
+
+// =====================================================================
 // DISPOSITIVOS (push)
 // =====================================================================
 
@@ -393,4 +405,8 @@ export {
 
   // dispositivos (push)
   registrarDispositivo,
+
+  // sms
+  enviarSmsAoPaciente,
+  buscarSms,
 };
