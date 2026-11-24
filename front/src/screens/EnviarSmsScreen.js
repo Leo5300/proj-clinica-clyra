@@ -7,6 +7,7 @@ import {
   TIPOS_DE_AVISO,
   avaliarTexto,
   normalizarNumero,
+  termosDeSaude,
   textoPadrao,
 } from '../services/sms';
 import {
@@ -95,6 +96,8 @@ export default function EnviarSmsScreen({ navigation, route }) {
   const avaliacao = avaliarTexto(texto);
   // O mesmo numero que o servidor vai usar: o do cadastro, normalizado.
   const numero = normalizarNumero(paciente?.telefone);
+  const termos = termosDeSaude(texto);
+  const podeEnviar = Boolean(numero) && texto.trim() !== '' && termos.length === 0;
 
   const renderConteudo = () => {
     if (carregando) {
@@ -170,6 +173,29 @@ export default function EnviarSmsScreen({ navigation, route }) {
               compacto
               onPress={() => setTexto(modelo)}
             />
+          ) : null}
+        </View>
+
+        <View
+          style={{
+            backgroundColor: cores.atencaoSuave,
+            borderRadius: raio.cartao,
+            borderCurve: 'continuous',
+            padding: espaco.md,
+            gap: 4,
+          }}
+        >
+          <Texto variante="rotuloForte" cor="atencao">
+            Não escreva dado de saúde
+          </Texto>
+          <Texto variante="legenda" cor="tinta2">
+            O SMS aparece na tela bloqueada e passa pela operadora sem criptografia. Nada de
+            profissional, especialidade, diagnóstico, remédio ou exame.
+          </Texto>
+          {termos.length > 0 ? (
+            <Texto testID="aviso-termos" variante="legendaForte" cor="alerta">
+              Tire do texto: {termos.join(', ')}. Enquanto isso, o envio fica bloqueado.
+            </Texto>
           ) : null}
         </View>
       </>
