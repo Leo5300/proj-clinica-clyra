@@ -1351,6 +1351,18 @@ async function enviarSmsAoPaciente({ usuario, params, corpo }) {
   return aceito({ id: enviada.id, status: enviada.status, segmentos });
 }
 
+// Andamento de um SMS ja enviado. Devolve so o status: numero e texto
+// ficam no gateway.
+async function consultarSms({ params }) {
+  const mensagem = await pedirAoGateway(() => sms.consultarNoGateway(params.id));
+
+  return ok({
+    id: mensagem.id,
+    status: mensagem.status,
+    entregueEm: mensagem.entregueEm ?? null,
+  });
+}
+
 // =====================================================================
 // DISPOSITIVOS (token de push do aparelho)
 // =====================================================================
@@ -1437,6 +1449,7 @@ const ROTAS = [
   { metodo: 'POST', caminho: '/sinaisVitais', perfis: [M, P], acao: registrarSinaisVitais },
 
   { metodo: 'POST', caminho: '/pacientes/:id/sms', perfis: [R], acao: enviarSmsAoPaciente },
+  { metodo: 'GET', caminho: '/sms/:id', perfis: [R], acao: consultarSms },
 
   { metodo: 'POST', caminho: '/dispositivos', perfis: TODOS, acao: registrarDispositivo },
 ];
