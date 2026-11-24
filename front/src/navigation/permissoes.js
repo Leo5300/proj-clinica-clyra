@@ -32,6 +32,8 @@ export const ROTAS_POR_PERFIL = {
   // Verificacao da agenda inteira: so a recepcao ve todas as consultas.
   SincronizarAgenda: ['recepcao'],
   HistoricoSincronizacao: ['recepcao'],
+  // SMS ao paciente sai da conta da clinica: so a recepcao envia.
+  EnviarSms: ['recepcao'],
   Horarios: ['recepcao', 'medico'],
   CadastroHorario: ['recepcao', 'medico'],
   SinaisVitais: ['medico', 'paciente'],
