@@ -759,10 +759,11 @@ não basta.
 
 | Item | Situação |
 |---|---|
-| Conta de teste criada e celular verificado | Não verificado: teste real pelo Twilio não concluído. |
-| SMS real recebido no celular verificado, enviado pelo app | Não verificado: teste real pelo Twilio não concluído. |
-| Recusa de número não verificado (código 21608) | Não verificado: teste real pelo Twilio não concluído. |
-| Validade da conta de teste | Não verificado: teste real pelo Twilio não concluído. |
+| Inicialização do gateway Twilio | Confirmada no Windows com o modelo `sms_appointment_reminders` ativo. |
+| Conta de teste criada e celular verificado | O gateway iniciou. A aceitação do destinatário pelo Twilio ficou sem confirmação. |
+| SMS real recebido no celular verificado, enviado pelo app | Não testado: o envio real e a entrega no celular não foram verificados. |
+| Recusa de número não verificado (código 21608) | Não testado: nenhum pedido de envio real foi concluído. |
+| Validade da conta de teste | Data de expiração não confirmada. |
 
 ## Fluxo de trabalho da equipe
 
