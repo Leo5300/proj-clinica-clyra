@@ -707,14 +707,14 @@ mesma consulta é desperdício de dinheiro e de paciência.
 
 | Teste | Onde | Resultado |
 |---|---|---|
-| "Do meu celular" abre o app de mensagens com número e texto prontos | PREENCHER | PREENCHER |
-| O que a tela mostrou ao voltar do app de mensagens (com e sem enviar) | PREENCHER | PREENCHER |
-| "Pela clínica" com o gateway simulado: folha de custo, fila e "Conferir entrega" | PREENCHER | PREENCHER |
-| Texto com mais de 160 caracteres e texto com acento | PREENCHER | PREENCHER |
-| Texto com termo de saúde | PREENCHER | PREENCHER |
-| Gateway desligado | PREENCHER | PREENCHER |
-| Cancelar como recepção e avisar por SMS | PREENCHER | PREENCHER |
-| `node servidor/testes-permissoes.js` (com o gateway no ar) | PREENCHER | PREENCHER |
+| "Do meu celular" abre o app de mensagens com número e texto prontos | Android | Não testado: teste no aparelho interrompido. |
+| O que a tela mostrou ao voltar do app de mensagens (com e sem enviar) | Android | Não testado: teste no aparelho interrompido. |
+| "Pela clínica" com o gateway simulado: folha de custo, fila e "Conferir entrega" | Terminal, gateway simulado | A API retornou 202 (enfileirada) e a consulta de status retornou 200. A folha de custo e a entrega pela tela não foram testadas. |
+| Texto com mais de 160 caracteres e texto com acento | Terminal, API | Texto GSM de 307 caracteres retornou 400. O contador e o caso com acento não foram testados no aparelho. |
+| Texto com termo de saúde | Terminal, API | Texto com termo de saúde retornou 400. |
+| Gateway desligado | Terminal | Não testado: o checkpoint foi executado com o gateway no ar. |
+| Cancelar como recepção e avisar por SMS | Android | Não testado: o fluxo da recepção pela tela não foi concluído. |
+| `node servidor/testes-permissoes.js` (com o gateway no ar) | Windows, json-server 1.0.0-beta.15 e gateway simulado | 92 de 92 casos OK, incluindo os 12 casos de SMS. |
 
 #### Limites conhecidos
 
@@ -759,10 +759,10 @@ não basta.
 
 | Item | Situação |
 |---|---|
-| Conta de teste criada e celular verificado | PREENCHER |
-| SMS real recebido no celular verificado, enviado pelo app | PREENCHER |
-| Recusa de número não verificado (código 21608) | PREENCHER |
-| Validade da conta de teste | PREENCHER |
+| Conta de teste criada e celular verificado | Não verificado: teste real pelo Twilio não concluído. |
+| SMS real recebido no celular verificado, enviado pelo app | Não verificado: teste real pelo Twilio não concluído. |
+| Recusa de número não verificado (código 21608) | Não verificado: teste real pelo Twilio não concluído. |
+| Validade da conta de teste | Não verificado: teste real pelo Twilio não concluído. |
 
 ## Fluxo de trabalho da equipe
 
