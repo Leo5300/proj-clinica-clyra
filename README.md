@@ -746,8 +746,9 @@ mudam uma linha; muda só o comando.
 Regras da conta de teste (conferidas na documentação do Twilio em novembro de 2026; elas mudam):
 
 - é grátis e não pede cartão, mas expira (30 dias) e tem um número limitado de mensagens;
-- só envia para números verificados na conta (o Twilio recusa os outros com o código
-  `21608`, que o app mostra em português);
+- só envia para números verificados na conta. A recusa para um número não verificado é
+  esperada no trial. O código depende da regra aplicada pelo Twilio. Neste teste, o código
+  `572002` indicou que o remetente de teste não estava associado ao destinatário para SMS;
 - **não aceita texto livre**, só os modelos prontos do Twilio. Com `TWILIO_MODELO_TRIAL`
   preenchido, todo SMS sai com o modelo `sms_appointment_reminders`: o que chega ao celular é
   o texto do Twilio, não o da tela. Com a conta paga, apaga-se essa linha e o texto da tela
@@ -760,10 +761,10 @@ não basta.
 | Item | Situação |
 |---|---|
 | Inicialização do gateway Twilio | Confirmada no Windows com o modelo `sms_appointment_reminders` ativo. |
-| Conta de teste criada e celular verificado | O gateway iniciou. A aceitação do destinatário pelo Twilio ficou sem confirmação. |
-| SMS real recebido no celular verificado, enviado pelo app | Não testado: o envio real e a entrega no celular não foram verificados. |
-| Recusa de número não verificado (código 21608) | Não testado: nenhum pedido de envio real foi concluído. |
-| Validade da conta de teste | Data de expiração não confirmada. |
+| Conta de teste criada e celular verificado | O Twilio aceitou o envio ao celular verificado na conta de teste. |
+| SMS real recebido no celular verificado | Em 26/11/2026, o SMS do terminal chegou rápido e o da tela do app também chegou, com texto diferente do exibido antes do envio. |
+| Recusa de número não verificado (código 21608) | No teste com a Fernanda Lima, a API retornou HTTP `502`, o Twilio recusou a tentativa com o código `572002` sem enviar SMS e o app mostrou a mensagem em inglês no iPhone porque esse código ainda não está na lista de traduções. |
+| Validade da conta de teste | Expira em 24/12/2026 (o trial vale 30 dias a partir do cadastro). |
 
 ## Fluxo de trabalho da equipe
 
