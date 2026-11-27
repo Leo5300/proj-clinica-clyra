@@ -707,13 +707,15 @@ mesma consulta é desperdício de dinheiro e de paciência.
 
 | Teste | Onde | Resultado |
 |---|---|---|
-| "Do meu celular" abre o app de mensagens com número e texto prontos | Android | Não testado: teste no aparelho interrompido. |
-| O que a tela mostrou ao voltar do app de mensagens (com e sem enviar) | Android | Não testado: teste no aparelho interrompido. |
-| "Pela clínica" com o gateway simulado: folha de custo, fila e "Conferir entrega" | Terminal, gateway simulado | A API retornou 202 (enfileirada) e a consulta de status retornou 200. A folha de custo e a entrega pela tela não foram testadas. |
-| Texto com mais de 160 caracteres e texto com acento | Terminal, API | Texto GSM de 307 caracteres retornou 400. O contador e o caso com acento não foram testados no aparelho. |
-| Texto com termo de saúde | Terminal, API | Texto com termo de saúde retornou 400. |
-| Gateway desligado | Terminal | Não testado: o checkpoint foi executado com o gateway no ar. |
-| Cancelar como recepção e avisar por SMS | Android | Não testado: o fluxo da recepção pela tela não foi concluído. |
+| Confirmação depois de agendar como recepção (S1) | iPhone, Expo Go | O botão "Avisar o paciente por SMS" abriu a confirmação com o texto padrão e o contador. |
+| "Do meu celular" abre o app de mensagens com número e texto prontos (S2) | iPhone, Expo Go | A composição do SMS abriu com o destinatário e o texto preenchidos. |
+| O que a tela mostrou ao voltar do app de mensagens, com e sem enviar (S2) | iPhone, Expo Go | Ao voltar sem enviar, o app mostrou o aviso de retorno sem envio. Após enviar, orientou a conferir no app de mensagens. |
+| "Pela clínica" com o gateway simulado, folha de custo, fila e "Conferir entrega" (S3) | iPhone, Expo Go, gateway simulado e terminal | A folha mostrou o custo e permitiu voltar. Depois de confirmar, apareceu `enfileirada` e a conferência mudou o status para `entregue`. A API retornou `202` no envio e `200` na conferência. |
+| Texto com mais de 160 caracteres e texto com acento (S4) | iPhone, Expo Go, e terminal | A tela atualizou o contador e mostrou o aviso de 70 caracteres para o texto com acento. O botão "Voltar ao texto padrão" restaurou o modelo. A API recusou texto GSM de 307 caracteres com `400`. |
+| Texto com termo de saúde (S5) | iPhone, Expo Go, e terminal | A palavra "psicologia" acionou o aviso e bloqueou os dois caminhos de envio. A API retornou `400` para texto com termo de saúde. |
+| Gateway desligado (S6) | iPhone, Expo Go, gateway desligado | A folha de confirmação avisou que o serviço de SMS estava fora do ar. |
+| Lembrete a partir do detalhe da consulta (S7) | iPhone, Expo Go | O botão "Lembrar o paciente por SMS" abriu a tela de lembrete com o modelo preenchido. |
+| Cancelar como recepção e avisar por SMS (S8) | iPhone, Expo Go e gateway simulado | O texto informou que a consulta foi cancelada. Após confirmar pela clínica, a tela mostrou "Na fila do serviço de SMS", e o gateway registrou o SMS de cancelamento. |
 | `node servidor/testes-permissoes.js` (com o gateway no ar) | Windows, json-server 1.0.0-beta.15 e gateway simulado | 92 de 92 casos OK, incluindo os 12 casos de SMS. |
 
 #### Limites conhecidos
