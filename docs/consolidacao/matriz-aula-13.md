@@ -3,14 +3,14 @@
 Retrato do projeto a três aulas da entrega, preenchido em squad com o app aberto ao lado.
 Ele não vale por estar todo verde, e sim por estar correto: "parcial" é uma resposta útil.
 
-Os estados das Aulas 3 a 12 e os responsáveis vêm do histórico do Git e do README. A revisão com a squad e a validação no Android ficaram pendentes.
+Os estados das Aulas 3 a 12 vêm do histórico do Git e do README. As decisões da squad estão registradas abaixo. A validação no iPhone está pendente.
 
 | Campo | Valor |
 |---|---|
 | Squad | CLYRA (Felipe, Jean, Leonardo, Gabriel) |
 | Data | 24/11/2026 |
-| Integrantes presentes | Revisão com a squad não realizada |
-| Aparelho do teste | Validação no Android não concluída |
+| Integrantes presentes | Felipe e Leonardo (respondendo pela squad) |
+| Aparelho do teste | Validação no iPhone pendente |
 
 ## 1. Estado de cada recurso
 
@@ -42,7 +42,7 @@ Estado: **F** = funcionando, **P** = parcial, **N** = não feito.
 | Confirmação do agendamento | Não | Não | Opcional, só quando a recepção agenda | Quem agendou pelo app já viu a confirmação na tela |
 | Paciente sem o app instalado | Não chega | Não chega | Sim | É o único canal que chega |
 
-Decisão da squad sobre esta tabela: Sem confirmação da squad
+Decisão da squad sobre esta tabela: confirmada em 26/11/2026.
 
 ## 3. Costuras entre recursos
 
@@ -61,34 +61,35 @@ Decisão da squad sobre esta tabela: Sem confirmação da squad
 
 | Dependência | Necessária para | Quem garante na Aula 16 |
 |---|---|---|
-| Notebook com json-server, API e gateway de SMS no ar | O app inteiro | Sem confirmação da squad |
-| IP certo em `front/.env.local` e celular na mesma rede Wi-Fi | O celular falar com a API | Sem confirmação da squad |
-| Conta do Expo logada no terminal e no Expo Go | Abrir o app | Sem confirmação da squad |
-| Conta de teste do Twilio válida, `servidor/.env` e número verificado | SMS real (expira em 30 dias; se expirar, usar o simulado) | Felipe — Sem confirmação da squad |
-| Celular com chip | SMS pelo celular | Sem confirmação da squad |
-| Celular com biometria cadastrada | Login com biometria | Sem confirmação da squad |
-| Development build | Push, Bluetooth real e tarefa periódica (hoje não existe) | Sem confirmação da squad |
+| Notebook com json-server, API e gateway de SMS no ar | O app inteiro | Leonardo |
+| IP certo em `front/.env.local` e celular na mesma rede Wi-Fi | O celular falar com a API | Leonardo |
+| Conta do Expo logada no terminal e no Expo Go | Abrir o app | Leonardo |
+| Conta de teste do Twilio válida, `servidor/.env` e número verificado | SMS real (expira em 30 dias; se expirar, usar o simulado) | Felipe; o celular do Leonardo precisa estar verificado na conta |
+| Celular com chip | SMS pelo celular | Leonardo |
+| Celular com biometria cadastrada | Login com biometria | Leonardo |
+| Development build | Push, Bluetooth real e tarefa periódica (hoje não existe) | Squad, se der tempo (seção 5) |
 
 ## 5. Plano para as três últimas aulas
 
 | O que concluir | Quem | Até quando | Se não der, o plano é |
 |---|---|---|---|
 | Testes automatizados dos fluxos críticos e dos cenários de falha | Squad | Aula 14 | Registrar no plano de testes o que ficou sem teste |
-| Tirar câmera e biometria de dentro das telas (services) | Sem confirmação da squad | Aula 14 | Registrar como dívida de arquitetura no relatório de bugs |
+| Tirar câmera e biometria de dentro das telas (services) | Gabriel | Aula 14 | Registrar como dívida de arquitetura no relatório de bugs |
 | Restringir a chave do Google e criar o alerta de orçamento | Jean | Antes da Aula 15 | Build Android sem mapa, com a pendência no README |
 | README técnico, manual de uso e build de produção | Squad | Aula 15 | Documentar o que faltou e por quê |
-| Atualizar o checklist "Funcionalidades" do README | Sem confirmação da squad | Aula 15 | — |
+| Atualizar o checklist "Funcionalidades" do README | Squad | Aula 15 | — |
 | Ensaiar a apresentação com a tabela de dependências acima | Squad | Aula 16 | — |
+| Envio de push pelo servidor | Squad | Se der tempo, até a Aula 15 | Fica registrado como não feito na documentação da Aula 15 |
+| SMS automático na véspera (agendador no servidor) | Squad | Se der tempo, até a Aula 15 | Fica registrado como não feito; o lembrete local cobre a véspera |
+| Resposta do paciente por SMS ("SIM para confirmar") | Squad | Se der tempo, até a Aula 15 | Fica registrado como não feito; os modelos não pedem resposta |
+| Development build (Bluetooth real, tarefa periódica e push) | Squad | Se der tempo, até a Aula 15 | Apresentar no Expo Go, com o modo simulado do Bluetooth |
+| Rota desenhada dentro do app | Squad | Se der tempo, até a Aula 15 | Mantém a decisão 005: abrir o app de mapas do aparelho |
 
 ## 6. O que a squad decide NÃO fazer
 
 | O que fica de fora | Por quê |
 |---|---|
-| Envio de push pelo servidor | Exige um serviço de envio e development build; o SMS cobre o cancelamento |
-| SMS automático na véspera | Exige um agendador no servidor; o lembrete local já cobre a véspera |
-| Resposta do paciente por SMS ("SIM para confirmar") | Exige receber SMS, outro serviço e outro custo |
-| Conta paga do Twilio | Custo; a conta de teste prova a integração |
-| Rota desenhada dentro do app | Decisão 005: o app de mapas do aparelho faz melhor |
-| Bluetooth real e tarefa periódica na apresentação | Exigem development build, que a squad não vai gerar a tempo |
+| Conta paga do Twilio e qualquer outro serviço pago | A squad não vai pagar por serviços; a conta de teste do Twilio prova a integração |
 
-Decisão da squad sobre esta lista: Sem confirmação da squad
+Decisão da squad sobre esta lista: confirmada em 26/11/2026. Só fica de fora o que é pago; o resto
+entrou no plano da seção 5, para fazer o máximo que der até a Aula 15.
