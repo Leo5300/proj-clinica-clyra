@@ -3,14 +3,16 @@
 Retrato do projeto a três aulas da entrega, preenchido em squad com o app aberto ao lado.
 Ele não vale por estar todo verde, e sim por estar correto: "parcial" é uma resposta útil.
 
-Os estados das Aulas 3 a 12 vêm do histórico do Git e do README. As decisões da squad estão registradas abaixo. A validação no iPhone está pendente.
+As decisões da squad e as evidências foram consolidadas em 26/11/2026. A suíte de permissões
+passou em 92 de 92 casos. As observações indicam quais resultados vêm do histórico, da API ou
+dos testes de SMS no iPhone 17e.
 
 | Campo | Valor |
 |---|---|
 | Squad | CLYRA (Felipe, Jean, Leonardo, Gabriel) |
 | Data | 24/11/2026 |
 | Integrantes presentes | Felipe e Leonardo (respondendo pela squad) |
-| Aparelho do teste | Validação no iPhone pendente |
+| Aparelho do teste | iPhone 17e, iOS 27, Expo Go |
 
 ## 1. Estado de cada recurso
 
@@ -18,19 +20,19 @@ Estado: **F** = funcionando, **P** = parcial, **N** = não feito.
 
 | Aula | Recurso | Estado | Quem responde | Exige | Observação |
 |---|---|---|---|---|---|
-| 3 | CRUD de médicos, pacientes, especialidades e horários | F — indicado no histórico | Leonardo (médicos), Felipe (pacientes), Jean (horários), Gabriel (especialidades) | servidor no ar | — |
-| 4 | Login com token no cofre; requisições autenticadas | F — indicado no histórico | Leonardo | servidor no ar | A API de desenvolvimento roda em HTTP; HTTPS fica para a clínica real (README, Aula 4) |
-| 5 | Serviço externo (CEP) | F — indicado no histórico | Felipe | internet (ViaCEP) | — |
+| 3 | CRUD de médicos, pacientes, especialidades e horários | F — indicado no histórico | Leonardo (médicos), Felipe (pacientes), Jean (horários), Gabriel (especialidades) | servidor no ar | Nos testes de SMS, a recepção conseguiu agendar e cancelar pelo iPhone 17e. |
+| 4 | Login com token no cofre; requisições autenticadas | F — indicado no histórico | Leonardo | servidor no ar | Login da recepção e chamadas autenticadas confirmados durante os testes de SMS no iPhone 17e. A API de desenvolvimento roda em HTTP, com HTTPS previsto para a clínica real. |
+| 5 | Serviço externo (CEP) | F — indicado no histórico | Felipe | internet (ViaCEP) | O README registra o preenchimento de endereço via ViaCEP no cadastro de pacientes. |
 | 6 | Foto de perfil via câmera | F — indicado no histórico | Jean (médico), Leonardo (paciente) | aparelho físico | As telas chamam o `expo-image-picker` direto, sem service |
 | 6 | Login com biometria | F — indicado no histórico | Jean | aparelho físico com biometria cadastrada | A tela chama o `expo-local-authentication` direto, sem service |
-| 6 | GPS e distância até a clínica | F — indicado no histórico | Jean | aparelho físico | — |
-| 7 | Sinais vitais via Bluetooth | P — indicado no histórico | Gabriel | modo simulado no Expo Go; o real exige development build | — |
-| 8 | Lembrete local de consulta | F — indicado no histórico | Felipe | aparelho físico e permissão de notificações | — |
-| 9 | Push de lembrete (token registrado na API) | P — indicado no histórico | Felipe | development build e aparelho físico | O token é registrado; o envio pelo servidor ainda não existe |
-| 10 | Verificação de conflitos sem travar a interface | F — indicado no histórico | Gabriel | servidor no ar | — |
-| 11 | Sincronização em segundo plano | P — indicado no histórico | Jean | servidor no ar; a tarefa periódica exige development build | Manual e "voltou ao app" testados no iPhone; tarefa periódica não observada |
-| 12 | Mapa da clínica | P — indicado no histórico | Jean | Expo Go sem chave; build Android com a chave do Google | Chave sem restrição e sem alerta de orçamento (README) |
-| 13 | SMS de confirmação e cancelamento | P — 12 testes de API passaram com gateway simulado; Android e Twilio pendentes | Felipe | servidor e gateway no ar; Twilio: conta de teste e número verificado; aparelho com chip para o caminho do celular | — |
+| 6 | GPS e distância até a clínica | F — indicado no histórico | Jean | aparelho físico | O [teste da Aula 12](../../README.md#mapa-da-clínica-aula-12) no iPhone 13 registrou o marcador da pessoa e o enquadramento dos dois pontos ao calcular a distância. |
+| 7 | Sinais vitais via Bluetooth | P — indicado no histórico | Gabriel | modo simulado no Expo Go; o real exige development build | A suíte confirmou gravação e leitura dos sinais vitais pela API, com as permissões de cada perfil. |
+| 8 | Lembrete local de consulta | F — indicado no histórico | Felipe | aparelho físico e permissão de notificações | O [README da Aula 8](../../README.md#texto-do-lembrete-de-consulta-aula-8) descreve o lembrete local. |
+| 9 | Push de lembrete (token registrado na API) | P — indicado no histórico | Felipe | development build e aparelho físico | A suíte confirmou o registro do aparelho pela API sem duplicatas. O envio pelo servidor ainda não existe. |
+| 10 | Verificação de conflitos sem travar a interface | F — indicado no histórico | Gabriel | servidor no ar | Nas [medições da Aula 10](../../README.md#medições), o Android encontrou 349 pares em conflito em 5.000 consultas e exibiu a barra de progresso no modo fatiado. |
+| 11 | Sincronização em segundo plano | P — indicado no histórico | Jean | servidor no ar; a tarefa periódica exige development build | O [teste da Aula 11](../../README.md#sincronização-em-segundo-plano-aula-11) confirmou a atualização manual e ao voltar ao app no iPhone 13. A execução periódica exige um development build. |
+| 12 | Mapa da clínica | P — indicado no histórico | Jean | Expo Go sem chave; build Android com a chave do Google | O [teste da Aula 12](../../README.md#mapa-da-clínica-aula-12) confirmou mapa e marcador no iPhone 13 com Expo Go. A chave do build Android está sem restrição e sem alerta de orçamento. |
+| 13 | SMS de confirmação e cancelamento | F | Felipe | servidor e gateway no ar; Twilio: conta de teste e número verificado; aparelho com chip para o caminho do celular | Os testes de tela no iPhone 17e confirmaram fila, entrega simulada e cancelamento. O Twilio entregou ao celular verificado e recusou o destinatário fora da lista com o código `572002`, exibido em inglês. |
 
 ## 2. Os três canais de aviso
 
@@ -46,16 +48,16 @@ Decisão da squad sobre esta tabela: confirmada em 26/11/2026.
 
 ## 3. Costuras entre recursos
 
-| Teste | O que deveria acontecer | O que aconteceu |
+| Teste | O que deveria acontecer | Evidência disponível |
 |---|---|---|
-| Negar a permissão de localização e abrir a tela de agendamento | O agendamento não usa localização: funciona normalmente | Não testado no aparelho. |
-| Negar a permissão de notificações e agendar uma consulta | A consulta é agendada; o app avisa que não haverá lembrete | Não testado no aparelho. |
-| Cancelar uma consulta que já tinha lembrete agendado | O lembrete do aparelho que cancelou some na hora; o do paciente some quando ele abrir o app | Não testado no aparelho. |
-| Remarcar uma consulta que já tinha lembrete agendado | Fica um lembrete só, no novo horário | Não testado no aparelho. |
-| Usar o app sem internet | As telas mostram erro com "tentar de novo"; Como chegar mantém endereço e telefone | Não testado no aparelho. |
-| Derrubar a API no meio de um cadastro | O app mostra erro e não perde o que foi digitado | Não testado no aparelho. |
-| Fechar o app durante a sincronização | Nada quebra; ao voltar, o histórico mostra a última tentativa que terminou | Não testado no aparelho. |
-| Entrar com biometria sem nunca ter feito login com senha | A tela de biometria não aparece: sem sessão salva, o app pede e-mail e senha | Não testado no aparelho. |
+| Negar a permissão de localização e abrir a tela de agendamento | O agendamento funciona sem usar localização. | Na Aula 12, mapa e endereço continuaram visíveis no iPhone 13 com localização negada. O agendamento com essa permissão negada ficou sem observação. |
+| Negar a permissão de notificações e agendar uma consulta | A consulta é agendada e o app avisa que não haverá lembrete. | O [README](../../README.md#permissões-necessárias) descreve o aviso esperado. O agendamento com notificações negadas ficou sem observação. |
+| Cancelar uma consulta que já tinha lembrete agendado | O lembrete do aparelho que cancelou some na hora e o do paciente some quando ele abrir o app. | O cancelamento foi confirmado pela suíte de API e pela recepção no iPhone 17e. A remoção do lembrete ficou sem observação. |
+| Remarcar uma consulta que já tinha lembrete agendado | Fica um lembrete só, no novo horário. | A quantidade de lembretes após remarcar ficou sem observação. |
+| Usar o app sem internet | As telas mostram erro com "tentar de novo". Como chegar mantém endereço e telefone. | Na Aula 12, endereço, telefone e botões permaneceram visíveis em Como chegar no iPhone 13 sem internet. A navegação por três telas ficou sem observação. |
+| Derrubar a API no meio de um cadastro | O app mostra erro e preserva o que foi digitado. | A preservação dos campos durante a queda da API ficou sem observação. |
+| Fechar o app durante a sincronização | Ao voltar, o histórico mostra a última tentativa que terminou. | Na Aula 11, voltar ao app após 15 minutos gerou uma entrada no histórico. O fechamento durante uma sincronização ficou sem observação. |
+| Entrar com biometria sem nunca ter feito login com senha | Sem sessão salva, o app pede e-mail e senha. | O [README](../../README.md#permissões-necessárias) descreve a biometria para sessões salvas. O início sem sessão ficou sem observação no aparelho. |
 
 ## 4. Dependências que podem quebrar na apresentação (Aula 16)
 
