@@ -34,7 +34,7 @@ proj-clinica-clyra/
 ├── back/              API em Spring Boot (Java) — prevista para depois; não sobe neste momento
 ├── docs/              wireframes (Figma), logos e decisoes/ (registros de decisão)
 ├── front/             aplicação mobile em React Native + Expo
-├── servidor/          API mock da clínica em Node (auth-api.js), regras e testes de permissão
+├── servidor/          API mock da clínica em Node (auth-api.js), regras, testes de permissão e gateways de SMS
 ├── db_clinica.json    dados mock, servidos pelo json-server
 └── README.md
 ```
@@ -48,7 +48,7 @@ front/
 └── src/
     ├── navigation/    AppNavigator (rotas) e permissoes (quem vê o quê)
     ├── screens/       uma tela por arquivo
-    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada, sincronizacao, useSincronizacao, tarefaBackground
+    └── services/      api, sessao, lembretes, push, bluetooth, localizacao, viacep, httpExterno, datas, processamento, conflitos, useTarefaPesada, sincronizacao, useSincronizacao, tarefaBackground, sms
 ```
 
 ## Perfis de acesso
@@ -111,7 +111,8 @@ Ensino. Marcado conforme cada item é implementado pela squad.
       (botão, volta ao app e tarefa periódica opcional; a tarefa só roda em development build)
 - [x] Mapa exibindo a localização da clínica dentro do aplicativo
       (no Expo Go; o build Android precisa da chave do Google, ver "Chave do Google Maps")
-- [ ] Confirmação/cancelamento de consulta enviado por SMS
+- [x] Confirmação/cancelamento de consulta enviado por SMS
+      (pelo celular com `expo-sms` e pela clínica com gateway; envio real pelo Twilio em conta de teste)
 - [x] Funcionalidade de agendamento de consultas (paciente)
 - [x] Funcionalidade de listagem das consultas agendadas
 - [x] Funcionalidade de cancelamento de consulta
@@ -131,9 +132,9 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Trocar senha | Obrigatória no primeiro acesso do médico; voluntária pelo perfil. | todos | Home, Meu perfil |
 | Home | Saudação, cartão do dia (próxima consulta, agenda de hoje ou movimento da clínica) e atalhos do perfil. | todos | atalhos do perfil, Meu perfil |
 | Meu perfil | Foto, dados de acesso, trocar senha e sair. | todos | Meus dados, Trocar senha, Login |
-| Agendar | Escolha de especialidade, médico, dia e horário livre. | recepção, paciente | Consultas |
+| Agendar | Escolha de especialidade, médico, dia e horário livre. | recepção, paciente | Consultas, Enviar SMS (recepção) |
 | Consultas | Lista em Hoje, Próximas e Anteriores. | todos | Detalhe da consulta, Agendar |
-| Detalhe da consulta | Dados da consulta, sinais vitais, remarcar e cancelar. | todos | Agendar, Sinais vitais |
+| Detalhe da consulta | Dados da consulta, sinais vitais, remarcar e cancelar. | todos | Agendar, Sinais vitais, Enviar SMS (recepção) |
 | Sinais vitais | Leitura por Bluetooth ou digitação manual, gravada no prontuário. | médico, paciente | Detalhe da consulta |
 | Pacientes | Lista de pacientes (médico: só os seus, em modo leitura). | recepção, médico | Cadastro/Edição de paciente |
 | Cadastro/Edição de paciente | Cadastro com CEP (ViaCEP) e foto; "Meus dados" para o paciente. | todos | — |
@@ -144,6 +145,7 @@ Ensino. Marcado conforme cada item é implementado pela squad.
 | Como chegar | Mapa da clínica, endereço, telefone e distância em linha reta pelo GPS; abre o app de mapas do aparelho. | paciente | — |
 | Verificar agenda | Conferência da agenda inteira, status da sincronização, "Atualizar agora" e a chave da tarefa periódica. | recepção | Histórico de sincronização |
 | Histórico de sincronização | As 20 últimas sincronizações: quando, quem pediu e como terminaram. | recepção | Verificar agenda |
+| Enviar SMS | Lembrete, confirmação, remarcação ou cancelamento ao paciente, pelo celular de quem atende ou pela clínica, com contador de mensagens e status da entrega. | recepção | Detalhe da consulta |
 | Sem acesso | Aparece quando o perfil não pode abrir uma tela. | todos | Home |
 
 ## Tecnologias
@@ -156,11 +158,14 @@ Ensino. Marcado conforme cada item é implementado pela squad.
   `expo-local-authentication` (biometria), `expo-location` (GPS),
   `expo-notifications` e `@react-native-async-storage/async-storage` (lembretes),
   `react-native-ble-plx` e `buffer` (Bluetooth), `expo-task-manager` e
-  `expo-background-task` (sincronização em segundo plano) e `react-native-maps` (mapa da clínica)
+  `expo-background-task` (sincronização em segundo plano), `react-native-maps` (mapa da clínica)
+  e `expo-sms` (SMS pelo celular de quem atende)
 - `fetch` nativo para consumo da API (sem axios — decisão registrada em
   "Decisões técnicas")
 - API mock em Node puro (`servidor/auth-api.js`) com os dados no `db_clinica.json`,
   servidos pelo `json-server`
+- Gateway de SMS em Node puro: simulado (`servidor/gateway-sms.js`) e real, pelo
+  [Twilio](https://www.twilio.com/) (`servidor/gateway-sms-twilio.js`, só com `fetch`, sem pacote)
 
 ## Pré-requisitos
 
@@ -206,6 +211,14 @@ node servidor/auth-api.js
 
 O `json-server` guarda os dados; só a API (`auth-api.js`) conversa com ele, e o app só
 conversa com a API. Assim toda requisição passa pelas regras de cada perfil.
+
+Para o SMS (Aula 13), um terceiro terminal sobe o gateway, que só a API chama:
+
+```bash
+cd front
+npm run gateway          # simulado: nada sai de verdade
+npm run gateway:twilio   # real, pelo Twilio (precisa de servidor/.env, ver "Envio real pelo Twilio")
+```
 
 > **Bloqueie a porta 3000 no firewall.** Na versão do json-server usada
 > (1.0.0-beta.15), a opção `--host` não tem efeito e ele aceita conexões da rede. Sem o
@@ -253,6 +266,7 @@ Escaneie o QR Code com o Expo Go, ou pressione `a` / `i` para abrir em um emulad
 | Localização (GPS) | Ao tocar em "Calcular distância até a clínica" (só em primeiro plano). | O endereço da clínica continua visível. Se a permissão foi negada para sempre, o app oferece abrir os ajustes do aparelho. |
 | Bluetooth | Ao procurar aparelhos na tela de sinais vitais (modo real, Android). | O app avisa e o link "Digitar os valores manualmente" continua disponível. |
 | Notificações | Quando o paciente agenda uma consulta pela primeira vez. | A consulta é agendada mesmo assim; o app avisa que não haverá lembrete e a lista de consultas mostra o aviso. |
+| SMS (pelo celular) | Não pede permissão: o app só abre o app de mensagens com o texto pronto. | Sem chip (tablet, emulador), o botão fica desativado e a tela diz o motivo. |
 
 ### Texto do lembrete de consulta (Aula 8)
 
@@ -619,6 +633,141 @@ orçamento. Isso precisa ser feito no console antes de qualquer build que a use.
 nova chave, apague a antiga e troque o valor em `front/.env.local`. Apagar o commit não basta,
 porque o histórico do Git continua com a chave.
 
+### SMS ao paciente (Aula 13)
+
+A recepção avisa o paciente por SMS em três momentos: **lembrete** (no detalhe de uma
+consulta futura), **confirmação ou remarcação** (logo depois de agendar ou remarcar) e
+**cancelamento** (logo depois de cancelar). A tela **Enviar SMS** oferece dois caminhos,
+lado a lado, e diz em cada um quem envia e quem paga.
+
+| | Do meu celular (`expo-sms`) | Pela clínica (gateway) |
+|---|---|---|
+| Quem envia | Quem está com o celular na mão, tocando em "enviar" | O servidor da clínica |
+| De qual número | Do celular de quem atende | Do número da clínica |
+| Quem paga | Ninguém (é o plano do celular) | A clínica, por mensagem |
+| Chega com o app do paciente fechado? | Sim, é SMS comum | Sim, mesmo sem app nenhum |
+| O app fica sabendo se saiu? | **Não.** No Android o retorno é quase sempre `unknown` | Fica sabendo que entrou na fila; a entrega é conferida depois |
+
+Por isso a tela nunca diz "enviado". Pelo celular, ela diz "confira no seu app de
+mensagens". Pela clínica, ela diz que o SMS está **na fila** (a API responde `202` com
+status `enfileirada`) e oferece "Conferir entrega", que pergunta à API como está a mensagem:
+`enfileirada`, `enviada`, `entregue` ou `falhou`. É a mesma lição dos recibos do push (Aula 9):
+aceito não é entregue.
+
+#### Como o envio pela clínica funciona
+
+```
+app ──POST /pacientes/:id/sms { tipo, texto }──► API da clínica (3001) ──► gateway (3002) ──► operadora
+```
+
+- **O app nunca fala com o gateway.** Quem tem a chave do gateway tem a conta, e app
+  instalado pode ser aberto e inspecionado. A chave fica só no computador da API, e o
+  gateway escuta só em `127.0.0.1`.
+- **O número sai do cadastro, não do pedido.** O app manda só o tipo e o texto; a API lê o
+  telefone do paciente e o normaliza para o formato internacional (`(31) 91111-1111` vira
+  `+5531911111111`). Ninguém usa a conta da clínica para mandar SMS a um número qualquer.
+- **A rota é por paciente, não por consulta.** O cancelamento apaga a consulta no servidor:
+  depois de cancelar, uma rota `/consultas/:id/sms` não acharia mais nada. A tela já tem a
+  data e a hora em memória e manda o texto pronto.
+- **A API confere antes de gastar.** Recusa com `400`, sem chamar o gateway: tipo de aviso
+  inválido, texto vazio, texto com dado de saúde, texto que vira mais de 2 mensagens e
+  telefone que não é celular. Gateway fora do ar responde `503` com uma frase para a
+  recepção, e recusa do Twilio chega ao app com o motivo em português.
+- **Só a recepção envia** (`403` para médico e paciente), e o registro de acessos guarda quem
+  pediu, para qual paciente, o tipo e o resultado. Nunca o número nem o texto.
+
+#### O que vai no texto
+
+- Modelos prontos para os quatro avisos, todos começando com "Clyra:" e cabendo em **uma**
+  mensagem. A recepção pode editar.
+- **Sem acento:** com acento, a codificação muda (GSM 7-bit para UCS-2) e cada mensagem cabe
+  70 caracteres, não 160. A tela avisa quando isso acontece.
+- **Contador de caracteres e mensagens** embaixo do texto, em destaque quando passa de uma
+  (160 caracteres = 1 mensagem; 161 = 2). Antes de enviar pela clínica, uma folha de
+  confirmação diz quantas mensagens serão cobradas.
+- **Nenhum dado de saúde.** O SMS não é criptografado, passa pela operadora e aparece na tela
+  bloqueada. Numa clínica de psicologia e psiquiatria, até a especialidade é dado de saúde.
+  A tela mostra esse aviso a quem digita, aponta termos como "psicologia", "remédio" ou
+  "exame" e bloqueia o envio; a API recusa a mesma lista.
+
+#### Três canais, uma regra
+
+| Situação | Lembrete local (Aula 8) | Push (Aula 9) | SMS (Aula 13) |
+|---|---|---|---|
+| Lembrete de uma hora antes | Sim | Não | Não |
+| Consulta cancelada pela clínica | O aparelho do paciente cancela quando ele abre o app | Contrato pronto; o envio pelo servidor ainda não existe | **Sim**, a recepção envia na hora |
+| Consulta remarcada pela recepção | O aparelho do paciente reagenda quando ele abre o app | Idem | Opcional |
+| Agendamento feito pela recepção | Não (o aparelho é da clínica) | Não | Opcional |
+| Paciente sem o app | Não chega | Não chega | **Sim**, é o único que chega |
+
+SMS é para quem não tem o app ou para o que não pode falhar. Mandar os três canais para a
+mesma consulta é desperdício de dinheiro e de paciência.
+
+#### Como testei
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Confirmação depois de agendar como recepção (S1) | iPhone, Expo Go | O botão "Avisar o paciente por SMS" abriu a confirmação com o texto padrão e o contador. |
+| "Do meu celular" abre o app de mensagens com número e texto prontos (S2) | iPhone, Expo Go | A composição do SMS abriu com o destinatário e o texto preenchidos. |
+| O que a tela mostrou ao voltar do app de mensagens, com e sem enviar (S2) | iPhone, Expo Go | Ao voltar sem enviar, o app mostrou o aviso de retorno sem envio. Após enviar, orientou a conferir no app de mensagens. |
+| "Pela clínica" com o gateway simulado, folha de custo, fila e "Conferir entrega" (S3) | iPhone, Expo Go, gateway simulado e terminal | A folha mostrou o custo e permitiu voltar. Depois de confirmar, apareceu `enfileirada` e a conferência mudou o status para `entregue`. A API retornou `202` no envio e `200` na conferência. |
+| Texto com mais de 160 caracteres e texto com acento (S4) | iPhone, Expo Go, e terminal | A tela atualizou o contador e mostrou o aviso de 70 caracteres para o texto com acento. O botão "Voltar ao texto padrão" restaurou o modelo. A API recusou texto GSM de 307 caracteres com `400`. |
+| Texto com termo de saúde (S5) | iPhone, Expo Go, e terminal | A palavra "psicologia" acionou o aviso e bloqueou os dois caminhos de envio. A API retornou `400` para texto com termo de saúde. |
+| Gateway desligado (S6) | iPhone, Expo Go, gateway desligado | A folha de confirmação avisou que o serviço de SMS estava fora do ar. |
+| Lembrete a partir do detalhe da consulta (S7) | iPhone, Expo Go | O botão "Lembrar o paciente por SMS" abriu a tela de lembrete com o modelo preenchido. |
+| Cancelar como recepção e avisar por SMS (S8) | iPhone, Expo Go e gateway simulado | O texto informou que a consulta foi cancelada. Após confirmar pela clínica, a tela mostrou "Na fila do serviço de SMS", e o gateway registrou o SMS de cancelamento. |
+| `node servidor/testes-permissoes.js` (com o gateway no ar) | Windows, json-server 1.0.0-beta.15 e gateway simulado | 92 de 92 casos OK, incluindo os 12 casos de SMS. |
+
+#### Limites conhecidos
+
+- O gateway guarda o histórico em memória: reiniciá-lo apaga os status, e "Conferir entrega"
+  passa a responder que a mensagem não foi encontrada.
+- Não há SMS automático na véspera (exigiria um agendador no servidor) nem resposta do
+  paciente ("SIM para confirmar" exigiria receber SMS). Os modelos não pedem resposta.
+- Pelo celular, o SMS sai do número de quem atende: se o paciente responder, a resposta
+  chega nesse celular.
+
+#### Envio real pelo Twilio
+
+O gateway simulado (`npm run gateway`) não envia nada: imprime no terminal e responde como um
+gateway de verdade. Para o SMS chegar a um celular, o mesmo contrato roda sobre o Twilio
+(`servidor/gateway-sms-twilio.js`): mesma porta, mesmas rotas, mesmo `202`. A API e o app não
+mudam uma linha; muda só o comando.
+
+1. Criar a conta de teste (trial) em `twilio.com/try-twilio`, confirmar o e-mail e verificar
+   o próprio celular (Brasil, +55).
+2. No Console do Twilio, copiar o **Account SID**, o **Auth Token** e o número de envio do
+   trial.
+3. Copiar `servidor/.env.exemplo` para `servidor/.env` e preencher os três valores. Na conta
+   de teste, descomentar `TWILIO_MODELO_TRIAL`.
+4. Parar o gateway simulado e rodar, na pasta `front`, `npm run gateway:twilio` (o
+   `--env-file` exige Node 20.6 ou mais novo).
+5. No app, enviar pela clínica para um paciente cujo telefone no cadastro seja um celular
+   **verificado** no Twilio.
+
+Regras da conta de teste (conferidas na documentação do Twilio em novembro de 2026; elas mudam):
+
+- é grátis e não pede cartão, mas expira (30 dias) e tem um número limitado de mensagens;
+- só envia para números verificados na conta. A recusa para um número não verificado é
+  esperada no trial. O código depende da regra aplicada pelo Twilio. Neste teste, o código
+  `572002` indicou que o remetente de teste não estava associado ao destinatário para SMS;
+- **não aceita texto livre**, só os modelos prontos do Twilio. Com `TWILIO_MODELO_TRIAL`
+  preenchido, todo SMS sai com o modelo `sms_appointment_reminders`: o que chega ao celular é
+  o texto do Twilio, não o da tela. Com a conta paga, apaga-se essa linha e o texto da tela
+  sai como foi escrito.
+
+`servidor/.env` está no `.gitignore`. Quem tem o Auth Token tem a conta: se ele aparecer num
+commit, num print ou numa conversa, gere outro no Console e troque no `.env`. Apagar o commit
+não basta.
+
+| Item | Situação |
+|---|---|
+| Inicialização do gateway Twilio | Confirmada no Windows com o modelo `sms_appointment_reminders` ativo. |
+| Conta de teste criada e celular verificado | O Twilio aceitou o envio ao celular verificado na conta de teste. |
+| SMS real recebido no celular verificado | Em 26/11/2026, o SMS do terminal chegou rápido e o da tela do app também chegou, com texto diferente do exibido antes do envio. |
+| Recusa de número não verificado (código 21608) | No teste com a Fernanda Lima, a API retornou HTTP `502`, o Twilio recusou a tentativa com o código `572002` sem enviar SMS e o app mostrou a mensagem em inglês no iPhone porque esse código ainda não está na lista de traduções. |
+| Validade da conta de teste | Expira em 24/12/2026 (o trial vale 30 dias a partir do cadastro). |
+
 ## Fluxo de trabalho da equipe
 
 Combinado da squad, definido na Aula 1 e formalizado na Aula 2.
@@ -687,6 +836,7 @@ decisão em vez de apagá-la.
 | 10 | Processamento sem travar a interface (`processamento.js`, `conflitos.js`, tela Verificar agenda) | Gabriel Vinicius Martins |
 | 11 | Sincronização em segundo plano (`sincronizacao.js`, `useSincronizacao.js`, `tarefaBackground.js`, histórico) | Jean Vinicius Rodrigues de Oliveira |
 | 12 | Mapa da clínica (`MapaDaClinica.js`, tela Como chegar, `app.config.js`) | Jean Vinicius Rodrigues de Oliveira |
+| 13 | SMS ao paciente (`sms.js` no app e no servidor, tela Enviar SMS, gateways simulado e Twilio) e matriz de consolidação | Felipe Augusto da Silva |
 
 ## Decisões técnicas
 
@@ -746,8 +896,9 @@ GPS, Bluetooth ou notificações: elas ficam em `localizacao.js`, `bluetooth.js`
 
 ## Testes
 
-Teste automático das permissões da API (80 casos: login, perfis, dados de cada um,
-regras de agendamento, autocadastro e especialidade do médico). Com os dois servidores no ar:
+Teste automático das permissões da API (92 casos: login, perfis, dados de cada um,
+regras de agendamento, autocadastro, especialidade do médico e SMS). Com o json-server e a
+API no ar, e o gateway de SMS também (sem ele, o caso de envio confere o `503` e são 89 casos):
 
 ```bash
 node servidor/testes-permissoes.js

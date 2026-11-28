@@ -4,6 +4,9 @@
 //   npx json-server --watch db_clinica.json --port 3000 --host 127.0.0.1
 //   node servidor/auth-api.js
 //
+// Para os casos de SMS, suba tambem o gateway (na pasta front:
+// npm run gateway). Sem ele, o caso de envio confere o 503.
+//
 // Rode com:
 //   node servidor/testes-permissoes.js
 //
@@ -18,6 +21,7 @@ const regras = require('./regras');
 
 const API = 'http://localhost:3001';
 const DADOS = 'http://127.0.0.1:3000';
+const GATEWAY = 'http://127.0.0.1:3002';
 
 let total = 0;
 let falhas = 0;
@@ -690,6 +694,81 @@ async function testarApi() {
 
   r = await chamar('DELETE', '/especialidades/1', { token: recepcao });
   verificar('20. excluir especialidade usada por medico', 409, r.status);
+
+  // 21 - SMS (Aula 13): so a recepcao envia, e o numero vem do cadastro
+  const pedidoSms = {
+    tipo: 'lembrete',
+    texto: 'Clyra: lembrete da sua consulta em 25/11 as 14:00.',
+  };
+
+  r = await chamar('POST', '/pacientes/1/sms', { corpo: pedidoSms });
+  verificar('21. POST /pacientes/1/sms sem login', 401, r.status);
+
+  r = await chamar('POST', '/pacientes/1/sms', { token: medico, corpo: pedidoSms });
+  verificar('21. medico envia sms', 403, r.status);
+
+  r = await chamar('POST', '/pacientes/1/sms', { token: paciente, corpo: pedidoSms });
+  verificar('21. paciente envia sms', 403, r.status);
+
+  r = await chamar('POST', '/pacientes/1/sms', {
+    token: recepcao,
+    corpo: { ...pedidoSms, tipo: 'propaganda' },
+  });
+  verificar('21. tipo de aviso invalido', 400, r.status);
+
+  r = await chamar('POST', '/pacientes/1/sms', {
+    token: recepcao,
+    corpo: { ...pedidoSms, texto: 'Clyra: sua sessao de psicologia e amanha.' },
+  });
+  verificar('21. texto com dado de saude', 400, r.status);
+
+  r = await chamar('POST', '/pacientes/1/sms', {
+    token: recepcao,
+    corpo: { ...pedidoSms, texto: 'a'.repeat(307) },
+  });
+  verificar('21. texto que vira 3 mensagens', 400, r.status);
+
+  r = await chamar('POST', '/pacientes/nao-existe/sms', { token: recepcao, corpo: pedidoSms });
+  verificar('21. paciente inexistente', 404, r.status);
+
+  const fixo = await chamar('POST', '/pacientes', {
+    token: recepcao,
+    corpo: { nome: 'Teste Telefone Fixo', telefone: '(16) 3333-4444' },
+  });
+  r = await chamar('POST', `/pacientes/${fixo.dados?.id}/sms`, {
+    token: recepcao,
+    corpo: pedidoSms,
+  });
+  verificar('21. paciente com telefone fixo', 400, r.status);
+
+  // Com o gateway fora do ar a resposta muda, mas nunca pode ser 500.
+  const gatewayNoAr = await fetch(`${GATEWAY}/mensagens`).then(
+    () => true,
+    () => false,
+  );
+
+  r = await chamar('POST', '/pacientes/1/sms', { token: recepcao, corpo: pedidoSms });
+
+  if (gatewayNoAr) {
+    verificar(
+      '21. recepcao envia sms (gateway no ar)',
+      '202 enfileirada',
+      `${r.status} ${r.dados?.status}`,
+    );
+
+    const situacao = await chamar('GET', `/sms/${r.dados?.id}`, { token: recepcao });
+    verificar('21. recepcao confere a entrega', 200, situacao.status);
+    verificar(
+      '21. conferencia nao devolve numero nem texto',
+      true,
+      Boolean(situacao.dados) && !('para' in situacao.dados) && !('texto' in situacao.dados),
+    );
+
+    const doMedico = await chamar('GET', `/sms/${r.dados?.id}`, { token: medico });
+    verificar('21. medico confere a entrega', 403, doMedico.status);
+  } else {
+    verificar('21. recepcao envia sms (gateway fora do ar)', 503, r.status);
+  }
 }
 
 async function main() {

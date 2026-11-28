@@ -31,6 +31,7 @@ import SinaisVitaisScreen from "../screens/SinaisVitaisScreen";
 import CadastrosScreen from "../screens/CadastrosScreen";
 import SincronizarAgendaScreen from "../screens/SincronizarAgendaScreen";
 import HistoricoSincronizacaoScreen from "../screens/HistoricoSincronizacaoScreen";
+import EnviarSmsScreen from "../screens/EnviarSmsScreen";
 import SemAcessoScreen from "../screens/SemAcessoScreen";
 
 import { estaLogado, useUsuario } from "../services/sessao";
@@ -111,6 +112,7 @@ const TELAS = {
     HistoricoSincronizacaoScreen,
     "HistoricoSincronizacao",
   ),
+  EnviarSms: protegida(EnviarSmsScreen, "EnviarSms"),
 };
 
 export default function AppNavigator() {
@@ -266,6 +268,7 @@ export default function AppNavigator() {
             name="HistoricoSincronizacao"
             component={TELAS.HistoricoSincronizacao}
           />
+          <Stack.Screen name="EnviarSms" component={TELAS.EnviarSms} />
         </Stack.Navigator>
       </NavigationContainer>
       <AvisoDeSessao aoEntrar={irParaLogin} />

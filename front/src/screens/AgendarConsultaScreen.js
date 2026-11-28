@@ -525,6 +525,8 @@ export default function AgendarConsultaScreen({ navigation, route }) {
         titulo,
         texto: `${formatarEscolha(data, hora)}.`,
         consultaId: String(consultaSalva.id),
+        // Para o SMS: o paciente nao viu esta tela.
+        pacienteId: String(consultaSalva.pacienteId ?? pacienteId),
       });
       return;
     }
@@ -856,6 +858,21 @@ export default function AgendarConsultaScreen({ navigation, route }) {
               navigation.replace('DetalheConsulta', { consultaId: sucesso.consultaId })
             }
           />
+          {ehRecepcao ? (
+            <Botao
+              titulo="Avisar o paciente por SMS"
+              variante="contorno"
+              icone="message-square"
+              onPress={() =>
+                navigation.navigate('EnviarSms', {
+                  pacienteId: sucesso.pacienteId,
+                  tipo: consulta ? 'remarcacao' : 'confirmacao',
+                  data,
+                  hora,
+                })
+              }
+            />
+          ) : null}
           {consulta ? (
             <Botao titulo="Voltar" variante="contorno" onPress={() => navigation.goBack()} />
           ) : (

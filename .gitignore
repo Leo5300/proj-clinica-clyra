@@ -2,3 +2,6 @@ CLAUDE.md
 AGENTS.md
 .claude/
 .github/PR_BODY.md
+
+# Credenciais do gateway de SMS (o modelo, sem segredo, e servidor/.env.exemplo)
+servidor/.env
